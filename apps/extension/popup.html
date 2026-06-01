@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <style>
+      :root {
+        --navy: #0b1426;
+        --navy-500: #34508f;
+        --navy-400: #4f6bb7;
+        --electric: #0a74f0;
+        --bg: #f7f9fc;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        width: 360px;
+        font-family: Inter, system-ui, -apple-system, sans-serif;
+        color: var(--navy);
+        background: var(--bg);
+      }
+      header {
+        display: flex; align-items: center; gap: 8px;
+        padding: 14px 16px; background: #fff; border-bottom: 1px solid #e8ecf6;
+      }
+      .logo { width: 26px; height: 26px; border-radius: 7px;
+        background: linear-gradient(135deg, #3392ff, #8f6cff, #1fbef0); }
+      .brand { font-weight: 800; letter-spacing: -0.02em; }
+      main { padding: 16px; }
+      .site { font-size: 13px; color: var(--navy-400); margin-bottom: 4px; }
+      .badge { display: inline-block; padding: 3px 10px; border-radius: 999px;
+        font-size: 12px; font-weight: 600; margin-bottom: 14px; }
+      .badge.ok { background: #dcfce7; color: #166534; }
+      .badge.no { background: #f1f5f9; color: #64748b; }
+      button.primary {
+        width: 100%; height: 44px; border: 0; border-radius: 10px;
+        background: var(--electric); color: #fff; font-weight: 700; font-size: 14px;
+        cursor: pointer; transition: background 0.15s;
+      }
+      button.primary:hover { background: #085cc0; }
+      button.primary:disabled { background: #cbd5e1; cursor: not-allowed; }
+      .ghost { width: 100%; height: 40px; margin-top: 8px; border: 1px solid #cbd5e1;
+        background: #fff; border-radius: 10px; font-weight: 600; cursor: pointer; }
+      .row { display: flex; justify-content: space-between; align-items: center;
+        font-size: 13px; color: var(--navy-500); margin-top: 12px; }
+      .hidden { display: none; }
+      .status { margin-top: 12px; font-size: 13px; color: var(--navy-500); min-height: 18px; }
+      a { color: var(--electric); text-decoration: none; }
+      .login { text-align: center; padding: 8px 0; }
+      .login p { color: var(--navy-500); font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="logo"></span>
+      <span class="brand">Aplico<span style="color: var(--electric)">CV</span></span>
+    </header>
+    <main>
+      <!-- Logged-out -->
+      <div id="login-view" class="login hidden">
+        <p>Sign in to your AplicoCV account to autofill applications.</p>
+        <button class="primary" id="open-login">Open AplicoCV</button>
+      </div>
+
+      <!-- Logged-in -->
+      <div id="main-view" class="hidden">
+        <div class="site" id="site-domain">—</div>
+        <span class="badge no" id="compat">Checking…</span>
+        <button class="primary" id="autofill" disabled>Autofill this form</button>
+        <div class="status" id="status"></div>
+        <div class="row">
+          <a href="#" id="open-dashboard">Dashboard ↗</a>
+          <a href="#" id="logout">Sign out</a>
+        </div>
+      </div>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

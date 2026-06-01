@@ -1,0 +1,61 @@
+{
+  "manifest_version": 3,
+  "name": "AplicoCV — One-click job applications",
+  "version": "0.1.0",
+  "description": "Autofill job application forms across major portals with your AplicoCV profile.",
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "AplicoCV"
+  },
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "http://localhost:5173/*",
+    "https://*.linkedin.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.indeed.com/*",
+    "https://*.getonbrd.com/*",
+    "https://*.computrabajo.com/*",
+    "https://*.glassdoor.com/*",
+    "https://*.bumeran.com/*",
+    "https://*.zonajobs.com/*",
+    "https://*.laborum.com/*",
+    "https://*.konzerta.com/*",
+    "https://remoteok.com/*",
+    "https://weworkremotely.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.linkedin.com/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.indeed.com/*",
+        "https://*.getonbrd.com/*",
+        "https://*.computrabajo.com/*",
+        "https://*.glassdoor.com/*",
+        "https://*.bumeran.com/*",
+        "https://*.zonajobs.com/*",
+        "https://*.laborum.com/*",
+        "https://*.konzerta.com/*",
+        "https://remoteok.com/*",
+        "https://weworkremotely.com/*"
+      ],
+      "js": ["content-script.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["http://localhost:5173/*", "https://*.aplicocv.com/*"],
+      "js": ["bridge.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}
