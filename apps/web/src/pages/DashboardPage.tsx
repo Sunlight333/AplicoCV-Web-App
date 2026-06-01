@@ -1,0 +1,165 @@
+import { useQuery } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
+import { PageTransition } from '@/components/PageTransition'
+import { Card, HoverCard } from '@/components/ui/Card'
+import { Badge } from '@/components/ui/Badge'
+import { Skeleton } from '@/components/ui/Skeleton'
+import { AtsRing } from '@/components/AtsRing'
+import { useCountUp } from '@/hooks/useCountUp'
+import { useAuth } from '@/auth/AuthContext'
+import { getStats, getRecommendations } from '@/services/dashboard'
+import { listApplications } from '@/services/applications'
+import { statusMeta } from './tracking/statusMeta'
+import { useT } from '@/i18n/I18nProvider'
+
+function StatCard({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
+  const animated = useCountUp(value)
+  const display = Number.isInteger(value) ? Math.round(animated) : animated.toFixed(1)
+  return (
+    <Card className="p-5">
+      <p className="text-sm text-navy-400">{label}</p>
+      <p className="mt-2 text-3xl font-extrabold text-navy-900 tabular-nums">
+        {display}
+        {suffix}
+      </p>
+    </Card>
+  )
+}
+
+export default function DashboardPage() {
+  const { user } = useAuth()
+  const t = useT()
+  const td = t.app.dashboard
+
+  const stats = useQuery({ queryKey: ['stats'], queryFn: getStats })
+  const recent = useQuery({
+    queryKey: ['applications', 'recent'],
+    queryFn: () => listApplications(),
+  })
+  const recs = useQuery({ queryKey: ['recommendations'], queryFn: getRecommendations })
+
+  return (
+    <PageTransition>
+      <h1 className="text-2xl font-bold text-navy-900">
+        {td.welcome(user?.fullName.split(' ')[0] ?? '')}
+      </h1>
+      <p className="mt-1 text-navy-500">{td.subtitle}</p>
+
+      {/* Stats row */}
+      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {stats.isLoading || !stats.data ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <Card key={i} className="p-5">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="mt-3 h-8 w-16" />
+            </Card>
+          ))
+        ) : (
+          <>
+            <StatCard label={td.totalApplications} value={stats.data.totalApplications} />
+            <StatCard label={td.responseRate} value={Math.round(stats.data.responseRate * 100)} suffix="%" />
+            <StatCard label={td.interviews} value={stats.data.interviews} />
+            <StatCard label={td.hoursSaved} value={Math.round(stats.data.minutesSaved / 60)} suffix="h" />
+          </>
+        )}
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        {/* Recent applications */}
+        <Card className="p-5 lg:col-span-2">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-navy-900">{td.recentApplications}</h2>
+            <Link to="/applications" className="text-sm font-medium text-electric-600 hover:underline">
+              {td.viewAll}
+            </Link>
+          </div>
+          <div className="mt-4 divide-y divide-navy-100">
+            {recent.isLoading || !recent.data
+              ? Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="flex items-center gap-3 py-3">
+                    <Skeleton className="h-10 w-10 rounded-lg" />
+                    <div className="flex-1">
+                      <Skeleton className="h-4 w-40" />
+                      <Skeleton className="mt-2 h-3 w-24" />
+                    </div>
+                  </div>
+                ))
+              : recent.data.slice(0, 5).map((app) => (
+                  <div key={app.id} className="flex items-center gap-3 py-3">
+                    <div className="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-navy-100 text-sm font-bold text-navy-600">
+                      {app.company[0]}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-navy-900">{app.jobTitle}</p>
+                      <p className="truncate text-xs text-navy-400">
+                        {app.company} · {app.portal}
+                      </p>
+                    </div>
+                    <Badge tone={statusMeta(t, app.status).tone}>{statusMeta(t, app.status).label}</Badge>
+                  </div>
+                ))}
+          </div>
+        </Card>
+
+        {/* ATS snapshot */}
+        <Card className="flex flex-col items-center justify-center p-5">
+          <h2 className="self-start font-semibold text-navy-900">{td.latestAts}</h2>
+          <div className="my-4">
+            <AtsRing score={82} />
+          </div>
+          <p className="text-center text-sm text-navy-500">{td.atsStrong}</p>
+          <Link
+            to="/applications"
+            className="mt-3 text-sm font-medium text-electric-600 hover:underline"
+          >
+            {td.analyzeNew}
+          </Link>
+        </Card>
+      </div>
+
+      {/* Recommendations */}
+      <div className="mt-6">
+        <div className="flex items-center gap-2">
+          <h2 className="font-semibold text-navy-900">{td.recommended}</h2>
+          <Badge tone="info">{td.betaAgent}</Badge>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-3">
+          {recs.isLoading || !recs.data
+            ? Array.from({ length: 3 }).map((_, i) => (
+                <Card key={i} className="p-5">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="mt-2 h-3 w-24" />
+                  <Skeleton className="mt-4 h-8 w-full" />
+                </Card>
+              ))
+            : recs.data.map((rec) => (
+                <HoverCard key={rec.id} className="flex flex-col p-5">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="font-semibold text-navy-900">{rec.jobTitle}</p>
+                      <p className="text-sm text-navy-400">
+                        {rec.company} · {rec.portal}
+                      </p>
+                    </div>
+                    <Badge tone={rec.matchScore > 80 ? 'success' : 'info'}>{rec.matchScore}%</Badge>
+                  </div>
+                  {rec.strategicNote && (
+                    <p className="mt-3 rounded-lg bg-navy-50 p-3 text-xs text-navy-500">
+                      💡 {rec.strategicNote}
+                    </p>
+                  )}
+                  <a
+                    href={rec.jobUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-electric-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-electric-600"
+                  >
+                    {td.goApply}
+                  </a>
+                </HoverCard>
+              ))}
+        </div>
+      </div>
+    </PageTransition>
+  )
+}

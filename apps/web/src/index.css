@@ -1,0 +1,97 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-white text-navy-900 font-sans;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-electric-400 ring-offset-2 ring-offset-white;
+  }
+  /* Respect the OS reduced-motion setting globally. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .skeleton {
+    @apply relative overflow-hidden bg-navy-100/70 rounded-md;
+  }
+  .skeleton::after {
+    content: '';
+    @apply absolute inset-0 -translate-x-full;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.55),
+      transparent
+    );
+    animation: shimmer 1.4s infinite;
+  }
+  @keyframes shimmer {
+    100% {
+      transform: translateX(100%);
+    }
+  }
+
+  /* Animated gradient mesh used behind the landing hero. */
+  .gradient-mesh {
+    background:
+      radial-gradient(at 20% 20%, rgba(51, 146, 255, 0.18) 0px, transparent 50%),
+      radial-gradient(at 80% 10%, rgba(40, 62, 112, 0.22) 0px, transparent 50%),
+      radial-gradient(at 75% 75%, rgba(51, 146, 255, 0.14) 0px, transparent 50%),
+      radial-gradient(at 25% 85%, rgba(11, 20, 38, 0.10) 0px, transparent 50%);
+    background-size: 180% 180%;
+    @apply animate-gradient-mesh;
+  }
+
+  /* Animated brand gradient text. */
+  .text-gradient {
+    @apply bg-brand-gradient bg-clip-text text-transparent;
+    background-size: 200% auto;
+    @apply animate-gradient-pan;
+  }
+
+  /* Frosted-glass surface for cards floating over the aurora. */
+  .glass {
+    @apply border border-white/60 bg-white/70 backdrop-blur-xl;
+  }
+
+  /* Subtle dotted grid background pattern. */
+  .grid-pattern {
+    background-image: radial-gradient(rgba(11, 20, 38, 0.06) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  /* Gradient ring/border via a masked pseudo-element. */
+  .gradient-ring {
+    position: relative;
+  }
+  .gradient-ring::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(120deg, #3392ff, #8f6cff, #1fbef0);
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
