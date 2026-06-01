@@ -1098,8 +1098,8 @@ export const ptBR: Dictionary = {
 export const dictionaries = { en, es, 'pt-BR': ptBR } as const
 export type Locale = keyof typeof dictionaries
 
-export const localeMeta: Record<Locale, { label: string; flag: string; short: string }> = {
-  en: { label: 'English', flag: '🇺🇸', short: 'EN' },
-  es: { label: 'Español', flag: '🇪🇸', short: 'ES' },
-  'pt-BR': { label: 'Português (BR)', flag: '🇧🇷', short: 'PT' },
+export const localeMeta: Record<Locale, { label: string; short: string }> = {
+  en: { label: 'English', short: 'EN' },
+  es: { label: 'Español', short: 'ES' },
+  'pt-BR': { label: 'Português (BR)', short: 'PT' },
 }

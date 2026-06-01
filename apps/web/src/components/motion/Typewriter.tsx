@@ -4,8 +4,10 @@ import { cn } from '@/lib/cn'
 
 /**
  * Cycles through a list of words with a type/erase effect. To prevent any layout
- * shift ("shaking"), an invisible sizer renders the longest phrase so the box
- * reserves a fixed width and height; the animated text is overlaid absolutely.
+ * shift ("shaking"), an invisible sizer renders the longest phrase and the live
+ * text is stacked on top of it in the SAME CSS grid cell. Both stay in normal
+ * flow (no absolute positioning) so an ancestor's gradient `background-clip: text`
+ * still clips to the visible glyphs — otherwise the text renders invisible.
  */
 export function Typewriter({
   words,
@@ -51,15 +53,16 @@ export function Typewriter({
   }, [text, phase, index, words, reduced, typeMs, eraseMs, holdMs])
 
   return (
-    <span className={cn('relative inline-block whitespace-pre-wrap text-left align-top', className)}>
-      {/* Invisible sizer reserves space for the longest phrase → no layout shift. */}
-      <span aria-hidden className="invisible">
+    <span className={cn('grid text-left', className)}>
+      {/* Sizer: reserves space for the longest phrase so the box never resizes. */}
+      <span aria-hidden className="invisible col-start-1 row-start-1 whitespace-pre-wrap">
         {longest}
       </span>
-      <span className="absolute inset-0">
+      {/* Live text: same grid cell, in normal flow → inherits gradient clip. */}
+      <span className="col-start-1 row-start-1 whitespace-pre-wrap">
         {text}
         <span
-          className="ml-0.5 inline-block w-[3px] animate-pulse bg-current align-middle"
+          className="ml-0.5 inline-block w-[3px] animate-pulse bg-electric-500 align-middle"
           style={{ height: '0.85em' }}
         />
       </span>

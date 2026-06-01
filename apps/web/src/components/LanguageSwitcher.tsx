@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { useI18n } from '@/i18n/I18nProvider'
 import { localeMeta, type Locale } from '@/i18n/dictionaries'
+import { FlagIcon } from '@/components/FlagIcon'
 import { cn } from '@/lib/cn'
 
 /**
@@ -47,7 +48,7 @@ export function LanguageSwitcher({
         aria-haspopup="listbox"
         aria-expanded={open}
       >
-        <span className="text-base leading-none">{current.flag}</span>
+        <FlagIcon locale={locale} />
         <span>{current.short}</span>
         <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 opacity-60" fill="none" stroke="currentColor" strokeWidth={2.5}>
           <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
@@ -84,7 +85,7 @@ export function LanguageSwitcher({
                       active ? 'bg-electric-50 font-semibold text-electric-700' : 'text-navy-600 hover:bg-navy-50',
                     )}
                   >
-                    <span className="text-base leading-none">{meta.flag}</span>
+                    <FlagIcon locale={l} />
                     <span className="flex-1 text-left">{meta.label}</span>
                     {active && (
                       <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.5}>
