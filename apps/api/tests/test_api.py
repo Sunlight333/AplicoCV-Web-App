@@ -90,6 +90,28 @@ async def test_applications_crud_and_stats(auth_client):
     assert stats.json()["interviews"] == 1
 
 
+async def test_application_filters(auth_client):
+    """Regression: the frontend sends ?status= and ?portal=; both must filter."""
+    for url, portal, st in [
+        ("https://a/1", "LinkedIn", "applied"),
+        ("https://a/2", "Workday", "interview"),
+    ]:
+        created = await auth_client.post(
+            "/api/applications",
+            json={"jobUrl": url, "portal": portal, "jobTitle": "Eng", "company": "Acme"},
+        )
+        await auth_client.patch(f"/api/applications/{created.json()['id']}/status", json={"status": st})
+
+    all_apps = await auth_client.get("/api/applications")
+    assert len(all_apps.json()) == 2
+
+    by_status = await auth_client.get("/api/applications?status=interview")
+    assert [a["status"] for a in by_status.json()] == ["interview"]
+
+    by_portal = await auth_client.get("/api/applications?portal=LinkedIn")
+    assert [a["portal"] for a in by_portal.json()] == ["LinkedIn"]
+
+
 async def test_ats_score(auth_client):
     await auth_client.patch("/api/profiles/me/skills", json={"skills": ["react", "typescript"]})
     res = await auth_client.post(

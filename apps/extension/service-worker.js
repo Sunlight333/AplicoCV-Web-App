@@ -15,6 +15,8 @@ const SUPPORTED = [
   { name: 'Zonajobs', match: /zonajobs\./ },
   { name: 'Laborum', match: /laborum\./ },
   { name: 'Konzerta', match: /konzerta\./ },
+  { name: 'Trabajando.com', match: /trabajando\.com/ },
+  { name: 'WeRemoto', match: /weremoto\.com/ },
   { name: 'RemoteOK', match: /remoteok\.com/ },
   { name: 'We Work Remotely', match: /weworkremotely\.com/ },
 ]

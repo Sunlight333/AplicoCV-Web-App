@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -37,7 +37,9 @@ def _out(a: Application) -> ApplicationOut:
 @router.get("", response_model=list[ApplicationOut])
 async def list_applications(
     portal: str | None = None,
-    status_filter: str | None = None,
+    # The frontend sends `?status=`; expose the query key as "status" (the param
+    # is named status_filter to avoid shadowing the imported `status` module).
+    status_filter: str | None = Query(default=None, alias="status"),
     search: str | None = None,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
