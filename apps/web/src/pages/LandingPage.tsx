@@ -11,7 +11,6 @@ import { ScrollProgress } from '@/components/motion/ScrollProgress'
 import { Typewriter } from '@/components/motion/Typewriter'
 import { useCountUp } from '@/hooks/useCountUp'
 import { useT } from '@/i18n/I18nProvider'
-import { HeroMockup } from './landing/HeroMockup'
 import { Testimonials } from './landing/Testimonials'
 import { Faq } from './landing/Faq'
 import { Footer } from './landing/Footer'
@@ -24,13 +23,14 @@ const portals = [
   'We Work Remotely', 'WeRemoto', 'Konzerta',
 ]
 
+// 3D rendered feature icons (generated, brand-gradient). Order matches t.features.items.
 const featureIcons = [
-  'M5 13l4 4L19 7',
-  'M4 7h16M4 12h10M4 17h7',
-  'M3 12a9 9 0 1018 0 9 9 0 00-18 0zM12 7v5l3 2',
-  'M4 4h16v16H4zM4 9h16',
-  'M4 6h6v12H4zM14 6h6v8h-6z',
-  'M12 3a4 4 0 014 4v1a4 4 0 01-8 0V7a4 4 0 014-4zM5 21a7 7 0 0114 0',
+  '/features/autofill.png',
+  '/features/tailoring.png',
+  '/features/ats-score.png',
+  '/features/cover-letter.png',
+  '/features/tracking.png',
+  '/features/job-agent.png',
 ]
 
 const stepNumbers = ['01', '02', '03']
@@ -169,9 +169,22 @@ function Hero() {
           </motion.p>
         </div>
 
-        <div className="lg:pl-6">
-          <HeroMockup />
-        </div>
+        <motion.div
+          className="relative lg:pl-6"
+          initial={{ opacity: 0, scale: 0.94, y: 24 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {/* Soft brand glow behind the product shot */}
+          <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-3/4 w-3/4 translate-y-6 rounded-full bg-brand-gradient opacity-20 blur-[90px]" />
+          <motion.img
+            src="/hero/hero-app.png"
+            alt="AplicoCV rellenando una solicitud de empleo automáticamente"
+            className="w-full drop-shadow-2xl"
+            animate={{ y: [0, -12, 0] }}
+            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+        </motion.div>
       </div>
     </section>
   )
@@ -238,11 +251,12 @@ function Features() {
           {t.features.items.map((f, i) => (
             <Reveal key={f.title}>
               <div className="group h-full rounded-2xl border border-navy-100 bg-white p-7 shadow-card transition-shadow hover:shadow-card-hover">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-electric-50 text-electric-600 transition-colors group-hover:bg-brand-gradient group-hover:text-white">
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d={featureIcons[i]} />
-                  </svg>
-                </div>
+                <img
+                  src={featureIcons[i]}
+                  alt=""
+                  className="h-16 w-16 object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-110"
+                  loading="lazy"
+                />
                 <h3 className="mt-5 text-lg font-semibold text-navy-900">{f.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-navy-500">{f.body}</p>
               </div>
