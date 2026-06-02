@@ -3,6 +3,7 @@
 // memory — anything slow goes through the backend and is polled from the page.
 
 import { API_BASE } from './src/config.js'
+import { encrypt, decrypt } from './src/crypto.js'
 
 const SUPPORTED = [
   { name: 'LinkedIn', match: /linkedin\.com/ },
@@ -23,7 +24,12 @@ const SUPPORTED = [
 
 async function getToken() {
   const { authToken } = await chrome.storage.local.get('authToken')
-  return authToken || null
+  if (!authToken) return null
+  try {
+    return await decrypt(authToken)
+  } catch {
+    return null
+  }
 }
 
 async function apiFetch(path, options = {}) {
@@ -51,7 +57,8 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     try {
       switch (msg.type) {
         case 'SET_TOKEN':
-          await chrome.storage.local.set({ authToken: msg.token })
+          // Stored under AES-256-GCM encryption (see src/crypto.js).
+          await chrome.storage.local.set({ authToken: await encrypt(msg.token) })
           sendResponse({ ok: true })
           break
         case 'GET_AUTH': {
