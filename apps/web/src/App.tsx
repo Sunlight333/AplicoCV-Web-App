@@ -12,6 +12,7 @@ const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
 const TrackingPage = lazy(() => import('@/pages/TrackingPage'))
+const AiToolsPage = lazy(() => import('@/pages/AiToolsPage'))
 const CredentialsPage = lazy(() => import('@/pages/CredentialsPage'))
 const BillingPage = lazy(() => import('@/pages/BillingPage'))
 const ExtensionPage = lazy(() => import('@/pages/ExtensionPage'))
@@ -39,6 +40,7 @@ export function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/applications" element={<TrackingPage />} />
+              <Route path="/ai-tools" element={<AiToolsPage />} />
               <Route path="/settings/credentials" element={<CredentialsPage />} />
               <Route path="/settings/billing" element={<BillingPage />} />
               <Route path="/extension" element={<ExtensionPage />} />

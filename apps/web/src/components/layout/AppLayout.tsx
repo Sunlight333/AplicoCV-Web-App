@@ -12,6 +12,7 @@ const navIcons = {
   dashboard: 'M3 12l9-9 9 9M5 10v10h14V10',
   profile: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0',
   applications: 'M4 6h16M4 12h16M4 18h10',
+  aiTools: 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4zM5 17l.8 2 .8-2 2-.8-2-.8L5.8 14l-.8 2-2 .8z',
   extension: 'M4 4h16v16H4zM9 9h6v6H9z',
 }
 
@@ -34,6 +35,7 @@ export function AppLayout() {
     { to: '/dashboard', label: t.app.nav.dashboard, icon: navIcons.dashboard },
     { to: '/profile', label: t.app.nav.profile, icon: navIcons.profile },
     { to: '/applications', label: t.app.nav.applications, icon: navIcons.applications },
+    { to: '/ai-tools', label: t.app.nav.aiTools, icon: navIcons.aiTools },
     { to: '/extension', label: t.app.nav.extension, icon: navIcons.extension },
   ]
   const settingsItems = [

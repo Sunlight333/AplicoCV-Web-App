@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { PageTransition } from '@/components/PageTransition'
 import { Card, HoverCard } from '@/components/ui/Card'
@@ -8,8 +8,10 @@ import { AtsRing } from '@/components/AtsRing'
 import { useCountUp } from '@/hooks/useCountUp'
 import { useAuth } from '@/auth/AuthContext'
 import { getStats, getRecommendations } from '@/services/dashboard'
+import { runAgentScan } from '@/services/ai'
 import { listApplications } from '@/services/applications'
 import { statusMeta } from './tracking/statusMeta'
+import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
 
 function StatCard({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
@@ -30,6 +32,8 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const t = useT()
   const td = t.app.dashboard
+  const qc = useQueryClient()
+  const { toast } = useToast()
 
   const stats = useQuery({ queryKey: ['stats'], queryFn: getStats })
   const recent = useQuery({
@@ -37,6 +41,15 @@ export default function DashboardPage() {
     queryFn: () => listApplications(),
   })
   const recs = useQuery({ queryKey: ['recommendations'], queryFn: getRecommendations })
+
+  const scan = useMutation({
+    mutationFn: runAgentScan,
+    onSuccess: (results) => {
+      qc.setQueryData(['recommendations'], results)
+      toast(td.scanDone(results.length))
+    },
+    onError: () => toast(td.scanError, 'error'),
+  })
 
   return (
     <PageTransition>
@@ -119,9 +132,27 @@ export default function DashboardPage() {
 
       {/* Recommendations */}
       <div className="mt-6">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <h2 className="font-semibold text-navy-900">{td.recommended}</h2>
           <Badge tone="info">{td.betaAgent}</Badge>
+          <button
+            onClick={() => scan.mutate()}
+            disabled={scan.isPending}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-navy-200 px-3 py-1.5 text-sm font-medium text-navy-600 transition-colors hover:bg-navy-100 disabled:opacity-60"
+          >
+            <svg
+              viewBox="0 0 24 24"
+              className={`h-4 w-4 ${scan.isPending ? 'animate-spin' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+            >
+              <path d="M4 12a8 8 0 0114-5.3L20 8M20 12a8 8 0 01-14 5.3L4 16" />
+              <path d="M20 4v4h-4M4 20v-4h4" />
+            </svg>
+            {scan.isPending ? td.scanning : td.findMatches}
+          </button>
         </div>
         <div className="mt-4 grid gap-4 md:grid-cols-3">
           {recs.isLoading || !recs.data
