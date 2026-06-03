@@ -1,188 +1,253 @@
-# Deploying AplicoCV to the Chrome Web Store
+AplicoCV — Chrome Web Store Publishing Guide
 
-A step-by-step guide to publish the AplicoCV extension (`apps/extension`) to the
-Chrome Web Store. Budget **3–7 business days** for Google's review of a new
-extension.
+This guide follows the actual Developer Dashboard screens for the AplicoCV
+extension, in the order they appear in the left-hand menu. Plan for three to
+seven business days of Google review for a new extension.
 
----
+The dashboard groups the screens like this:
 
-## 0. Prerequisites
+  Compilation
+    State
+    Package
+    Play Store Fact Sheet
+    Privacy
+    Distribution
+  Access
+    Test instructions
+  Analysis
+    Installations and removals, Views, Users, Qualification (statistics only)
 
-- A Google account for the developer dashboard.
-- The **one-time US$5** developer registration fee (a payment card).
-- The extension source in `apps/extension/`.
-- The backend reachable over **HTTPS** in production (see the warning in §3).
+You fill in the Compilation and Access screens. The Analysis screens are
+read-only statistics that appear after the extension is published. When every
+required screen is complete, the greyed-out "Send for review" button at the top
+becomes active.
 
----
 
-## 1. Create the developer account
+Before you start
 
-1. Go to the **Chrome Web Store Developer Dashboard**:
-   https://chrome.google.com/webstore/devconsole
-2. Sign in, accept the developer agreement, and pay the **US$5** one-time fee.
-3. (Recommended) Verify a publisher email/group so the listing shows a trusted
-   publisher name.
+  - A Google account, signed in to https://chrome.google.com/webstore/devconsole
+  - The one-time developer registration fee of five US dollars, paid once
+  - The extension folder at apps/extension
+  - The backend reachable over HTTPS (this is now the case: the API is live at
+    https://aplicocv.com/api). Google rejects extensions that call a plain-HTTP
+    or bare-IP backend, so this matters.
 
----
 
-## 2. Pre-flight: get the extension production-ready
+Step 1 — Prepare the extension files for production
 
-### 2a. Point the extension at production
-Edit `apps/extension/src/config.js`:
-```js
-const DEV = false                 // false = use the PROD block below
-const PROD = {
-  API_BASE:    'https://api.aplicocv.com/api',   // your HTTPS backend
-  WEB_APP_URL: 'https://aplicocv.com',
-}
-```
-Then update the production URLs in **two** places in `manifest.json` to match:
-- `host_permissions` — add `"https://api.aplicocv.com/*"` (and the web app origin).
-- the **bridge** content-script `matches` — add `"https://aplicocv.com/*"`.
+Open apps/extension/src/config.js and confirm it points at the live HTTPS
+backend, not localhost:
 
-> The current files use the VPS IP `http://162.243.229.139`. Google **requires
-> HTTPS** for remote hosts and generally rejects bare-IP host permissions, so
-> put the backend behind a domain + TLS first (see §3).
+    const DEV = false
+    const PROD = {
+      API_BASE:    'https://aplicocv.com/api',
+      WEB_APP_URL: 'https://aplicocv.com',
+    }
 
-### 2b. Bump the version
-In `manifest.json`, set `"version"` (e.g. `1.0.0`). Every store update needs a
-higher version than the last published one.
+Open manifest.json and make sure the production origin appears in two places:
 
-### 2c. Replace the placeholder icons
-`icons/icon16.png|icon48.png|icon128.png` are minimal generated marks. Replace
-the 128px with a crisp branded icon (you can export from the generated 3D logo at
-`apps/web/public/brand/logo-3d.png`, flattened on a solid or transparent square).
-The 128px icon is shown prominently in the store.
+  - in "host_permissions", the entry "https://aplicocv.com/*"
+  - in the bridge content script "matches", the entry "https://aplicocv.com/*"
 
-### 2d. Final local test
-1. `chrome://extensions` → enable **Developer mode** → **Load unpacked** →
-   select `apps/extension/`.
-2. Sign in on the web app, open a supported portal, confirm autofill works and
-   no console errors appear in the service worker (`chrome://extensions` →
-   *Inspect views: service worker*).
+Set the "version" in manifest.json (for the first public release, use 1.0.0).
+Every later update must use a higher number than the previous one.
 
----
+Replace the placeholder toolbar icons in apps/extension/icons if you have not
+already. The store also needs a separate 128 by 128 listing icon, which is
+prepared for you at apps/extension/store-icon-128.png.
 
-## 3. ⚠️ HTTPS is required before publishing
 
-The extension talks to the backend with `fetch`. Chrome blocks mixed/insecure
-content and the store review will flag plain-HTTP remote calls. Before
-submitting:
+Step 2 — Test it locally one last time
 
-1. Point a **domain** (e.g. `api.aplicocv.com`) at the VPS `162.243.229.139`.
-2. Issue a TLS cert with **Certbot** on the server:
-   ```bash
-   apt-get install -y certbot python3-certbot-nginx
-   certbot --nginx -d aplicocv.com -d api.aplicocv.com
-   ```
-   Certbot rewrites nginx to listen on 443 and sets up auto-renewal.
-3. Update `config.js` + `manifest.json` to the `https://` URLs (§2a).
+  1. Open chrome://extensions and turn on Developer mode.
+  2. Choose "Load unpacked" and select the apps/extension folder.
+  3. Sign in on the web app so the bridge captures your token.
+  4. Open a supported job portal, click the AplicoCV icon, and run autofill.
+  5. On chrome://extensions, open "Inspect views: service worker" and confirm
+     there are no errors in its console.
 
-(If you don't yet have a domain, you can still privately test via *Load unpacked*,
-but the public store listing should not ship pointing at bare HTTP.)
 
----
+Step 3 — Package the extension as a ZIP
 
-## 4. Package the extension
+The store expects a ZIP whose manifest.json sits at the top level, not inside a
+parent folder. From the apps/extension directory:
 
-The store wants a **ZIP of the extension folder contents** (manifest at the ZIP
-root — not nested inside a parent folder):
+    zip -r ../aplicocv-extension.zip . -x "*.md" -x ".*" -x "*/.DS_Store"
 
-```bash
-cd apps/extension
-zip -r ../aplicocv-extension.zip . \
-  -x "*.md" -x ".*" -x "*/.DS_Store"
-```
+Confirm the manifest is at the root of the archive:
 
-Verify the ZIP has `manifest.json` at its top level:
-```bash
-unzip -l ../aplicocv-extension.zip | head
-```
+    unzip -l ../aplicocv-extension.zip | head
 
----
 
-## 5. Create the store listing
+Step 4 — State screen
 
-In the Developer Dashboard → **Add new item** → upload the ZIP, then fill in the
-**Store listing** tab:
+This screen shows the item name, the draft status, and the item ID. There is
+nothing to fill in here. Use it to confirm you are editing the right item and to
+read the "Why can't I send it?" link, which lists whatever is still missing.
 
-| Field | Guidance |
-| --- | --- |
-| **Name** | AplicoCV — One-click job applications |
-| **Summary** (132 chars) | Autofill job applications across LinkedIn, Workday, Indeed & 11 more — tailored by AI. |
-| **Description** | What it does, supported portals, that it needs a free AplicoCV account. |
-| **Category** | Productivity |
-| **Language** | English (add Spanish/Portuguese listings later for LATAM reach) |
-| **Icon** | 128×128 PNG (from §2c) |
-| **Screenshots** | 1–5 at **1280×800** or 640×400 — show the popup + an autofill in action |
-| **Small promo tile** | 440×280 (optional but recommended) |
 
----
+Step 5 — Package screen
 
-## 6. Privacy & permissions (required, and review-critical)
+This is where you upload the ZIP from Step 3. After it uploads, the dashboard
+reads the manifest and shows the version and the permissions it requests. If the
+upload is rejected, the message almost always points to the manifest version or
+to a permission that needs justifying on the Privacy screen.
 
-This is where most new extensions get delayed. Fill the **Privacy practices** tab
-carefully and truthfully:
 
-- **Single purpose** — one sentence: *"AplicoCV autofills job-application forms
-  using the data in the user's AplicoCV profile."*
-- **Permission justifications** — justify each:
-  - `storage` — cache the encrypted auth token and a short-lived profile copy.
-  - `activeTab` / `scripting` — read and fill form fields on the page the user
-    explicitly triggers autofill on.
-  - `tabs` — detect the active job portal to show compatibility.
-  - **host permissions** — list why each portal domain is needed (to fill that
-    portal's application form).
-- **Remote code** — declare **"No, I am not using remote code"** (all JS ships in
-  the package; you only fetch *data* via your API).
-- **Data usage** — disclose that the extension transmits profile data to your
-  backend to perform autofill; link a **Privacy Policy URL** (required when you
-  handle personal data). Host a privacy policy page (e.g. `aplicocv.com/privacy`).
-- Confirm you **do not sell** user data and use it only for the stated purpose.
+Step 6 — Play Store Fact Sheet screen
 
-> Credential autofill note: the extension stores portal passwords encrypted and
-> decrypts them server-side on demand, always behind an explicit user
-> confirmation. Describe this accurately — handling login credentials draws extra
-> review scrutiny, so transparency speeds approval.
+This is the public product page. Despite the "Play Store" label, it is the
+Chrome Web Store listing. Fill in each field.
 
----
+Title. Already set to: AplicoCV — One-click job applications
 
-## 7. Distribution & submit
+Summary. A short single line, for example: Autofill job application forms across
+major portals with your AplicoCV profile.
 
-1. **Visibility** — Public, Unlisted, or Private. For a first launch, **Unlisted**
-   (anyone with the link, not searchable) is a good way to pilot before going
-   fully Public.
-2. **Regions** — all, or restrict to your launch markets (e.g. LATAM + US).
-3. Click **Submit for review**.
+Description. The longer text that explains what the extension does and why
+someone should install it. Suggested copy:
 
-You'll get an email when it's approved or if changes are requested. New-extension
-review is typically **3–7 business days**.
+    AplicoCV fills out job application forms for you, in one click.
 
----
+    Tired of retyping the same name, email, work history, and skills into every
+    job portal? Upload your CV once to AplicoCV and the AI structures your whole
+    professional profile. From then on, the extension completes application
+    forms across the job sites you already use.
 
-## 8. After approval
+    What it does
+    - One-click autofill on job application forms
+    - Detects fields by label and attribute, even on dynamic sites such as
+      LinkedIn and Workday that load forms after the page
+    - Fills using native input events, so forms built with React or Vue register
+      your data correctly
+    - Shows whether the current site is supported, right in the popup
+    - Optional, always-confirmed login autofill for your saved portal credentials
 
-- The public URL is `https://chrome.google.com/webstore/detail/<your-extension-id>`.
-- Put that link behind the **Extension** page's "Add to Chrome" button — update
-  `CHROME_STORE_URL` in `apps/web/src/pages/ExtensionPage.tsx`.
-- The extension ID is stable across updates; the web app's `bridge.js` handshake
-  keeps working as long as the listed web-app origin matches `WEB_APP_URL`.
+    Supported portals
+    LinkedIn, Workday, Indeed, Glassdoor, Get on Board, Computrabajo, Bumeran,
+    Zonajobs, Laborum, Konzerta, Trabajando.com, WeRemoto, RemoteOK, and We Work
+    Remotely. Other sites fall back to smart field detection.
 
-### Publishing updates
-1. Bump `manifest.json` `"version"`.
-2. Re-zip (§4) and upload a new package to the same item.
-3. Submit — updates usually review faster than the initial submission.
+    Privacy and security
+    Your sign-in token is stored encrypted on your device. Portal passwords are
+    encrypted and only ever decrypted on the server, on demand, and always after
+    you confirm. Your data is used solely to autofill your applications and is
+    never sold.
 
----
+    A free AplicoCV account is required. Sign in once and the extension connects
+    to your profile automatically.
 
-## 9. Pre-submit checklist
+Category. Choose Tools.
 
-- [ ] `DEV = false`; `config.js` + `manifest.json` use **HTTPS** production URLs.
-- [ ] `manifest.json` `version` bumped.
-- [ ] 128px branded icon in place.
-- [ ] Loaded unpacked and autofill verified end-to-end with no console errors.
-- [ ] Privacy Policy URL live and reachable.
-- [ ] Permission justifications written for every permission + host.
-- [ ] "No remote code" declared.
-- [ ] Screenshots (1280×800) and summary prepared.
-- [ ] ZIP has `manifest.json` at the root.
+Language. Choose English (United States). You can add Spanish and Portuguese
+listings later for the LATAM audience.
+
+Graphic resources on this same screen:
+
+  - Chrome Web Store icon, 128 by 128 pixels. Use
+    apps/extension/store-icon-128.png.
+  - Screenshots, at least one, up to five, sized 1280 by 800, saved as 24-bit
+    JPEG or PNG with no transparency. Two ready-to-use captures of the live site
+    are at apps/extension/store-assets.
+  - The promotional video, small promotional image, and marquee image are
+    optional. You can leave them empty.
+
+Additional fields lower on the screen:
+
+  - Official URL. Leave as None for now. Linking it requires verifying domain
+    ownership in Google Search Console, which you can do later.
+  - Homepage URL. Enter https://aplicocv.com
+  - Support URL ("URL of the assistance"). Enter https://aplicocv.com, or a
+    dedicated support page once one exists.
+  - Adult content. Leave this off.
+
+
+Step 7 — Privacy screen
+
+This screen decides most approvals and rejections, so be accurate.
+
+Single purpose. State it in one sentence, for example: AplicoCV autofills job
+application forms using the data in the user's AplicoCV profile.
+
+Permission justifications. Explain why each permission is needed:
+
+  - storage: to cache the encrypted sign-in token and a short-lived copy of the
+    profile
+  - activeTab and scripting: to read and fill form fields on the page where the
+    user triggers autofill
+  - tabs: to detect which job portal is open and show whether it is supported
+  - host permissions: each portal domain is needed to fill that portal's
+    application form
+
+Remote code. Answer that you are NOT using remote code. All JavaScript ships
+inside the package; the extension only fetches data from your API.
+
+Data usage and privacy policy. Disclose that the extension sends profile data to
+your backend in order to perform autofill, and provide a Privacy Policy URL.
+This URL is required because the extension handles personal data. Plan to host
+a policy page, for example at https://aplicocv.com/privacy, before you submit.
+Confirm that you do not sell user data and use it only for the stated purpose.
+
+Because the extension can autofill saved portal passwords, describe that flow
+plainly: passwords are stored encrypted, decrypted only on the server on demand,
+and filled only after the user confirms. Being upfront about credential handling
+speeds review rather than slowing it.
+
+
+Step 8 — Distribution screen
+
+Visibility. For a first launch, Unlisted is a safe choice: anyone with the link
+can install it, but it does not appear in search. You can switch to Public
+later. The "Change visibility here" link on the dashboard opens this same
+setting.
+
+Regions. Choose all regions, or limit to your launch markets such as Latin
+America and the United States.
+
+
+Step 9 — Test instructions screen (under Access)
+
+Reviewers need a working account to test autofill. Provide the demo login and a
+short script, for example:
+
+    Sign in at https://aplicocv.com/login with:
+      email: demo@aplicocv.com
+      password: password123
+    Then open any supported job portal (for example LinkedIn), click the
+    AplicoCV toolbar icon, and press Autofill. The form fields will populate.
+
+
+Step 10 — Send for review
+
+When the State screen and the "Why can't I send it?" link no longer list
+anything missing, the "Send for review" button at the top becomes active. Click
+it. Google emails you when the extension is approved or if changes are
+requested. New-extension review usually takes three to seven business days.
+
+
+After approval
+
+The public address is https://chrome.google.com/webstore/detail/your-extension-id.
+Put that link behind the "Add to Chrome" button on the web app by updating
+CHROME_STORE_URL in apps/web/src/pages/ExtensionPage.tsx. The extension ID stays
+the same across updates, and the web app's token handshake keeps working as long
+as the listed web-app origin matches WEB_APP_URL in config.js.
+
+To publish an update later: raise the version in manifest.json, re-zip as in
+Step 3, upload the new package to the same item, and submit again. Updates are
+usually reviewed faster than the first submission.
+
+
+Quick checklist before submitting
+
+  - config.js has DEV set to false and uses the HTTPS production URLs
+  - manifest.json version raised, production origin present in host_permissions
+    and in the bridge matches
+  - 128 by 128 listing icon uploaded
+  - at least one 1280 by 800 screenshot uploaded, with no transparency
+  - description, category (Tools), and language filled in
+  - Homepage and Support URLs entered
+  - Privacy Policy URL live and reachable
+  - permission justifications written, remote code answered No
+  - test instructions include the demo login
+  - loaded unpacked and verified autofill works with no service-worker errors
