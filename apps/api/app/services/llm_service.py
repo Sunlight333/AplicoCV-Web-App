@@ -36,13 +36,13 @@ def _tokens(text: str) -> set[str]:
 
 async def extract_profile(text: str) -> dict[str, Any]:
     """Extract a structured profile from raw CV text."""
-    if settings.llm_provider == "stub":
+    if settings.resolved_llm_provider == "stub":
         return _stub_extract_profile(text)
     return await _real_extract_profile(text)
 
 
 async def score_ats_match(job_description: str, profile: dict[str, Any]) -> dict[str, Any]:
-    if settings.llm_provider == "stub":
+    if settings.resolved_llm_provider == "stub":
         return _stub_ats(job_description, profile)
     return await _real_ats(job_description, profile)
 
@@ -50,13 +50,13 @@ async def score_ats_match(job_description: str, profile: dict[str, Any]) -> dict
 async def generate_cover_letter(
     job_description: str, profile: dict[str, Any], tone: str
 ) -> str:
-    if settings.llm_provider == "stub":
+    if settings.resolved_llm_provider == "stub":
         return _stub_cover_letter(job_description, profile, tone)
     return await _real_cover_letter(job_description, profile, tone)
 
 
 async def tailor_profile(job_description: str, profile: dict[str, Any]) -> dict[str, Any]:
-    if settings.llm_provider == "stub":
+    if settings.resolved_llm_provider == "stub":
         return _stub_tailor(job_description, profile)
     return await _real_tailor(job_description, profile)
 
@@ -157,24 +157,140 @@ def _stub_tailor(job_description: str, profile: dict[str, Any]) -> dict[str, Any
     return tailored
 
 
-# --- Real provider stubs ------------------------------------------------------
-# These share signatures with the stubs. Implement when keys are configured.
+# --- Real providers -----------------------------------------------------------
+# Activated automatically when OPENAI_API_KEY or ANTHROPIC_API_KEY is set (see
+# settings.resolved_llm_provider). They share signatures with the stubs and fall
+# back to the stub if a provider call fails, so a bad key never breaks the app.
+
+import json
+
+import httpx
 
 
-async def _real_extract_profile(text: str) -> dict[str, Any]:  # pragma: no cover
-    raise NotImplementedError("Configure llm_provider + API key to enable real extraction")
+async def _chat_json(system: str, user: str) -> dict[str, Any]:
+    """Call the configured provider and return a parsed JSON object."""
+    provider = settings.resolved_llm_provider
+    if provider == "openai":
+        async with httpx.AsyncClient(timeout=45) as client:
+            res = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                json={
+                    "model": settings.openai_model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                    "response_format": {"type": "json_object"},
+                },
+            )
+            res.raise_for_status()
+            return json.loads(res.json()["choices"][0]["message"]["content"])
+    # anthropic
+    async with httpx.AsyncClient(timeout=45) as client:
+        res = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": settings.anthropic_api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": settings.anthropic_model,
+                "max_tokens": 2048,
+                "system": system + " Respond with a single valid JSON object only.",
+                "messages": [{"role": "user", "content": user}],
+            },
+        )
+        res.raise_for_status()
+        text = res.json()["content"][0]["text"]
+        start, end = text.find("{"), text.rfind("}")
+        return json.loads(text[start : end + 1])
 
 
-async def _real_ats(job_description: str, profile: dict[str, Any]) -> dict[str, Any]:  # pragma: no cover
-    raise NotImplementedError
+async def _chat_text(system: str, user: str) -> str:
+    provider = settings.resolved_llm_provider
+    if provider == "openai":
+        async with httpx.AsyncClient(timeout=45) as client:
+            res = await client.post(
+                "https://api.openai.com/v1/chat/completions",
+                headers={"Authorization": f"Bearer {settings.openai_api_key}"},
+                json={
+                    "model": settings.openai_model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": user},
+                    ],
+                },
+            )
+            res.raise_for_status()
+            return res.json()["choices"][0]["message"]["content"]
+    async with httpx.AsyncClient(timeout=45) as client:
+        res = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": settings.anthropic_api_key,
+                "anthropic-version": "2023-06-01",
+            },
+            json={
+                "model": settings.anthropic_model,
+                "max_tokens": 1024,
+                "system": system,
+                "messages": [{"role": "user", "content": user}],
+            },
+        )
+        res.raise_for_status()
+        return res.json()["content"][0]["text"]
 
 
-async def _real_cover_letter(jd: str, profile: dict[str, Any], tone: str) -> str:  # pragma: no cover
-    raise NotImplementedError
+async def _real_extract_profile(text: str) -> dict[str, Any]:
+    try:
+        return await _chat_json(
+            "You extract a structured CV profile. Return JSON matching this shape: "
+            '{personal:{fullName,headline,email,phone,location,summary}, experience:'
+            "[{id,employer,title,startDate,endDate,location,bullets[]}], education:"
+            "[{id,institution,degree,field,startDate,endDate}], skills[], languages:"
+            "[{id,language,level}], links:[{id,label,url}], complementary:{}, version:1}.",
+            f"CV text:\n{text[:8000]}",
+        )
+    except Exception:
+        return _stub_extract_profile(text)
 
 
-async def _real_tailor(jd: str, profile: dict[str, Any]) -> dict[str, Any]:  # pragma: no cover
-    raise NotImplementedError
+async def _real_ats(job_description: str, profile: dict[str, Any]) -> dict[str, Any]:
+    try:
+        return await _chat_json(
+            "You are an ATS scorer. Return JSON: {matchScore:int 0-100, matchedKeywords[],"
+            " missingKeywords[], qualification:'underqualified'|'strong match'|'overqualified',"
+            " recommendations[3]}.",
+            f"Job description:\n{job_description[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
+        )
+    except Exception:
+        return _stub_ats(job_description, profile)
+
+
+async def _real_cover_letter(jd: str, profile: dict[str, Any], tone: str) -> str:
+    try:
+        return await _chat_text(
+            f"Write a focused 250-350 word cover letter in a {tone} tone. Avoid generic "
+            "openers. Use only facts from the profile.",
+            f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
+        )
+    except Exception:
+        return _stub_cover_letter(jd, profile, tone)
+
+
+async def _real_tailor(jd: str, profile: dict[str, Any]) -> dict[str, Any]:
+    try:
+        result = await _chat_json(
+            "Tailor this profile to the job: reorder experience bullets to surface the most "
+            "relevant first, add truthful ATS keywords, keep the same JSON profile shape, and "
+            "increment 'version'. Never invent experience.",
+            f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
+        )
+        result.setdefault("version", profile.get("version", 1) + 1)
+        return result
+    except Exception:
+        return _stub_tailor(jd, profile)
 
 
 def _cache_key(*parts: str) -> str:

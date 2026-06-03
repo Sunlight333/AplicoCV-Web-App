@@ -4,6 +4,8 @@ interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string
   readonly VITE_USE_MOCKS: string
   readonly VITE_GOOGLE_OAUTH_URL: string
+  readonly VITE_STRIPE_PUBLISHABLE_KEY: string
+  readonly VITE_SENTRY_DSN: string
 }
 
 interface ImportMeta {

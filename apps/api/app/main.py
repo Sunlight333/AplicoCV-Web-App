@@ -66,5 +66,17 @@ for r in (
 
 
 @app.get("/api/health", tags=["health"])
-async def health() -> dict[str, str]:
-    return {"status": "ok", "llm_provider": settings.llm_provider}
+async def health() -> dict[str, object]:
+    """Report status and which integrations are active (which keys are present)."""
+    return {
+        "status": "ok",
+        "environment": settings.environment,
+        "integrations": {
+            "llm": settings.resolved_llm_provider,
+            "stripe": settings.stripe_enabled,
+            "google_oauth": settings.google_oauth_enabled,
+            "storage": settings.storage_provider if settings.storage_enabled else "local",
+            "email": settings.email_provider if settings.email_enabled else "console",
+            "sentry": bool(settings.sentry_dsn),
+        },
+    }
