@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_db
 from app.deps import get_current_user, get_user_by_email
 from app.models import Profile, User
+from app.services import email_service
 from app.schemas import (
     AuthResponse,
     JobPreferences,
@@ -54,7 +55,10 @@ def _set_refresh_cookie(response: Response, user_id: str) -> None:
 
 @router.post("/register", response_model=AuthResponse)
 async def register(
-    body: RegisterInput, response: Response, db: AsyncSession = Depends(get_db)
+    body: RegisterInput,
+    response: Response,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
 ) -> AuthResponse:
     if await get_user_by_email(db, body.email):
         raise HTTPException(status.HTTP_409_CONFLICT, detail="Email already registered")
@@ -70,6 +74,9 @@ async def register(
     await db.commit()
     await db.refresh(user)
     _set_refresh_cookie(response, user.id)
+    # Welcome email — fired in the background so it never delays the response.
+    subject, html = email_service.welcome_email(user.full_name)
+    background.add_task(email_service.send, user.email, subject, html)
     return AuthResponse(accessToken=create_access_token(user.id), user=_user_out(user))
 
 
