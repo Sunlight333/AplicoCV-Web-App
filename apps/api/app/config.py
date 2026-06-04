@@ -129,7 +129,15 @@ class Settings(BaseSettings):
 
     @property
     def storage_enabled(self) -> bool:
-        return self.storage_provider in ("s3", "r2") and bool(self.s3_bucket)
+        # Require the bucket AND credentials so a half-configured S3/R2 block
+        # (provider+bucket set, keys still blank) safely falls back to local
+        # storage instead of failing every upload.
+        return (
+            self.storage_provider in ("s3", "r2")
+            and bool(self.s3_bucket)
+            and bool(self.s3_access_key_id)
+            and bool(self.s3_secret_access_key)
+        )
 
     @property
     def email_enabled(self) -> bool:
