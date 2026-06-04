@@ -2,7 +2,7 @@
 // the active-tab portal detection. It does NOT keep long operations alive in
 // memory — anything slow goes through the backend and is polled from the page.
 
-import { API_BASE } from './src/config.js'
+import { API_BASE, POLL_INTERVAL_MS } from './src/config.js'
 import { encrypt, decrypt } from './src/crypto.js'
 
 const SUPPORTED = [
@@ -51,6 +51,43 @@ function detectPortal(url) {
   return SUPPORTED.find((p) => p.match.test(url)) || null
 }
 
+// Portal selector maps come from the backend (GET /portals/configs) and are
+// cached for an hour so they can be updated server-side without an extension
+// release. Falls back to the last cached copy if the network is unavailable.
+const CONFIG_TTL_MS = 60 * 60 * 1000
+
+async function getPortalConfigs() {
+  const { portalConfigs } = await chrome.storage.local.get('portalConfigs')
+  if (portalConfigs && Date.now() - portalConfigs.ts < CONFIG_TTL_MS) return portalConfigs.data
+  try {
+    const data = await apiFetch('/portals/configs')
+    await chrome.storage.local.set({ portalConfigs: { ts: Date.now(), data } })
+    return data
+  } catch {
+    return portalConfigs?.data || []
+  }
+}
+
+async function getPortalConfig(url) {
+  const portal = detectPortal(url)
+  if (!portal) return null
+  const configs = await getPortalConfigs()
+  return configs.find((c) => c.name === portal.name) || null
+}
+
+// MV3 resilience: long backend work returns an Operation id which we poll until
+// it resolves, instead of holding a single long-lived request open (the worker
+// can be terminated after ~30s of inactivity). See GET /operations/{id}/result.
+async function pollOperation(opId, { tries = 40 } = {}) {
+  for (let i = 0; i < tries; i++) {
+    const op = await apiFetch(`/operations/${opId}/result`)
+    if (op.status === 'completed') return op.result
+    if (op.status === 'error') throw new Error(op.result?.error || 'operation failed')
+    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
+  }
+  throw new Error('operation timed out')
+}
+
 // Message router for popup + content/bridge scripts.
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
   ;(async () => {
@@ -81,7 +118,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
         case 'DETECT_PORTAL': {
           const portal = detectPortal(msg.url)
-          sendResponse({ portal: portal?.name ?? null, supported: !!portal })
+          if (!portal) {
+            sendResponse({ supported: false, level: 'none', portal: null, selectors: {} })
+            break
+          }
+          // Tri-state: a known portal WITH a selector map is "full"; a known
+          // portal without one falls back to generic matching ("partial").
+          let selectors = {}
+          let quirks = null
+          try {
+            const cfg = await getPortalConfig(msg.url)
+            selectors = cfg?.selectors || {}
+            quirks = cfg?.quirks || null
+          } catch {
+            /* offline → generic matching still works */
+          }
+          const level = Object.keys(selectors).length ? 'full' : 'partial'
+          sendResponse({ supported: true, level, portal: portal.name, selectors, quirks })
           break
         }
         case 'TRACK_APPLICATION':
@@ -97,6 +150,28 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
             body: JSON.stringify({ jobDescription: msg.jobDescription }),
           })
           sendResponse({ result })
+          break
+        }
+        case 'COVER_LETTER': {
+          const result = await apiFetch('/cover-letters/generate', {
+            method: 'POST',
+            body: JSON.stringify({
+              jobDescription: msg.jobDescription,
+              tone: msg.tone || 'professional',
+            }),
+          })
+          sendResponse({ text: result.text })
+          break
+        }
+        case 'TAILOR_FOR_URL': {
+          // Phase 5 Real Auto-Tailoring. Returns immediately if a tailored
+          // version is cached; otherwise the backend runs it as a job and we
+          // poll the operation so a terminated worker can't drop the result.
+          const op = await apiFetch(
+            `/profiles/tailor-for-url?url=${encodeURIComponent(msg.url)}`,
+          )
+          const profile = op.status === 'completed' ? op.result : await pollOperation(op.id)
+          sendResponse({ profile })
           break
         }
         case 'DECRYPT_CREDENTIAL': {

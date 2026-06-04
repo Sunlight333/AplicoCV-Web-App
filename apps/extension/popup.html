@@ -8,6 +8,7 @@
         --navy: #0b1426;
         --navy-500: #34508f;
         --navy-400: #4f6bb7;
+        --navy-300: #8499c4;
         --electric: #0a74f0;
         --bg: #f7f9fc;
       }
@@ -32,6 +33,7 @@
       .badge { display: inline-block; padding: 3px 10px; border-radius: 999px;
         font-size: 12px; font-weight: 600; margin-bottom: 14px; }
       .badge.ok { background: #dcfce7; color: #166534; }
+      .badge.warn { background: #fef3c7; color: #92400e; }
       .badge.no { background: #f1f5f9; color: #64748b; }
       button.primary {
         width: 100%; height: 44px; border: 0; border-radius: 10px;
@@ -40,15 +42,57 @@
       }
       button.primary:hover { background: #085cc0; }
       button.primary:disabled { background: #cbd5e1; cursor: not-allowed; }
-      .ghost { width: 100%; height: 40px; margin-top: 8px; border: 1px solid #cbd5e1;
+      .ghost { width: 100%; height: 38px; margin-top: 8px; border: 1px solid #cbd5e1;
         background: #fff; border-radius: 10px; font-weight: 600; cursor: pointer; }
+      .ghost:hover { background: #f1f5f9; }
       .row { display: flex; justify-content: space-between; align-items: center;
-        font-size: 13px; color: var(--navy-500); margin-top: 12px; }
+        font-size: 13px; color: var(--navy-500); margin-top: 14px; }
       .hidden { display: none; }
-      .status { margin-top: 12px; font-size: 13px; color: var(--navy-500); min-height: 18px; }
-      a { color: var(--electric); text-decoration: none; }
+      .status { margin-top: 10px; font-size: 13px; color: var(--navy-500); min-height: 18px; }
+      a { color: var(--electric); text-decoration: none; cursor: pointer; }
       .login { text-align: center; padding: 8px 0; }
       .login p { color: var(--navy-500); font-size: 14px; }
+
+      /* Section card */
+      .card { margin-top: 14px; padding: 14px; background: #fff; border: 1px solid #e8ecf6;
+        border-radius: 12px; }
+      .card h3 { margin: 0 0 8px; font-size: 13px; font-weight: 700; }
+
+      /* Tailored toggle */
+      .toggle-row { display: flex; align-items: center; justify-content: space-between;
+        margin-top: 10px; font-size: 13px; color: var(--navy-500); }
+      .switch { position: relative; width: 38px; height: 22px; flex: none; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider { position: absolute; inset: 0; background: #cbd5e1; border-radius: 999px;
+        transition: 0.2s; cursor: pointer; }
+      .slider::before { content: ''; position: absolute; height: 16px; width: 16px; left: 3px;
+        top: 3px; background: #fff; border-radius: 50%; transition: 0.2s; }
+      .switch input:checked + .slider { background: var(--electric); }
+      .switch input:checked + .slider::before { transform: translateX(16px); }
+
+      /* ATS ring */
+      .ats { display: flex; align-items: center; gap: 14px; }
+      .ring { transform: rotate(-90deg); flex: none; }
+      .ring circle { fill: none; stroke-width: 9; }
+      .ring .track { stroke: #e8ecf6; }
+      .ring .meter { stroke: var(--electric); stroke-linecap: round;
+        transition: stroke-dashoffset 0.9s ease; }
+      .ring-label { position: relative; }
+      .ats-score { font-size: 13px; color: var(--navy-500); }
+      .ats-qual { font-weight: 700; font-size: 14px; text-transform: capitalize; }
+
+      /* Cover letter */
+      select.tone { font-size: 12px; padding: 4px 6px; border: 1px solid #cbd5e1;
+        border-radius: 8px; }
+      .letter { margin-top: 10px; white-space: pre-wrap; font-size: 12px; line-height: 1.5;
+        color: var(--navy-500); background: var(--bg); border-radius: 8px; padding: 10px;
+        max-height: 120px; overflow-y: auto; }
+      .mini-row { display: flex; gap: 8px; margin-top: 8px; }
+      .mini { flex: 1; height: 34px; border: 1px solid #cbd5e1; background: #fff;
+        border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+      .mini:hover { background: #f1f5f9; }
+      .footer { display: flex; justify-content: space-between; align-items: center;
+        margin-top: 16px; padding-top: 12px; border-top: 1px solid #e8ecf6; font-size: 13px; }
     </style>
   </head>
   <body>
@@ -67,14 +111,61 @@
       <div id="main-view" class="hidden">
         <div class="site" id="site-domain">—</div>
         <span class="badge no" id="compat">Checking…</span>
+
         <button class="primary" id="autofill" disabled>Autofill this form</button>
         <div class="status" id="status"></div>
-        <div class="row">
-          <a href="#" id="open-dashboard">Dashboard ↗</a>
-          <a href="#" id="logout">Sign out</a>
+
+        <!-- Tailored CV toggle -->
+        <div id="tailor-row" class="toggle-row hidden">
+          <span id="tailor-label">Use a CV tailored to this job</span>
+          <label class="switch">
+            <input type="checkbox" id="tailor-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- ATS score -->
+        <div id="ats-section" class="card hidden">
+          <h3>Match score</h3>
+          <div class="ats">
+            <svg class="ring" width="64" height="64" viewBox="0 0 64 64">
+              <circle class="track" cx="32" cy="32" r="27" />
+              <circle id="ats-meter" class="meter" cx="32" cy="32" r="27"
+                stroke-dasharray="169.6" stroke-dashoffset="169.6" />
+            </svg>
+            <div>
+              <div class="ats-qual" id="ats-qual">—</div>
+              <div class="ats-score" id="ats-score">Analyzing the page…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cover letter -->
+        <div id="cover-section" class="card hidden">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <h3 style="margin:0">Cover letter</h3>
+            <select class="tone" id="cover-tone">
+              <option value="professional">Professional</option>
+              <option value="warm">Warm</option>
+              <option value="direct">Direct</option>
+            </select>
+          </div>
+          <button class="ghost" id="cover-generate">Generate cover letter</button>
+          <div class="letter hidden" id="cover-text"></div>
+          <div class="mini-row hidden" id="cover-actions">
+            <button class="mini" id="cover-copy">Copy</button>
+            <button class="mini" id="cover-insert">Insert</button>
+          </div>
+        </div>
+
+        <div class="footer">
+          <a id="open-dashboard">Dashboard ↗</a>
+          <a id="open-settings">Settings</a>
+          <a id="open-feedback">Feedback</a>
+          <a id="logout">Sign out</a>
         </div>
       </div>
     </main>
-    <script src="popup.js"></script>
+    <script type="module" src="popup.js"></script>
   </body>
 </html>

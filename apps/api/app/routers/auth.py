@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import secrets as _secrets
+from urllib.parse import urlencode
+
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_db
+from app.ratelimit import limiter
 from app.deps import get_current_user, get_user_by_email
 from app.models import Profile, User
 from app.services import email_service
@@ -54,7 +60,9 @@ def _set_refresh_cookie(response: Response, user_id: str) -> None:
 
 
 @router.post("/register", response_model=AuthResponse)
+@limiter.limit("10/hour")
 async def register(
+    request: Request,
     body: RegisterInput,
     response: Response,
     background: BackgroundTasks,
@@ -81,8 +89,12 @@ async def register(
 
 
 @router.post("/login", response_model=AuthResponse)
+@limiter.limit("10/minute")
 async def login(
-    body: LoginInput, response: Response, db: AsyncSession = Depends(get_db)
+    request: Request,
+    body: LoginInput,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
 ) -> AuthResponse:
     user = await get_user_by_email(db, body.email)
     if not user or not user.hashed_password or not verify_password(body.password, user.hashed_password):
@@ -92,6 +104,7 @@ async def login(
 
 
 @router.post("/refresh", response_model=RefreshResponse)
+@limiter.limit("60/minute")
 async def refresh(request: Request, db: AsyncSession = Depends(get_db)) -> RefreshResponse:
     token = request.cookies.get(REFRESH_COOKIE)
     user_id = decode_token(token, expected_type="refresh") if token else None
@@ -109,3 +122,111 @@ async def logout(response: Response) -> dict[str, bool]:
 @router.get("/me", response_model=UserOut)
 async def me(user: User = Depends(get_current_user)) -> UserOut:
     return _user_out(user)
+
+
+# --- Google OAuth 2.0 (Authlib-style code flow, implemented with httpx) --------
+
+GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
+GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
+OAUTH_STATE_COOKIE = "aplico_oauth_state"
+
+
+def _google_redirect_uri(request: Request) -> str:
+    if settings.google_redirect_uri:
+        return settings.google_redirect_uri
+    return f"{str(request.base_url).rstrip('/')}/api/auth/google/callback"
+
+
+def _login_error(reason: str) -> RedirectResponse:
+    return RedirectResponse(f"{settings.frontend_url}/login?error={reason}")
+
+
+@router.get("/google/login")
+async def google_login(request: Request) -> RedirectResponse:
+    """Start the Google OAuth flow. Redirects to Google's consent screen."""
+    if not settings.google_oauth_enabled:
+        return _login_error("oauth_disabled")
+    state = _secrets.token_urlsafe(24)
+    params = urlencode(
+        {
+            "client_id": settings.google_client_id,
+            "redirect_uri": _google_redirect_uri(request),
+            "response_type": "code",
+            "scope": "openid email profile",
+            "state": state,
+            "access_type": "offline",
+            "prompt": "select_account",
+        }
+    )
+    resp = RedirectResponse(f"{GOOGLE_AUTH_URL}?{params}")
+    resp.set_cookie(
+        OAUTH_STATE_COOKIE, state, httponly=True, max_age=600,
+        samesite="lax", secure=settings.environment == "production", path="/",
+    )
+    return resp
+
+
+@router.get("/google/callback")
+async def google_callback(
+    request: Request,
+    code: str | None = None,
+    state: str | None = None,
+    db: AsyncSession = Depends(get_db),
+) -> RedirectResponse:
+    """
+    OAuth callback: validates state (CSRF), exchanges the code for tokens, loads
+    the Google profile, upserts the user, sets the refresh cookie, and redirects
+    to the SPA. The frontend's silent bootstrap then exchanges the cookie for an
+    access token — the same JWT pair as password login.
+    """
+    if not settings.google_oauth_enabled:
+        return _login_error("oauth_disabled")
+    if not code or not state or state != request.cookies.get(OAUTH_STATE_COOKIE):
+        return _login_error("oauth_state")
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        token_res = await client.post(
+            GOOGLE_TOKEN_URL,
+            data={
+                "code": code,
+                "client_id": settings.google_client_id,
+                "client_secret": settings.google_client_secret,
+                "redirect_uri": _google_redirect_uri(request),
+                "grant_type": "authorization_code",
+            },
+        )
+        if token_res.status_code != 200:
+            return _login_error("oauth_token")
+        access = token_res.json().get("access_token")
+        info_res = await client.get(
+            GOOGLE_USERINFO_URL, headers={"Authorization": f"Bearer {access}"}
+        )
+        if info_res.status_code != 200:
+            return _login_error("oauth_userinfo")
+        info = info_res.json()
+
+    email = info.get("email")
+    if not email:
+        return _login_error("oauth_email")
+
+    user = await get_user_by_email(db, email)
+    if user is None:
+        user = User(
+            email=email,
+            full_name=info.get("name") or email.split("@")[0],
+            hashed_password=None,  # OAuth-only account
+            avatar_url=info.get("picture"),
+            onboarded=False,
+            preferences=JobPreferences().model_dump(),
+        )
+        db.add(user)
+        await db.flush()
+        db.add(Profile(user_id=user.id, data={}))
+        await db.commit()
+        await db.refresh(user)
+
+    resp = RedirectResponse(f"{settings.frontend_url}/dashboard")
+    _set_refresh_cookie(resp, user.id)
+    resp.delete_cookie(OAUTH_STATE_COOKIE, path="/")
+    return resp

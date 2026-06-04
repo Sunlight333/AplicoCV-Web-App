@@ -1,0 +1,94 @@
+# AplicoCV production stack: FastAPI + Celery worker + Celery Beat + Redis +
+# PostgreSQL. Nginx runs on the host (not here) and reverse-proxies to `api`
+# published on 127.0.0.1:8000. Bring it up with:  docker compose up -d --build
+#
+# Secrets/keys come from apps/api/.env (see apps/api/.env.example). DATABASE_URL
+# and REDIS_URL are forced here to the in-network service addresses so they are
+# correct regardless of what .env contains.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-aplicocv}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-aplicocv}
+      POSTGRES_DB: ${POSTGRES_DB:-aplicocv}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-aplicocv}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./apps/api
+    restart: unless-stopped
+    env_file:
+      - ./apps/api/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-aplicocv}:${POSTGRES_PASSWORD:-aplicocv}@postgres:5432/${POSTGRES_DB:-aplicocv}
+      REDIS_URL: redis://redis:6379/0
+      UPLOAD_DIR: /data/uploads
+      UVICORN_WORKERS: ${UVICORN_WORKERS:-4}
+    volumes:
+      - uploads:/data/uploads
+    ports:
+      # Bind to loopback only — host Nginx terminates TLS and proxies here.
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build: ./apps/api
+    restart: unless-stopped
+    command: ["celery", "-A", "app.celery_app", "worker", "--loglevel=info"]
+    env_file:
+      - ./apps/api/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-aplicocv}:${POSTGRES_PASSWORD:-aplicocv}@postgres:5432/${POSTGRES_DB:-aplicocv}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  beat:
+    build: ./apps/api
+    restart: unless-stopped
+    command: ["celery", "-A", "app.celery_app", "beat", "--loglevel=info"]
+    env_file:
+      - ./apps/api/.env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-aplicocv}:${POSTGRES_PASSWORD:-aplicocv}@postgres:5432/${POSTGRES_DB:-aplicocv}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  uploads:

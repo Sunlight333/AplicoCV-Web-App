@@ -1,26 +1,33 @@
 // Injected into job-portal pages. Detects form fields, fills them from the
-// user's profile using real input-event simulation, and surfaces a login-autofill
-// prompt. Loaded as a classic content script, so it inlines its small helpers
-// rather than importing modules.
+// user's profile using portal selector maps + real input-event simulation, and
+// surfaces a login-autofill prompt. Loaded as a classic content script, so it
+// inlines its helpers rather than importing modules (this file is the single
+// source of truth for the field dictionary).
 
 ;(() => {
-  // --- field dictionary (mirrors field-map.js; inlined for content-script scope) ---
+  // --- field dictionary (key → profile accessor + label/attr synonyms) --------
+  // Multilingual (EN/ES/PT) since the target portals span LATAM. The `key` is
+  // what portal selector maps (GET /portals/configs) reference.
   const FIELD_DEFS = [
-    { get: (p) => p.personal?.fullName, syn: ['full name', 'name', 'nombre completo', 'nome completo', 'nombre', 'nome'] },
-    { get: (p) => (p.personal?.fullName || '').split(' ')[0], syn: ['first name', 'given name', 'primeiro nome'] },
-    { get: (p) => (p.personal?.fullName || '').split(' ').slice(1).join(' '), syn: ['last name', 'surname', 'apellido', 'sobrenome'] },
-    { get: (p) => p.personal?.email, syn: ['email', 'e-mail', 'correo', 'correo electronico'] },
-    { get: (p) => p.personal?.phone, syn: ['phone', 'mobile', 'telefono', 'celular', 'telefone'] },
-    { get: (p) => p.personal?.location, syn: ['location', 'city', 'address', 'ubicacion', 'ciudad', 'localizacao', 'cidade'] },
-    { get: (p) => p.personal?.headline, syn: ['headline', 'current title', 'job title', 'puesto', 'cargo', 'titulo'] },
-    { get: (p) => p.personal?.summary, syn: ['summary', 'about', 'resumen', 'sobre', 'resumo'] },
-    { get: (p) => (p.links || []).find((l) => /linkedin/i.test(l.url))?.url, syn: ['linkedin'] },
-    { get: (p) => (p.links || []).find((l) => !/linkedin/i.test(l.url))?.url, syn: ['website', 'portfolio', 'sitio web', 'site'] },
-    { get: (p) => p.complementary?.workAuthorization, syn: ['work authorization', 'autorizacion', 'autorizacao'] },
+    { key: 'fullName', get: (p) => p.personal?.fullName, syn: ['full name', 'name', 'nombre completo', 'nome completo', 'nombre', 'nome'] },
+    { key: 'firstName', get: (p) => (p.personal?.fullName || '').split(' ')[0], syn: ['first name', 'given name', 'primeiro nome'] },
+    { key: 'lastName', get: (p) => (p.personal?.fullName || '').split(' ').slice(1).join(' '), syn: ['last name', 'surname', 'family name', 'apellido', 'sobrenome'] },
+    { key: 'email', get: (p) => p.personal?.email, syn: ['email', 'e-mail', 'correo', 'correo electronico'] },
+    { key: 'phone', get: (p) => p.personal?.phone, syn: ['phone', 'telephone', 'mobile', 'telefono', 'celular', 'telefone'] },
+    { key: 'location', get: (p) => p.personal?.location, syn: ['location', 'city', 'address', 'ubicacion', 'ciudad', 'localizacao', 'cidade'] },
+    { key: 'headline', get: (p) => p.personal?.headline, syn: ['headline', 'current title', 'job title', 'puesto', 'cargo', 'titulo'] },
+    { key: 'summary', get: (p) => p.personal?.summary, syn: ['summary', 'about', 'profile', 'resumen', 'sobre', 'resumo'] },
+    { key: 'linkedin', get: (p) => (p.links || []).find((l) => /linkedin/i.test(l.url))?.url, syn: ['linkedin', 'linkedin url', 'perfil de linkedin'] },
+    { key: 'website', get: (p) => (p.links || []).find((l) => !/linkedin/i.test(l.url))?.url, syn: ['website', 'portfolio', 'sitio web', 'site', 'portafolio'] },
+    { key: 'workAuthorization', get: (p) => p.complementary?.workAuthorization, syn: ['work authorization', 'authorization', 'autorizacion', 'autorizacao'] },
+    { key: 'noticePeriod', get: (p) => p.complementary?.noticePeriod, syn: ['notice period', 'availability', 'preaviso', 'aviso previo'] },
   ]
+  const DEF_BY_KEY = Object.fromEntries(FIELD_DEFS.map((d) => [d.key, d]))
 
   const norm = (t) =>
     (t || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+
+  const IS_WORKDAY = /myworkdayjobs\.com/.test(location.host)
 
   function labelFor(el) {
     if (el.id) {
@@ -37,25 +44,24 @@
     for (const c of candidates) {
       const h = norm(c)
       if (!h) continue
-      for (const def of FIELD_DEFS) {
-        if (def.syn.some((s) => h === norm(s))) return def
-      }
+      for (const def of FIELD_DEFS) if (def.syn.some((s) => h === norm(s))) return def
     }
     for (const c of candidates) {
       const h = norm(c)
       if (!h) continue
-      for (const def of FIELD_DEFS) {
-        if (def.syn.some((s) => h.includes(norm(s)))) return def
-      }
+      for (const def of FIELD_DEFS) if (def.syn.some((s) => h.includes(norm(s)))) return def
     }
     return null
   }
 
   // Native value setter so React/Vue controlled inputs register the change.
   function setNativeValue(el, value) {
-    const proto = el instanceof HTMLTextAreaElement
-      ? HTMLTextAreaElement.prototype
-      : HTMLInputElement.prototype
+    const proto =
+      el instanceof HTMLSelectElement
+        ? HTMLSelectElement.prototype
+        : el instanceof HTMLTextAreaElement
+          ? HTMLTextAreaElement.prototype
+          : HTMLInputElement.prototype
     const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
     setter ? setter.call(el, value) : (el.value = value)
   }
@@ -69,23 +75,24 @@
     el.dispatchEvent(new Event('blur', { bubbles: true }))
   }
 
-  function autofill(profile) {
-    const fields = document.querySelectorAll(
-      'input[type="text"], input[type="email"], input[type="tel"], input:not([type]), textarea',
-    )
-    let filled = 0
-    for (const el of fields) {
-      if (el.value) continue
-      const def = findDef(el)
-      if (!def) continue
-      const value = def.get(profile)
-      if (value) {
-        fillField(el, value)
-        flash(el)
-        filled++
+  // Dropdowns: select the option matching by value or visible text.
+  function fillSelect(el, value) {
+    const want = norm(value)
+    for (const opt of el.options) {
+      if (norm(opt.value) === want || norm(opt.textContent) === want || norm(opt.textContent).includes(want)) {
+        setNativeValue(el, opt.value)
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+        el.dispatchEvent(new Event('change', { bubbles: true }))
+        return true
       }
     }
-    return filled
+    return false
+  }
+
+  function fillAny(el, value) {
+    if (el.tagName === 'SELECT') return fillSelect(el, value)
+    fillField(el, value)
+    return true
   }
 
   function flash(el) {
@@ -95,7 +102,50 @@
     setTimeout(() => (el.style.boxShadow = prev), 900)
   }
 
-  // --- login-form detection + non-intrusive confirm overlay ---
+  // Multi-strategy autofill: (1) portal selector map (most reliable), then
+  // (2) generic label/attribute matching for anything still empty.
+  function autofill(profile, selectors = {}) {
+    let filled = 0
+    const done = new Set()
+
+    for (const [key, sel] of Object.entries(selectors || {})) {
+      const def = DEF_BY_KEY[key]
+      if (!def) continue
+      const value = def.get(profile)
+      if (!value) continue
+      let el = null
+      try {
+        el = document.querySelector(sel)
+      } catch {
+        el = null
+      }
+      if (!el || done.has(el) || el.value) continue
+      if (fillAny(el, value)) {
+        flash(el)
+        done.add(el)
+        filled++
+      }
+    }
+
+    const fields = document.querySelectorAll(
+      'input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input:not([type]), textarea, select',
+    )
+    for (const el of fields) {
+      if (done.has(el) || el.value) continue
+      const def = findDef(el)
+      if (!def) continue
+      const value = def.get(profile)
+      if (!value) continue
+      if (fillAny(el, value)) {
+        flash(el)
+        done.add(el)
+        filled++
+      }
+    }
+    return filled
+  }
+
+  // --- login-form detection + non-intrusive confirm overlay -------------------
   function detectLoginForm() {
     return !!document.querySelector('input[type="password"]')
   }
@@ -115,13 +165,10 @@
     document.body.appendChild(bar)
     bar.querySelector('#aplico-skip').onclick = () => bar.remove()
     bar.querySelector('#aplico-yes').onclick = () => {
-      chrome.runtime.sendMessage(
-        { type: 'DECRYPT_CREDENTIAL', portal: location.hostname },
-        (resp) => {
-          if (resp?.credential) fillLogin(resp.credential)
-          bar.remove()
-        },
-      )
+      chrome.runtime.sendMessage({ type: 'DECRYPT_CREDENTIAL', portal: location.hostname }, (resp) => {
+        if (resp?.credential) fillLogin(resp.credential)
+        bar.remove()
+      })
     }
   }
 
@@ -132,24 +179,49 @@
     if (passEl) fillField(passEl, password)
   }
 
-  // MutationObserver: SPA portals inject fields after load.
+  // Insert generated cover-letter text into the focused field (or first textarea
+  // / contenteditable). Used by the popup's "Insert" action.
+  function insertCoverLetter(text) {
+    const active = document.activeElement
+    let target =
+      active && (active.tagName === 'TEXTAREA' || active.isContentEditable) ? active : null
+    if (!target) target = document.querySelector('textarea, [contenteditable="true"]')
+    if (!target) return false
+    if (target.isContentEditable) {
+      target.focus()
+      document.execCommand('insertText', false, text)
+    } else {
+      fillField(target, text)
+    }
+    return true
+  }
+
+  // MutationObserver: SPA portals (and Workday's multi-step pages) inject fields
+  // after load, so keep filling within a window after the autofill click.
   let pendingProfile = null
+  let pendingSelectors = {}
   const observer = new MutationObserver(() => {
-    if (pendingProfile) autofill(pendingProfile)
+    if (pendingProfile) autofill(pendingProfile, pendingSelectors)
   })
   observer.observe(document.documentElement, { childList: true, subtree: true })
 
-  // Messages from the popup.
   chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
     if (msg.type === 'RUN_AUTOFILL') {
-      const filled = autofill(msg.profile)
-      pendingProfile = msg.profile // keep filling late-rendered fields briefly
-      setTimeout(() => (pendingProfile = null), 4000)
+      const filled = autofill(msg.profile, msg.selectors || {})
+      pendingProfile = msg.profile
+      pendingSelectors = msg.selectors || {}
+      // Workday paginates the form across steps — keep the fill window open
+      // longer so later steps get populated as the user advances.
+      const window = msg.multiStep || IS_WORKDAY ? 15000 : 4000
+      setTimeout(() => (pendingProfile = null), window)
       sendResponse({ filled })
     }
     if (msg.type === 'EXTRACT_JOB_DESCRIPTION') {
       const main = document.querySelector('main, article, [class*="description" i]') || document.body
       sendResponse({ text: (main.innerText || '').slice(0, 6000) })
+    }
+    if (msg.type === 'INSERT_COVER_LETTER') {
+      sendResponse({ inserted: insertCoverLetter(msg.text || '') })
     }
     return true
   })

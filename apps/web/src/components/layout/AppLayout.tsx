@@ -7,6 +7,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { cn } from '@/lib/cn'
 import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'
 
 const navIcons = {
   dashboard: 'M3 12l9-9 9 9M5 10v10h14V10',
@@ -30,6 +31,11 @@ export function AppLayout() {
   const { toast } = useToast()
   const t = useT()
   const [search, setSearch] = useState('')
+
+  // Global search routes to the applications board with a debounced ?search=.
+  const runSearch = useDebouncedCallback((q: string) => {
+    navigate(q.trim() ? `/applications?search=${encodeURIComponent(q.trim())}` : '/applications')
+  }, 350)
 
   const navItems = [
     { to: '/dashboard', label: t.app.nav.dashboard, icon: navIcons.dashboard },
@@ -98,7 +104,13 @@ export function AppLayout() {
             </svg>
             <input
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value)
+                runSearch(e.target.value)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') runSearch.flush(search)
+              }}
               placeholder={t.app.nav.search}
               className="h-10 w-full rounded-lg border border-navy-200 bg-navy-50 pl-9 pr-3 text-sm placeholder:text-navy-300 focus:border-electric-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-electric-400/40"
             />

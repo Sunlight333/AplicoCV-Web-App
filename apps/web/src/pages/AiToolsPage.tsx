@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { PageTransition } from '@/components/PageTransition'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -101,6 +102,33 @@ export default function AiToolsPage() {
                   <p className="mt-2 text-sm text-navy-500">{ta.matchedCount(analysis.matchedKeywords.length)}</p>
                 </div>
               </div>
+
+              <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-navy-300">{ta.coverageTitle}</p>
+              <ResponsiveContainer width="100%" height={110}>
+                <BarChart
+                  layout="vertical"
+                  data={[
+                    { name: ta.matched, count: analysis.matchedKeywords.length },
+                    { name: ta.missing, count: analysis.missingKeywords.length },
+                  ]}
+                  margin={{ top: 8, right: 16, bottom: 0, left: 8 }}
+                >
+                  <XAxis type="number" allowDecimals={false} hide />
+                  <YAxis
+                    type="category"
+                    dataKey="name"
+                    width={72}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={{ fontSize: 12, fill: '#64748b' }}
+                  />
+                  <Tooltip cursor={{ fill: 'rgba(15,23,42,0.04)' }} />
+                  <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={22}>
+                    <Cell fill="#16a34a" />
+                    <Cell fill="#f59e0b" />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
 
               <p className="mt-5 text-xs font-semibold uppercase tracking-wide text-navy-300">{ta.matched}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">

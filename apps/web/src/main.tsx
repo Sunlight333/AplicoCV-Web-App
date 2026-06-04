@@ -7,7 +7,10 @@ import { AuthProvider } from '@/auth/AuthContext'
 import { ToastProvider } from '@/components/Toast'
 import { I18nProvider } from '@/i18n/I18nProvider'
 import { App } from '@/App'
+import { initSentry } from '@/lib/sentry'
 import './index.css'
+
+initSentry()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

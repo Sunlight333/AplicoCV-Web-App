@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import time
 from typing import Any
 
 from app.config import settings
@@ -59,6 +60,14 @@ async def tailor_profile(job_description: str, profile: dict[str, Any]) -> dict[
     if settings.resolved_llm_provider == "stub":
         return _stub_tailor(job_description, profile)
     return await _real_tailor(job_description, profile)
+
+
+async def localize_profile(
+    profile: dict[str, Any], language: str, region: str | None = None
+) -> dict[str, Any]:
+    if settings.resolved_llm_provider == "stub":
+        return _stub_localize(profile, language, region)
+    return await _real_localize(profile, language, region)
 
 
 # --- Stub implementations -----------------------------------------------------
@@ -157,6 +166,21 @@ def _stub_tailor(job_description: str, profile: dict[str, Any]) -> dict[str, Any
     return tailored
 
 
+_LANG_LABEL = {"es": "Español", "pt": "Português", "en": "English", "fr": "Français"}
+
+
+def _stub_localize(profile: dict[str, Any], language: str, region: str | None) -> dict[str, Any]:
+    """Tag the headline with the target language and bump version (offline stub)."""
+    label = _LANG_LABEL.get(language[:2].lower(), language)
+    localized = {**profile}
+    personal = {**localized.get("personal", {})}
+    if personal.get("headline"):
+        personal["headline"] = f"{personal['headline']} ({label})"
+    localized["personal"] = personal
+    localized["version"] = profile.get("version", 1) + 1
+    return localized
+
+
 # --- Real providers -----------------------------------------------------------
 # Activated automatically when OPENAI_API_KEY or ANTHROPIC_API_KEY is set (see
 # settings.resolved_llm_provider). They share signatures with the stubs and fall
@@ -167,9 +191,34 @@ import json
 import httpx
 
 
-async def _chat_json(system: str, user: str) -> dict[str, Any]:
+async def _log_usage(provider: str, model: str, task: str, usage: dict, latency_ms: int) -> None:
+    """Best-effort token accounting to the llm_usage table (never raises)."""
+    try:
+        from app.db import SessionLocal
+        from app.models import LlmUsage
+
+        async with SessionLocal() as db:
+            db.add(
+                LlmUsage(
+                    provider=provider,
+                    model=model,
+                    task=task,
+                    prompt_tokens=int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0),
+                    completion_tokens=int(
+                        usage.get("completion_tokens") or usage.get("output_tokens") or 0
+                    ),
+                    latency_ms=latency_ms,
+                )
+            )
+            await db.commit()
+    except Exception:
+        pass
+
+
+async def _chat_json(system: str, user: str, task: str = "chat") -> dict[str, Any]:
     """Call the configured provider and return a parsed JSON object."""
     provider = settings.resolved_llm_provider
+    start = time.monotonic()
     if provider == "openai":
         async with httpx.AsyncClient(timeout=45) as client:
             res = await client.post(
@@ -185,7 +234,12 @@ async def _chat_json(system: str, user: str) -> dict[str, Any]:
                 },
             )
             res.raise_for_status()
-            return json.loads(res.json()["choices"][0]["message"]["content"])
+            data = res.json()
+            await _log_usage(
+                "openai", settings.openai_model, task, data.get("usage", {}),
+                int((time.monotonic() - start) * 1000),
+            )
+            return json.loads(data["choices"][0]["message"]["content"])
     # anthropic
     async with httpx.AsyncClient(timeout=45) as client:
         res = await client.post(
@@ -202,13 +256,19 @@ async def _chat_json(system: str, user: str) -> dict[str, Any]:
             },
         )
         res.raise_for_status()
-        text = res.json()["content"][0]["text"]
-        start, end = text.find("{"), text.rfind("}")
-        return json.loads(text[start : end + 1])
+        data = res.json()
+        await _log_usage(
+            "anthropic", settings.anthropic_model, task, data.get("usage", {}),
+            int((time.monotonic() - start) * 1000),
+        )
+        text = data["content"][0]["text"]
+        start_i, end_i = text.find("{"), text.rfind("}")
+        return json.loads(text[start_i : end_i + 1])
 
 
-async def _chat_text(system: str, user: str) -> str:
+async def _chat_text(system: str, user: str, task: str = "chat") -> str:
     provider = settings.resolved_llm_provider
+    start = time.monotonic()
     if provider == "openai":
         async with httpx.AsyncClient(timeout=45) as client:
             res = await client.post(
@@ -223,7 +283,12 @@ async def _chat_text(system: str, user: str) -> str:
                 },
             )
             res.raise_for_status()
-            return res.json()["choices"][0]["message"]["content"]
+            data = res.json()
+            await _log_usage(
+                "openai", settings.openai_model, task, data.get("usage", {}),
+                int((time.monotonic() - start) * 1000),
+            )
+            return data["choices"][0]["message"]["content"]
     async with httpx.AsyncClient(timeout=45) as client:
         res = await client.post(
             "https://api.anthropic.com/v1/messages",
@@ -239,7 +304,12 @@ async def _chat_text(system: str, user: str) -> str:
             },
         )
         res.raise_for_status()
-        return res.json()["content"][0]["text"]
+        data = res.json()
+        await _log_usage(
+            "anthropic", settings.anthropic_model, task, data.get("usage", {}),
+            int((time.monotonic() - start) * 1000),
+        )
+        return data["content"][0]["text"]
 
 
 async def _real_extract_profile(text: str) -> dict[str, Any]:
@@ -251,6 +321,7 @@ async def _real_extract_profile(text: str) -> dict[str, Any]:
             "[{id,institution,degree,field,startDate,endDate}], skills[], languages:"
             "[{id,language,level}], links:[{id,label,url}], complementary:{}, version:1}.",
             f"CV text:\n{text[:8000]}",
+            task="extract_profile",
         )
     except Exception:
         return _stub_extract_profile(text)
@@ -263,6 +334,7 @@ async def _real_ats(job_description: str, profile: dict[str, Any]) -> dict[str, 
             " missingKeywords[], qualification:'underqualified'|'strong match'|'overqualified',"
             " recommendations[3]}.",
             f"Job description:\n{job_description[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
+            task="ats_score",
         )
     except Exception:
         return _stub_ats(job_description, profile)
@@ -274,6 +346,7 @@ async def _real_cover_letter(jd: str, profile: dict[str, Any], tone: str) -> str
             f"Write a focused 250-350 word cover letter in a {tone} tone. Avoid generic "
             "openers. Use only facts from the profile.",
             f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
+            task="cover_letter",
         )
     except Exception:
         return _stub_cover_letter(jd, profile, tone)
@@ -286,11 +359,30 @@ async def _real_tailor(jd: str, profile: dict[str, Any]) -> dict[str, Any]:
             "relevant first, add truthful ATS keywords, keep the same JSON profile shape, and "
             "increment 'version'. Never invent experience.",
             f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
+            task="tailor",
         )
         result.setdefault("version", profile.get("version", 1) + 1)
         return result
     except Exception:
         return _stub_tailor(jd, profile)
+
+
+async def _real_localize(
+    profile: dict[str, Any], language: str, region: str | None
+) -> dict[str, Any]:
+    target = f"{language}" + (f" ({region})" if region else "")
+    try:
+        result = await _chat_json(
+            f"Localize this CV profile to {target}: translate text, adapt cultural tone and "
+            "formality, and align seniority vocabulary to the regional professional standard. "
+            "Keep the same JSON profile shape and increment 'version'. Do not invent experience.",
+            f"Profile:\n{json.dumps(profile)[:6000]}",
+            task="localize",
+        )
+        result.setdefault("version", profile.get("version", 1) + 1)
+        return result
+    except Exception:
+        return _stub_localize(profile, language, region)
 
 
 def _cache_key(*parts: str) -> str:

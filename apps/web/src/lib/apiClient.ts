@@ -1,5 +1,6 @@
 import { env } from './env'
 import { tokenStore } from './tokenStore'
+import { captureException } from './sentry'
 
 export class ApiError extends Error {
   status: number
@@ -97,7 +98,11 @@ async function rawRequest<T>(path: string, options: RequestOptions): Promise<T> 
       (detail && typeof detail === 'object' && 'detail' in detail
         ? String((detail as Record<string, unknown>).detail)
         : undefined) ?? `Request failed with ${res.status}`
-    throw new ApiError(res.status, message, detail)
+    const error = new ApiError(res.status, message, detail)
+    // Report server-side failures to Sentry (no-op unless a DSN is configured).
+    // Client/validation errors (4xx) are expected and left out to reduce noise.
+    if (res.status >= 500) captureException(error)
+    throw error
   }
 
   return (await parseBody(res)) as T

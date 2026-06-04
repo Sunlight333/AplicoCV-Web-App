@@ -1,0 +1,13 @@
+# Keep the image small and reproducible — deps are installed from requirements.txt.
+.libs/
+.venv/
+venv/
+__pycache__/
+**/__pycache__/
+*.pyc
+.pytest_cache/
+.env
+.env.*
+!.env.example
+*.db
+uploads/

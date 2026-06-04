@@ -3,26 +3,41 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-import uuid
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.db import get_db
 from app.deps import get_current_user
 from app.models import Document, User
-from app.services import llm_service
+from app.services import llm_service, storage_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 _ALLOWED = {".pdf", ".docx"}
 
 
+def _ocr_pdf(path: str) -> str:
+    """
+    OCR fallback for scanned PDFs: rasterize each page at 300 DPI with pdf2image
+    (Poppler) and run Tesseract via pytesseract. No-op (returns "") if either
+    optional dependency or the system binaries are unavailable.
+    """
+    try:
+        import pdf2image  # type: ignore
+        import pytesseract  # type: ignore
+
+        images = pdf2image.convert_from_path(path, dpi=300)
+        return "\n".join(pytesseract.image_to_string(img) for img in images)
+    except Exception:
+        return ""
+
+
 def _extract_text(path: str) -> str:
     """
     Read text from an uploaded CV. Tries pdfplumber / python-docx if installed;
+    if a PDF yields almost no text (a scanned document) it falls back to OCR;
     otherwise reads the raw bytes as UTF-8 (works for the demo's text uploads).
     Kept dependency-light so the API runs without the heavy parsing stack.
     """
@@ -32,7 +47,13 @@ def _extract_text(path: str) -> str:
             import pdfplumber  # type: ignore
 
             with pdfplumber.open(path) as pdf:
-                return "\n".join(page.extract_text() or "" for page in pdf.pages)
+                text = "\n".join(page.extract_text() or "" for page in pdf.pages)
+            # < 100 chars indicates a scanned/image PDF — try OCR.
+            if len(text.strip()) < 100:
+                ocr = _ocr_pdf(path)
+                if ocr.strip():
+                    return ocr
+            return text
         if ext == ".docx":
             import docx  # type: ignore
 
@@ -56,13 +77,11 @@ async def upload(
     if ext not in _ALLOWED:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Only PDF or DOCX allowed")
 
-    os.makedirs(settings.upload_dir, exist_ok=True)
-    stored = f"{uuid.uuid4().hex}{ext}"
-    path = os.path.join(settings.upload_dir, stored)
-    with open(path, "wb") as out:
-        out.write(await file.read())
+    # Store via the storage layer — local disk, or S3/R2 when configured. The
+    # returned reference (path or object key) is what we persist on the row.
+    ref = await storage_service.save(await file.read(), file.filename or f"cv{ext}")
 
-    doc = Document(user_id=user.id, filename=file.filename or stored, path=path, kind="cv")
+    doc = Document(user_id=user.id, filename=file.filename or ref, path=ref, kind="cv")
     db.add(doc)
     await db.commit()
     await db.refresh(doc)
@@ -96,7 +115,9 @@ async def parse(
             await asyncio.sleep(0.5)
             yield f"data: {json.dumps({'stage': stage, 'message': message, 'done': False})}\n\n"
 
-        text = _extract_text(doc.path)
+        # Resolve to a local file (downloads from S3/R2 if that's the backend).
+        async with storage_service.local_path(doc.path) as local:
+            text = _extract_text(local)
         profile = await llm_service.extract_profile(text)
         doc.parsed = profile
         await db.commit()

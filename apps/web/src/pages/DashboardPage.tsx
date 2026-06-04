@@ -42,6 +42,11 @@ export default function DashboardPage() {
   })
   const recs = useQuery({ queryKey: ['recommendations'], queryFn: getRecommendations })
 
+  // The snapshot reflects the best ATS-scored match the agent has surfaced for
+  // this user, rather than a hardcoded value. Null until any data exists.
+  const latestAtsScore =
+    recs.data && recs.data.length ? Math.max(...recs.data.map((r) => r.matchScore)) : null
+
   const scan = useMutation({
     mutationFn: runAgentScan,
     onSuccess: (results) => {
@@ -118,9 +123,15 @@ export default function DashboardPage() {
         <Card className="flex flex-col items-center justify-center p-5">
           <h2 className="self-start font-semibold text-navy-900">{td.latestAts}</h2>
           <div className="my-4">
-            <AtsRing score={82} />
+            {recs.isLoading ? (
+              <Skeleton className="h-[120px] w-[120px] rounded-full" />
+            ) : (
+              <AtsRing score={latestAtsScore ?? 0} />
+            )}
           </div>
-          <p className="text-center text-sm text-navy-500">{td.atsStrong}</p>
+          <p className="text-center text-sm text-navy-500">
+            {latestAtsScore == null ? td.atsEmpty : latestAtsScore >= 75 ? td.atsStrong : td.atsModerate}
+          </p>
           <Link
             to="/applications"
             className="mt-3 text-sm font-medium text-electric-600 hover:underline"

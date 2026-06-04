@@ -15,17 +15,30 @@ from app.models import (
 )
 from app.security import encrypt_secret, hash_password
 
+# Selector maps are keyed by the extension's field keys (fullName, firstName,
+# lastName, email, phone, …) → a CSS selector for that portal. The extension
+# tries these first, then falls back to generic label/attribute matching.
+# `quirks` carries portal-specific behavior flags (e.g. Workday's multi-step form).
 PORTALS = [
-    ("LinkedIn", "*.linkedin.com", {"name": "input[name='name']"}),
-    ("Workday", "*.myworkdayjobs.com", {"name": "input[data-automation-id='legalNameSection_firstName']"}),
-    ("Indeed", "*.indeed.com", {"name": "#input-applicant\\.name"}),
-    ("Get on Board", "*.getonbrd.com", {"name": "#name"}),
-    ("Computrabajo", "*.computrabajo.com", {"name": "#FirstName"}),
-    ("Glassdoor", "*.glassdoor.com", {"name": "input[name='name']"}),
-    ("Bumeran", "*.bumeran.com", {"name": "#nombre"}),
-    ("Zonajobs", "*.zonajobs.com", {"name": "#nombre"}),
-    ("Laborum", "*.laborum.com", {"name": "#nombre"}),
-    ("Konzerta", "*.konzerta.com", {"name": "#nombre"}),
+    ("LinkedIn", "*.linkedin.com",
+     {"email": "input[id*='email' i]", "phone": "input[id*='phone' i]"}, None),
+    ("Workday", "*.myworkdayjobs.com",
+     {"firstName": "input[data-automation-id='legalNameSection_firstName']",
+      "lastName": "input[data-automation-id='legalNameSection_lastName']",
+      "email": "input[data-automation-id='email']",
+      "phone": "input[data-automation-id='phone-number']"}, "multi-step"),
+    ("Indeed", "*.indeed.com",
+     {"fullName": "#input-applicant\\.name", "email": "#input-applicant\\.email",
+      "phone": "#input-applicant\\.phoneNumber"}, None),
+    ("Get on Board", "*.getonbrd.com", {"fullName": "#name", "email": "#email"}, None),
+    ("Computrabajo", "*.computrabajo.com",
+     {"firstName": "#FirstName", "lastName": "#LastName", "email": "#Email"}, None),
+    ("Glassdoor", "*.glassdoor.com",
+     {"fullName": "input[name='name']", "email": "input[name='email']"}, None),
+    ("Bumeran", "*.bumeran.com", {"fullName": "#nombre", "email": "#email"}, None),
+    ("Zonajobs", "*.zonajobs.com", {"fullName": "#nombre", "email": "#email"}, None),
+    ("Laborum", "*.laborum.com", {"fullName": "#nombre", "email": "#email"}, None),
+    ("Konzerta", "*.konzerta.com", {"fullName": "#nombre", "email": "#email"}, None),
 ]
 
 DEMO_PROFILE = {
@@ -67,8 +80,10 @@ async def seed() -> None:
     async with SessionLocal() as db:
         # Portal configs
         if not (await db.execute(select(PortalConfig))).first():
-            for name, pattern, selectors in PORTALS:
-                db.add(PortalConfig(name=name, domain_pattern=pattern, selectors=selectors))
+            for name, pattern, selectors, quirks in PORTALS:
+                db.add(PortalConfig(
+                    name=name, domain_pattern=pattern, selectors=selectors, quirks=quirks,
+                ))
 
         # Demo user (idempotent)
         existing = (

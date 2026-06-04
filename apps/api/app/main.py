@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.db import init_db
+from app.ratelimit import RATELIMIT_ENABLED, limiter
 from app.routers import (
     agent,
     ai,
@@ -26,6 +27,19 @@ from app.seed import seed
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # Optional error monitoring — activates only when SENTRY_DSN is set and the
+    # SDK is installed, so it stays a config-only switch.
+    if settings.sentry_dsn:
+        try:
+            import sentry_sdk
+
+            sentry_sdk.init(
+                dsn=settings.sentry_dsn,
+                environment=settings.environment,
+                traces_sample_rate=0.1,
+            )
+        except Exception:  # pragma: no cover - monitoring must never block boot
+            pass
     await init_db()
     await seed()
     yield
@@ -37,6 +51,17 @@ app = FastAPI(
     description="AplicoCV backend — Phase 3 (FastAPI + AI services).",
     lifespan=lifespan,
 )
+
+# Rate limiting (Phase 6). Per-route limits are declared with @limiter.limit.
+# Wired only when slowapi is installed; otherwise the limiter is an inert no-op.
+if RATELIMIT_ENABLED:
+    from slowapi import _rate_limit_exceeded_handler
+    from slowapi.errors import RateLimitExceeded
+    from slowapi.middleware import SlowAPIMiddleware
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    app.add_middleware(SlowAPIMiddleware)
 
 app.add_middleware(
     CORSMiddleware,

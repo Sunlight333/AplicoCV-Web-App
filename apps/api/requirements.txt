@@ -1,6 +1,7 @@
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
 sqlalchemy[asyncio]==2.0.36
+alembic==1.14.0
 aiosqlite==0.20.0
 pydantic==2.10.3
 pydantic-settings==2.6.1
@@ -10,3 +11,28 @@ python-multipart==0.0.19
 cryptography==44.0.0
 httpx==0.28.1
 email-validator==2.2.0
+slowapi==0.1.9
+
+# Document parsing (Phase 3). Without these, CV upload falls back to raw-text.
+pdfplumber==0.11.4
+python-docx==1.1.2
+# OCR for scanned PDFs (also needs system Poppler + Tesseract binaries).
+pdf2image==1.17.0
+pytesseract==0.3.13
+
+# Optional integrations — activate via .env keys (Phase 1).
+stripe==11.3.0
+sentry-sdk[fastapi]==2.19.2
+# Object storage for CV uploads (AWS S3 / Cloudflare R2). Without it, uploads
+# stay on local disk (UPLOAD_DIR).
+boto3==1.35.71
+# Background task queue (Phase 3) — used by the worker/beat processes; the API
+# falls back to synchronous on-demand scans without REDIS_URL.
+celery[redis]==5.4.0
+redis==5.2.1
+
+# Test suite (Phase 6).
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-mock==3.14.0
+asgi-lifespan==2.1.0

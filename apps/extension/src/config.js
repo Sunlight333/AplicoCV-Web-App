@@ -7,8 +7,8 @@
 const DEV = false
 
 const PROD = {
-  API_BASE: 'http://162.243.229.139/api',
-  WEB_APP_URL: 'http://162.243.229.139',
+  API_BASE: 'https://aplicocv.com/api',
+  WEB_APP_URL: 'https://aplicocv.com',
 }
 
 const LOCAL = {

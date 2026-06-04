@@ -152,6 +152,7 @@ export default function ProfilePage() {
                   />
                   <Input
                     label={tp.employer}
+                    value={exp.employer}
                     onChange={(e) => {
                       const next = [...draft.experience]
                       next[i] = { ...exp, employer: e.target.value }

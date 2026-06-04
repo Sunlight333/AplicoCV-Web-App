@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { PageTransition } from '@/components/PageTransition'
@@ -22,10 +23,12 @@ export default function TrackingPage() {
   const t = useT()
   const [active, setActive] = useState<Application | null>(null)
   const [portalFilter, setPortalFilter] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const search = searchParams.get('search') ?? ''
 
   const { data, isLoading } = useQuery({
-    queryKey: ['applications'],
-    queryFn: () => listApplications(),
+    queryKey: ['applications', search],
+    queryFn: () => listApplications(search ? { search } : {}),
   })
 
   const statusMutation = useMutation({
@@ -92,6 +95,15 @@ export default function TrackingPage() {
           <h1 className="text-2xl font-bold text-navy-900">{t.app.tracking.title}</h1>
           <p className="mt-1 text-navy-500">{t.app.tracking.subtitle}</p>
         </div>
+        <div className="flex items-center gap-2">
+        {search && (
+          <button
+            onClick={() => setSearchParams({})}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-electric-50 px-3 py-2 text-sm font-medium text-electric-700 transition-colors hover:bg-electric-100"
+          >
+            “{search}” ✕
+          </button>
+        )}
         <select
           value={portalFilter}
           onChange={(e) => setPortalFilter(e.target.value)}
@@ -102,6 +114,7 @@ export default function TrackingPage() {
             <option key={p} value={p}>{p}</option>
           ))}
         </select>
+        </div>
       </div>
 
       {isLoading ? (
