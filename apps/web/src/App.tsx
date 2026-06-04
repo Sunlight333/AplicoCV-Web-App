@@ -16,6 +16,7 @@ const AiToolsPage = lazy(() => import('@/pages/AiToolsPage'))
 const CredentialsPage = lazy(() => import('@/pages/CredentialsPage'))
 const BillingPage = lazy(() => import('@/pages/BillingPage'))
 const ExtensionPage = lazy(() => import('@/pages/ExtensionPage'))
+const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 export function App() {
@@ -28,6 +29,7 @@ export function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
 
           {/* Authenticated, pre-onboarding */}
           <Route element={<ProtectedRoute requireOnboarded={false} />}>

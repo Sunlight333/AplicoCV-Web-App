@@ -7,7 +7,7 @@ const columnHrefs = {
   product: ['#features', '#how', '#pricing', '#'],
   company: ['#', '#', '#', '#'],
   resources: ['#', '#', '#faq', '#'],
-  legal: ['#', '#', '#', '#'],
+  legal: ['/privacy', '#', '#', '#'],
 } as const
 
 const socials = [
