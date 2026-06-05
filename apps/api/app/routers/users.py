@@ -1,13 +1,27 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
+from sqlalchemy import delete as sql_delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import User
-from app.routers.auth import _user_out
+from app.models import (
+    Application,
+    CoverLetter,
+    Credential,
+    CreditAccount,
+    CreditTransaction,
+    Document,
+    FaqAnswer,
+    LlmUsage,
+    Operation,
+    Profile,
+    Recommendation,
+    User,
+)
+from app.routers.auth import REFRESH_COOKIE, _user_out
 from app.schemas import JobPreferences, SetPasswordInput, UserOut
 from app.security import hash_password, verify_password
 
@@ -65,3 +79,21 @@ async def set_password(
     await db.commit()
     await db.refresh(user)
     return _user_out(user)
+
+
+@router.delete("/me")
+async def delete_account(
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Permanently delete the account and all associated data."""
+    for model in (
+        Profile, Document, Application, CoverLetter, Credential,
+        Recommendation, Operation, CreditAccount, CreditTransaction, FaqAnswer, LlmUsage,
+    ):
+        await db.execute(sql_delete(model).where(model.user_id == user.id))
+    await db.delete(user)
+    await db.commit()
+    response.delete_cookie(REFRESH_COOKIE, path="/")
+    return {"ok": True}

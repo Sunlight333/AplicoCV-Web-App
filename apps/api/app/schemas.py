@@ -198,6 +198,42 @@ class CoverLetterOut(BaseModel):
     text: str
 
 
+class SuperCvInput(BaseModel):
+    targetRole: str
+    jobDescription: str | None = None
+    cvText: str | None = None  # paste an alternative CV; else use the system profile
+
+
+class SuperCvOut(BaseModel):
+    cvText: str
+    atsScore: int
+    gaps: list[str]
+    documentId: str
+
+
+class PersonalAnalysisOut(BaseModel):
+    strengths: list[str]
+    weaknesses: str
+    motivation: str
+
+
+class SkillSuggestionsOut(BaseModel):
+    skills: list[str]
+
+
+class GeneratedDoc(BaseModel):
+    id: str
+    title: str
+    createdAt: datetime
+    preview: str
+    atsScore: int | None = None
+
+
+class DocumentLibrary(BaseModel):
+    cvs: list[GeneratedDoc]
+    letters: list[GeneratedDoc]
+
+
 class LocalizeInput(BaseModel):
     language: str
     region: str | None = None

@@ -157,6 +157,41 @@ async def localize_profile(
     return await _real_localize(profile, language, region)
 
 
+async def super_cv(
+    profile: dict[str, Any], target_role: str, jd: str | None, cv_text: str | None
+) -> dict[str, Any]:
+    if settings.resolved_llm_provider == "stub":
+        return _stub_super_cv(profile, target_role, jd, cv_text)
+    return await _real_super_cv(profile, target_role, jd, cv_text)
+
+
+async def personal_analysis(profile: dict[str, Any]) -> dict[str, Any]:
+    if settings.resolved_llm_provider == "stub":
+        return _stub_personal_analysis(profile)
+    return await _real_personal_analysis(profile)
+
+
+async def skill_suggestions(profile: dict[str, Any]) -> list[str]:
+    if settings.resolved_llm_provider == "stub":
+        return _stub_skill_suggestions(profile)
+    return await _real_skill_suggestions(profile)
+
+
+def _cv_to_text(profile: dict[str, Any]) -> str:
+    p = profile or {}
+    per = p.get("personal") or {}
+    lines = [per.get("fullName", ""), per.get("headline", ""), per.get("summary", "")]
+    for e in p.get("experience") or []:
+        lines.append(
+            f"{e.get('title','')} — {e.get('employer','')} ({e.get('startDate','')}–{e.get('endDate') or 'present'})"
+        )
+        for b in e.get("bullets") or []:
+            lines.append(f"  • {b}")
+    if p.get("skills"):
+        lines.append("Skills: " + ", ".join(p["skills"]))
+    return "\n".join(line for line in lines if line)
+
+
 # --- Stub implementations -----------------------------------------------------
 
 
@@ -470,6 +505,91 @@ async def _real_localize(
         return result
     except Exception:
         return _stub_localize(profile, language, region)
+
+
+def _stub_super_cv(profile, target_role, jd, cv_text):  # type: ignore[no-untyped-def]
+    per = profile.get("personal") or {}
+    jd_tokens = _tokens(jd or "")
+    skills_txt = " ".join(s.lower() for s in (profile.get("skills") or []))
+    matched = [t for t in jd_tokens if t in skills_txt] if jd else []
+    ats = min(95, 60 + len(matched) * 4) if jd else 78
+    gaps = [t for t in list(jd_tokens) if t not in skills_txt][:5] if jd else []
+    out = [f"# {per.get('fullName','Your Name')}", f"**{target_role}**", "", per.get("summary", ""), "", "## Experience"]
+    for e in profile.get("experience") or []:
+        out.append(f"### {e.get('title','')} · {e.get('employer','')}")
+        for b in e.get("bullets") or ["Delivered measurable results on key initiatives."]:
+            out.append(f"- Accomplished {str(b).rstrip('.')}, measured by clear impact, by applying {target_role} best practices.")
+    if profile.get("skills"):
+        out += ["", "## Skills", ", ".join(profile["skills"])]
+    return {"cvText": "\n".join(out), "atsScore": ats, "gaps": gaps}
+
+
+def _stub_personal_analysis(profile):  # type: ignore[no-untyped-def]
+    skills = profile.get("skills") or []
+    strengths = [f"Strong command of {s}" for s in skills[:3]] or [
+        "Reliable and adaptable", "Clear communicator", "Fast learner",
+    ]
+    return {
+        "strengths": strengths,
+        "weaknesses": "Occasionally takes on too much at once; actively working on delegation.",
+        "motivation": "Looking for a role with greater scope, ownership and impact.",
+    }
+
+
+def _stub_skill_suggestions(profile):  # type: ignore[no-untyped-def]
+    have = {s.lower() for s in (profile.get("skills") or [])}
+    return [s for s in _SKILL_POOL if s.lower() not in have][:8]
+
+
+async def _real_super_cv(profile, target_role, jd, cv_text):  # type: ignore[no-untyped-def]
+    source = cv_text or _cv_to_text(profile)
+    try:
+        res = await _chat_json(
+            "You are a senior FAANG recruiter. Rewrite the CV for the target role using the X-Y-Z "
+            "formula (Accomplished X, measured by Y, by doing Z). NEVER invent employers, titles or "
+            "facts not present in the source. Integrate keywords from the job description. Return JSON "
+            "{cvText: markdown string, atsScore: integer 0-100, gaps: array of missing-keyword strings}.",
+            f"TARGET ROLE: {target_role}\nJOB DESCRIPTION: {jd or '(none provided)'}\n\nCV SOURCE:\n{source[:7000]}",
+            task="super_cv",
+        )
+        return {
+            "cvText": _s(res.get("cvText")) or source,
+            "atsScore": int(res.get("atsScore") or 78),
+            "gaps": [_s(g) for g in (res.get("gaps") or [])][:8],
+        }
+    except Exception:
+        return _stub_super_cv(profile, target_role, jd, cv_text)
+
+
+async def _real_personal_analysis(profile):  # type: ignore[no-untyped-def]
+    try:
+        res = await _chat_json(
+            "Analyze this candidate constructively. Return JSON {strengths: array of 3-5 short "
+            "strings, weaknesses: string, motivation: string}.",
+            _cv_to_text(profile)[:5000],
+            task="personal_analysis",
+        )
+        return {
+            "strengths": [_s(s) for s in (res.get("strengths") or [])][:5],
+            "weaknesses": _s(res.get("weaknesses")),
+            "motivation": _s(res.get("motivation")),
+        }
+    except Exception:
+        return _stub_personal_analysis(profile)
+
+
+async def _real_skill_suggestions(profile):  # type: ignore[no-untyped-def]
+    try:
+        res = await _chat_json(
+            "Suggest up to 8 relevant technical skills/technologies this candidate likely has or "
+            "should add, based on their profile. Do not repeat skills they already list. Return JSON "
+            "{skills: array of strings}.",
+            _cv_to_text(profile)[:5000],
+            task="skill_suggestions",
+        )
+        return [_s(s) for s in (res.get("skills") or [])][:8]
+    except Exception:
+        return _stub_skill_suggestions(profile)
 
 
 def _cache_key(*parts: str) -> str:

@@ -15,6 +15,14 @@ CHECKIN_BASE = 10
 DOUBLE_DAYS = {7, 14, 21, 30}
 CYCLE_DAYS = 30
 
+# Credit cost per AI action (tuned for our economy; the competitor charges more).
+AI_COSTS = {
+    "super_cv": 50,
+    "cover_letter": 20,
+    "personal_analysis": 10,
+    "skill_suggestions": 10,
+}
+
 # One-time credits for completing each profile section (the competitor's model).
 EARN_RULES: list[dict[str, Any]] = [
     {"key": "cv", "label": "Add your CV", "amount": 50},

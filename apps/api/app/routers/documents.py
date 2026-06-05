@@ -12,7 +12,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import Document, Profile, User
+from app.models import CoverLetter, Document, Profile, User
+from app.schemas import DocumentLibrary, GeneratedDoc
 from app.services import llm_service, storage_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -159,6 +160,62 @@ async def _persist_profile(db: AsyncSession, user_id: str, profile: dict) -> Non
         prof.data = profile
         prof.version = int(profile.get("version", 1))
     await db.commit()
+
+
+@router.get("/library", response_model=DocumentLibrary)
+async def library(
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> DocumentLibrary:
+    """Generated documents: optimized CVs + cover letters."""
+    cv_rows = (
+        await db.execute(
+            select(Document)
+            .where(Document.user_id == user.id, Document.kind == "optimized_cv")
+            .order_by(Document.created_at.desc())
+        )
+    ).scalars().all()
+    letter_rows = (
+        await db.execute(
+            select(CoverLetter)
+            .where(CoverLetter.user_id == user.id)
+            .order_by(CoverLetter.created_at.desc())
+        )
+    ).scalars().all()
+    cvs = [
+        GeneratedDoc(
+            id=d.id,
+            title=d.filename,
+            createdAt=d.created_at,
+            preview=((d.parsed or {}).get("text", ""))[:240],
+            atsScore=(d.parsed or {}).get("ats"),
+        )
+        for d in cv_rows
+    ]
+    letters = [
+        GeneratedDoc(
+            id=letter.id,
+            title=f"Cover letter · {letter.tone}",
+            createdAt=letter.created_at,
+            preview=(letter.text or "")[:240],
+        )
+        for letter in letter_rows
+    ]
+    return DocumentLibrary(cvs=cvs, letters=letters)
+
+
+@router.get("/generated/{doc_id}")
+async def get_generated(
+    doc_id: str, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> dict:
+    """Full text of a generated document (optimized CV or cover letter)."""
+    d = await db.get(Document, doc_id)
+    if d and d.user_id == user.id and d.kind == "optimized_cv":
+        p = d.parsed or {}
+        return {"id": d.id, "title": d.filename, "text": p.get("text", ""), "atsScore": p.get("ats")}
+    letter = await db.get(CoverLetter, doc_id)
+    if letter and letter.user_id == user.id:
+        return {"id": letter.id, "title": f"Cover letter · {letter.tone}", "text": letter.text, "atsScore": None}
+    raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not found")
 
 
 @router.post("/parse-text")

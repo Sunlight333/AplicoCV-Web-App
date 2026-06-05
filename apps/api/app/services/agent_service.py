@@ -1,48 +1,113 @@
 """
 Beta AI Job Agent — recommendation generation.
 
-Shared by the on-demand endpoint (POST /agent/scan) and the optional Celery Beat
-periodic task. The current implementation returns curated sample postings; a real
-agent would query job APIs / RSS feeds, filter by the user's preferences, and
-score each result with the ATS logic (settings.agent_match_threshold).
+Pulls REAL live postings from the free Remotive job API, filtered by the user's
+target role and scored against their skills. Falls back to role-tailored portal
+search links if the API is unavailable, so "Go apply" is always a working link.
 """
 
 from __future__ import annotations
 
+from urllib.parse import quote_plus
+
+import httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Recommendation, User
+from app.models import Profile, Recommendation, User
 
-_SAMPLE_JOBS = [
-    {"jobTitle": "Staff Frontend Engineer", "company": "Stripe", "portal": "Greenhouse",
-     "matchScore": 88, "jobUrl": "https://stripe.com/jobs/1",
-     "strategicNote": "Posted 3 days ago with low applicant volume. Strong design-systems overlap."},
-    {"jobTitle": "Senior React Engineer", "company": "Remote.com", "portal": "RemoteOK",
-     "matchScore": 79, "jobUrl": "https://remoteok.com/jobs/2", "strategicNote": None},
-    {"jobTitle": "Frontend Engineer (LATAM)", "company": "Toptal", "portal": "We Work Remotely",
-     "matchScore": 72, "jobUrl": "https://weworkremotely.com/jobs/3", "strategicNote": None},
-]
+REMOTIVE_URL = "https://remotive.com/api/remote-jobs"
+
+
+def _search_links(role: str, location: str) -> list[dict]:
+    q = quote_plus(role)
+    loc = quote_plus(location)
+    portals = [
+        ("LinkedIn", "LinkedIn Jobs",
+         f"https://www.linkedin.com/jobs/search/?keywords={q}" + (f"&location={loc}" if location else "")),
+        ("Indeed", "Indeed", f"https://www.indeed.com/jobs?q={q}" + (f"&l={loc}" if location else "")),
+        ("Get on Board", "Get on Board", f"https://www.getonbrd.com/jobs?q={q}"),
+        ("We Work Remotely", "We Work Remotely", f"https://weworkremotely.com/remote-jobs/search?term={q}"),
+    ]
+    return [
+        {
+            "title": f"{role} roles",
+            "company": company,
+            "portal": portal,
+            "url": url,
+            "score": max(62, 92 - i * 8),
+            "note": f"Live search tailored to your target role on {portal}." if i == 0 else None,
+        }
+        for i, (portal, company, url) in enumerate(portals)
+    ]
+
+
+def _score(title: str, skills: list[str]) -> int:
+    t = (title or "").lower()
+    hits = sum(1 for s in skills if s and s.lower() in t)
+    return min(96, 68 + hits * 7)
+
+
+async def _live_jobs(role: str, skills: list[str]) -> list[dict]:
+    try:
+        async with httpx.AsyncClient(timeout=8) as client:
+            res = await client.get(REMOTIVE_URL, params={"search": role, "limit": 8})
+            res.raise_for_status()
+            jobs = res.json().get("jobs", [])[:5]
+    except Exception:
+        return []
+    out = []
+    for j in jobs:
+        url = j.get("url")
+        title = j.get("title")
+        if not url or not title:
+            continue
+        out.append({
+            "title": title,
+            "company": j.get("company_name") or "Company",
+            "portal": "Remotive",
+            "url": url,
+            "score": _score(title, skills),
+            "note": None,
+        })
+    return out
 
 
 async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
-    """Replace this user's recommendations with a fresh scan and return them."""
+    """Replace this user's recommendations with a fresh, preference-tailored scan."""
     existing = (
         await db.execute(select(Recommendation).where(Recommendation.user_id == user.id))
     ).scalars().all()
     for r in existing:
         await db.delete(r)
 
+    prefs = user.preferences or {}
+    prof = (
+        await db.execute(select(Profile).where(Profile.user_id == user.id))
+    ).scalar_one_or_none()
+    pdata = (prof.data if prof else {}) or {}
+    roles = prefs.get("targetRoles") or []
+    if not roles:
+        headline = (pdata.get("personal") or {}).get("headline")
+        roles = [headline] if headline else ["Software Engineer"]
+    role = roles[0]
+    location = (prefs.get("locations") or [""])[0]
+    skills = pdata.get("skills") or []
+
+    jobs = await _live_jobs(role, skills)
+    if not jobs:
+        jobs = _search_links(role, location)
+
     created: list[Recommendation] = []
-    for job in _SAMPLE_JOBS:
+    for job in jobs:
         rec = Recommendation(
             user_id=user.id,
-            job_title=job["jobTitle"],
-            company=job["company"],
+            job_title=job["title"][:200],
+            company=job["company"][:120],
             portal=job["portal"],
-            match_score=job["matchScore"],
-            job_url=job["jobUrl"],
-            strategic_note=job["strategicNote"],
+            match_score=job["score"],
+            job_url=job["url"],
+            strategic_note=job["note"],
         )
         db.add(rec)
         created.append(rec)
