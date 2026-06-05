@@ -5,7 +5,10 @@ import { cn } from '@/lib/cn'
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('rounded-xl border border-navy-100 bg-white shadow-card', className)}
+      className={cn(
+        'rounded-2xl border border-navy-100/70 bg-white shadow-elev-2',
+        className,
+      )}
       {...props}
     />
   )
@@ -15,10 +18,10 @@ export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
 export function HoverCard({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
   return (
     <motion.div
-      whileHover={{ y: -3 }}
+      whileHover={{ y: -4 }}
       transition={{ type: 'spring', stiffness: 300, damping: 24 }}
       className={cn(
-        'rounded-xl border border-navy-100 bg-white shadow-card transition-shadow hover:shadow-card-hover',
+        'rounded-2xl border border-navy-100/70 bg-white shadow-elev-2 transition-shadow hover:shadow-elev-4',
         className,
       )}
       {...(props as object)}

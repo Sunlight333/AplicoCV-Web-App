@@ -10,18 +10,22 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
 }
 
+// Raised "elevated depth" buttons: a vertical light→dark gradient reads as an
+// extruded surface, the inset top highlight (in shadow-btn*) is the sheen, and
+// the button presses down (translate-y) on click.
 const variants: Record<Variant, string> = {
   primary:
-    'bg-electric-500 text-white hover:bg-electric-600 shadow-sm disabled:bg-electric-300',
+    'bg-btn-blue text-white shadow-btn hover:shadow-btn-hover active:translate-y-px disabled:bg-electric-300 disabled:bg-none disabled:shadow-none',
   secondary:
-    'bg-navy-900 text-white hover:bg-navy-800 disabled:bg-navy-400',
+    'bg-btn-navy text-white shadow-btn-dark hover:shadow-elev-3 active:translate-y-px disabled:bg-navy-400 disabled:bg-none disabled:shadow-none',
   ghost:
     'bg-transparent text-navy-700 hover:bg-navy-100 disabled:text-navy-300',
-  danger: 'bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300',
+  danger:
+    'bg-btn-red text-white shadow-elev-2 hover:shadow-elev-3 active:translate-y-px disabled:bg-red-300 disabled:bg-none disabled:shadow-none',
 }
 
 const sizes: Record<Size, string> = {
-  sm: 'h-9 px-3 text-sm',
+  sm: 'h-9 px-3.5 text-sm',
   md: 'h-11 px-5 text-sm',
   lg: 'h-12 px-7 text-base',
 }
@@ -32,9 +36,9 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded-lg font-semibold transition-colors',
+        'relative inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-[box-shadow,transform,background-color] duration-150',
         'focus-visible:ring-2 focus-visible:ring-electric-400 focus-visible:ring-offset-2',
-        'disabled:cursor-not-allowed',
+        'disabled:cursor-not-allowed disabled:active:translate-y-0',
         variants[variant],
         sizes[size],
         className,

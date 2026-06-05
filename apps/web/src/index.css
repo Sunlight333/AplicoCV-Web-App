@@ -8,7 +8,13 @@
     scroll-behavior: smooth;
   }
   body {
-    @apply bg-white text-navy-900 font-sans;
+    @apply text-navy-900 font-sans;
+    /* Faint cool surface so elevated white cards read as floating, not flat. */
+    background-color: #f6f8fc;
+    background-image:
+      radial-gradient(60rem 60rem at 110% -10%, rgba(115, 65, 255, 0.06), transparent 60%),
+      radial-gradient(50rem 50rem at -10% 0%, rgba(10, 116, 240, 0.06), transparent 55%);
+    background-attachment: fixed;
   }
   :focus-visible {
     @apply outline-none ring-2 ring-electric-400 ring-offset-2 ring-offset-white;
@@ -68,6 +74,30 @@
   /* Frosted-glass surface for cards floating over the aurora. */
   .glass {
     @apply border border-white/60 bg-white/70 backdrop-blur-xl;
+  }
+
+  /* Sticky navigation glass — slightly more opaque, with a hairline + lift. */
+  .glass-nav {
+    @apply border-b border-white/50 bg-white/70 backdrop-blur-xl;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset, 0 8px 24px -16px rgba(11, 20, 38, 0.25);
+  }
+
+  /* Glossy top sheen overlay (buttons, tiles). Parent must be position:relative. */
+  .sheen-top::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 45%);
+    pointer-events: none;
+  }
+
+  /* Perspective wrapper for 3D tilt cards. */
+  .perspective {
+    perspective: 1000px;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
   }
 
   /* Subtle dotted grid background pattern. */

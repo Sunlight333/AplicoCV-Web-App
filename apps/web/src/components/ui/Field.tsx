@@ -8,7 +8,7 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 const baseField =
-  'w-full rounded-lg border bg-white px-3.5 py-2.5 text-sm text-navy-900 placeholder:text-navy-300 transition-colors focus:outline-none focus:ring-2 focus:ring-electric-400'
+  'w-full rounded-xl border bg-navy-50/50 px-3.5 py-2.5 text-sm text-navy-900 placeholder:text-navy-300 shadow-[inset_0_1px_2px_rgba(11,20,38,0.05)] transition-colors focus:bg-white focus:outline-none focus:ring-2 focus:ring-electric-400/60'
 
 function FieldError({ error }: { error?: string }) {
   return (
