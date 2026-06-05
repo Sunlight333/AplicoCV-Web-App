@@ -30,6 +30,16 @@ const BillingPage = lazy(() => import('@/pages/BillingPage'))
 const ExtensionPage = lazy(() => import('@/pages/ExtensionPage'))
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
 const TermsPage = lazy(() => import('@/pages/TermsPage'))
+const AboutPage = lazy(() => import('@/pages/marketing/AboutPage'))
+const BlogPage = lazy(() => import('@/pages/marketing/BlogPage'))
+const CareersPage = lazy(() => import('@/pages/marketing/CareersPage'))
+const ContactPage = lazy(() => import('@/pages/marketing/ContactPage'))
+const HelpPage = lazy(() => import('@/pages/marketing/HelpPage'))
+const SupportedPortalsPublicPage = lazy(() => import('@/pages/marketing/SupportedPortalsPublicPage'))
+const StatusPage = lazy(() => import('@/pages/marketing/StatusPage'))
+const SecurityPage = lazy(() => import('@/pages/marketing/SecurityPage'))
+const CookiesPage = lazy(() => import('@/pages/marketing/CookiesPage'))
+const ChromeExtensionPage = lazy(() => import('@/pages/marketing/ChromeExtensionPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 export function App() {
@@ -46,6 +56,16 @@ export function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/careers" element={<CareersPage />} />
+          <Route path="/contact" element={<ContactPage />} />
+          <Route path="/help" element={<HelpPage />} />
+          <Route path="/supported-portals" element={<SupportedPortalsPublicPage />} />
+          <Route path="/status" element={<StatusPage />} />
+          <Route path="/security" element={<SecurityPage />} />
+          <Route path="/cookies" element={<CookiesPage />} />
+          <Route path="/chrome-extension" element={<ChromeExtensionPage />} />
 
           {/* Authenticated, pre-onboarding */}
           <Route element={<ProtectedRoute requireOnboarded={false} />}>

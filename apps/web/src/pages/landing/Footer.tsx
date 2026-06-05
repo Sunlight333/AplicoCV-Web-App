@@ -6,13 +6,19 @@ import { useT } from '@/i18n/I18nProvider'
 
 const CONTACT = 'mailto:support@aplicocv.com'
 
-// Every link resolves to a real destination (anchor, route, or contact) — no dead "#".
+// Every link resolves to a real destination — a landing anchor (/#…) or a
+// dedicated page. Order matches the labels in t.footer.columns.*.links.
 const columnHrefs = {
-  product: ['#features', '#how', '#pricing', '#features'],
-  company: ['#how', '#features', CONTACT, CONTACT],
-  resources: [CONTACT, '#features', '#faq', CONTACT],
-  legal: ['/privacy', '/terms', '/privacy', '/privacy'],
+  product: ['/#features', '/#how', '/#pricing', '/chrome-extension'],
+  company: ['/about', '/blog', '/careers', '/contact'],
+  resources: ['/help', '/supported-portals', '/#faq', '/status'],
+  legal: ['/privacy', '/terms', '/security', '/cookies'],
 } as const
+
+/** Clean internal routes use <Link>; anchors, hashes and mailto use <a>. */
+function isRoute(href: string) {
+  return href.startsWith('/') && !href.includes('#')
+}
 
 export function Footer() {
   const t = useT()
@@ -64,13 +70,19 @@ export function Footer() {
             <div key={col.title}>
               <p className="text-sm font-semibold text-navy-900">{col.title}</p>
               <ul className="mt-4 space-y-2.5">
-                {col.links.map((label, i) => (
-                  <li key={label}>
-                    <a href={col.hrefs[i]} className="text-sm text-navy-500 transition-colors hover:text-electric-600">
-                      {label}
-                    </a>
-                  </li>
-                ))}
+                {col.links.map((label, i) => {
+                  const href = col.hrefs[i]
+                  const cls = 'text-sm text-navy-500 transition-colors hover:text-electric-600'
+                  return (
+                    <li key={label}>
+                      {isRoute(href) ? (
+                        <Link to={href} className={cls}>{label}</Link>
+                      ) : (
+                        <a href={href} className={cls}>{label}</a>
+                      )}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           ))}
