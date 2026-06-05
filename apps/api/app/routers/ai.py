@@ -6,13 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import CoverLetter, Document, Profile as ProfileModel, User
+from app.models import CoverLetter, Document, InterviewSession, Profile as ProfileModel, User
 from app.schemas import (
     AtsAnalysis,
     CoverLetterInput,
     CoverLetterOut,
+    InterviewAnswerInput,
+    InterviewFeedbackOut,
+    InterviewSessionOut,
+    InterviewStartInput,
+    InterviewStartOut,
     JobDescriptionInput,
     PersonalAnalysisOut,
+    PersonalizedLetterInput,
     SkillSuggestionsOut,
     SuperCvInput,
     SuperCvOut,
@@ -122,3 +128,89 @@ async def skill_suggestions(
     profile = await _profile_data(db, user.id)
     skills = await llm_service.skill_suggestions(profile)
     return SkillSuggestionsOut(skills=skills)
+
+
+@router.post("/ai/cover-letter-pro", response_model=CoverLetterOut)
+async def cover_letter_pro(
+    body: PersonalizedLetterInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CoverLetterOut:
+    """100%-personalized, from-scratch cover letter (higher credit cost)."""
+    await _charge(db, user.id, "cover_letter_pro")
+    profile = await _profile_data(db, user.id)
+    text = await llm_service.personalized_cover_letter(
+        profile, body.jobDescription, body.company, body.role, body.highlights, body.tone
+    )
+    db.add(CoverLetter(user_id=user.id, tone=body.tone, text=text))
+    await db.commit()
+    return CoverLetterOut(text=text)
+
+
+# --- AI Interview -------------------------------------------------------------
+
+
+@router.post("/ai/interview/start", response_model=InterviewStartOut)
+async def interview_start(
+    body: InterviewStartInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> InterviewStartOut:
+    await _charge(db, user.id, "interview")
+    profile = await _profile_data(db, user.id)
+    questions = await llm_service.interview_questions(
+        profile, body.role, body.jobDescription, body.kind
+    )
+    session = InterviewSession(
+        user_id=user.id, role=body.role, kind=body.kind, questions=questions
+    )
+    db.add(session)
+    await db.commit()
+    await db.refresh(session)
+    return InterviewStartOut(sessionId=session.id, questions=questions)
+
+
+@router.post("/ai/interview/feedback", response_model=InterviewFeedbackOut)
+async def interview_feedback(
+    body: InterviewAnswerInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> InterviewFeedbackOut:
+    session = await db.get(InterviewSession, body.sessionId)
+    if not session or session.user_id != user.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Interview session not found")
+    profile = await _profile_data(db, user.id)
+    questions = list(session.questions or [])
+    qa = list(zip(questions, body.answers + [""] * (len(questions) - len(body.answers))))
+    result = await llm_service.interview_feedback(profile, session.role, qa)
+    session.answers = body.answers
+    session.feedback = result
+    session.overall_score = result["overallScore"]
+    await db.commit()
+    return InterviewFeedbackOut(**result)
+
+
+@router.get("/ai/interview/history", response_model=list[InterviewSessionOut])
+async def interview_history(
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> list[InterviewSessionOut]:
+    rows = (
+        await db.execute(
+            select(InterviewSession)
+            .where(InterviewSession.user_id == user.id)
+            .order_by(InterviewSession.created_at.desc())
+            .limit(30)
+        )
+    ).scalars().all()
+    return [
+        InterviewSessionOut(
+            id=s.id,
+            role=s.role,
+            kind=s.kind,
+            createdAt=s.created_at,
+            questionCount=len(s.questions or []),
+            overallScore=s.overall_score,
+            completed=s.feedback is not None,
+        )
+        for s in rows
+    ]

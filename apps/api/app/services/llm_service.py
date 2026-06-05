@@ -122,9 +122,16 @@ def normalize_profile(raw: dict[str, Any] | None) -> dict[str, Any]:  # noqa: F8
         "experience": experience,
         "education": education,
         "skills": [_s(s) for s in (raw.get("skills") or []) if s],
+        "skillsToAvoid": [_s(s) for s in (raw.get("skillsToAvoid") or []) if s],
         "languages": languages,
         "links": links,
+        # Pass richer sections through untouched (added via the profile editor, not
+        # CV extraction) so the tolerant reload path never drops them.
+        "certifications": raw.get("certifications") or [],
+        "projects": raw.get("projects") or [],
+        "baseCoverLetter": _s(raw.get("baseCoverLetter")),
         "complementary": raw.get("complementary") or {},
+        "analysis": raw.get("analysis"),
         "version": int(raw.get("version") or 1),
     }
 
@@ -175,6 +182,35 @@ async def skill_suggestions(profile: dict[str, Any]) -> list[str]:
     if settings.resolved_llm_provider == "stub":
         return _stub_skill_suggestions(profile)
     return await _real_skill_suggestions(profile)
+
+
+async def interview_questions(
+    profile: dict[str, Any], role: str, jd: str | None, kind: str
+) -> list[str]:
+    if settings.resolved_llm_provider == "stub":
+        return _stub_interview_questions(role, kind)
+    return await _real_interview_questions(profile, role, jd, kind)
+
+
+async def interview_feedback(
+    profile: dict[str, Any], role: str, qa: list[tuple[str, str]]
+) -> dict[str, Any]:
+    if settings.resolved_llm_provider == "stub":
+        return _stub_interview_feedback(qa)
+    return await _real_interview_feedback(profile, role, qa)
+
+
+async def personalized_cover_letter(
+    profile: dict[str, Any],
+    jd: str,
+    company: str | None,
+    role: str | None,
+    highlights: str | None,
+    tone: str,
+) -> str:
+    if settings.resolved_llm_provider == "stub":
+        return _stub_personalized_cover_letter(profile, company, role, tone)
+    return await _real_personalized_cover_letter(profile, jd, company, role, highlights, tone)
 
 
 def _cv_to_text(profile: dict[str, Any]) -> str:
@@ -541,6 +577,75 @@ def _stub_skill_suggestions(profile):  # type: ignore[no-untyped-def]
     return [s for s in _SKILL_POOL if s.lower() not in have][:8]
 
 
+def _stub_interview_questions(role, kind):  # type: ignore[no-untyped-def]
+    behavioral = [
+        f"Tell me about yourself and why you're a strong fit for the {role} role.",
+        "Describe a time you disagreed with a teammate. How did you resolve it?",
+        "Tell me about a project you're most proud of and your specific contribution.",
+        "Describe a time you failed or missed a deadline. What did you learn?",
+    ]
+    technical = [
+        f"Walk me through how you would approach a typical {role} problem end to end.",
+        f"What tools and practices do you rely on most as a {role}, and why?",
+        "How do you ensure quality and catch issues before they reach production?",
+        "Describe a technically challenging decision you made and the trade-offs.",
+    ]
+    closing = ["Where do you see yourself in three years, and why this company?"]
+    if kind == "behavioral":
+        pool = behavioral
+    elif kind == "technical":
+        pool = technical
+    else:
+        pool = [behavioral[0], technical[0], behavioral[1], technical[1]]
+    return (pool + closing)[:5]
+
+
+def _stub_interview_feedback(qa):  # type: ignore[no-untyped-def]
+    per = []
+    for q, a in qa:
+        words = len((a or "").split())
+        rating = 5 if words > 70 else 4 if words > 35 else 3 if words > 12 else 2 if words else 1
+        if rating >= 4:
+            fb = "Specific and well-structured — good use of a concrete example with a clear result."
+        elif rating >= 3:
+            fb = "Solid start. Tighten it with the STAR method and quantify the outcome (a number or %)."
+        else:
+            fb = "Too brief. Add the situation, the actions you personally took, and a measurable result."
+        per.append({"question": q, "answer": a or "", "rating": rating, "feedback": fb})
+    overall = round(sum(p["rating"] for p in per) / max(len(per), 1) * 20)
+    summary = (
+        "Strong overall — your answers are concrete and outcome-focused."
+        if overall >= 80
+        else "Good foundation. Focus on quantifying results and using the STAR structure consistently."
+        if overall >= 55
+        else "Keep practicing: lead with a concrete situation and always close with a measurable result."
+    )
+    return {"overallScore": overall, "summary": summary, "perQuestion": per}
+
+
+def _stub_personalized_cover_letter(profile, company, role, tone):  # type: ignore[no-untyped-def]
+    per = profile.get("personal") or {}
+    name = per.get("fullName") or "the candidate"
+    where = f" at {company}" if company else ""
+    pos = role or per.get("headline") or "this role"
+    opener = {
+        "professional": f"I am writing to apply for the {pos} position{where}.",
+        "warm": f"I was thrilled to discover the {pos} opening{where}.",
+        "direct": f"I'm applying for the {pos} role{where}.",
+    }.get(tone, f"I am writing to apply for the {pos} position{where}.")
+    skills = ", ".join((profile.get("skills") or [])[:4]) or "execution and ownership"
+    return (
+        f"Dear Hiring Team{(' at ' + company) if company else ''},\n\n"
+        f"{opener} My background has equipped me with strengths in {skills}, and I bring a "
+        f"track record of delivering measurable results.\n\n"
+        f"In my recent experience I led initiatives that improved outcomes and collaborated "
+        f"across functions to ship high-quality work. I'm drawn to this opportunity because it "
+        f"aligns closely with what I do best and where I want to grow.\n\n"
+        f"I would welcome the chance to discuss how I can contribute. Thank you for your "
+        f"consideration.\n\nSincerely,\n{name}"
+    )
+
+
 async def _real_super_cv(profile, target_role, jd, cv_text):  # type: ignore[no-untyped-def]
     source = cv_text or _cv_to_text(profile)
     try:
@@ -590,6 +695,68 @@ async def _real_skill_suggestions(profile):  # type: ignore[no-untyped-def]
         return [_s(s) for s in (res.get("skills") or [])][:8]
     except Exception:
         return _stub_skill_suggestions(profile)
+
+
+async def _real_interview_questions(profile, role, jd, kind):  # type: ignore[no-untyped-def]
+    try:
+        res = await _chat_json(
+            f"You are a senior interviewer for a {role} role. Generate exactly 5 {kind} interview "
+            "questions tailored to the role and the candidate's background. Return JSON "
+            "{questions: array of 5 strings}.",
+            f"ROLE: {role}\nJOB DESCRIPTION: {jd or '(none)'}\n\nCANDIDATE:\n{_cv_to_text(profile)[:3000]}",
+            task="interview_questions",
+        )
+        qs = [_s(q) for q in (res.get("questions") or []) if q][:5]
+        return qs or _stub_interview_questions(role, kind)
+    except Exception:
+        return _stub_interview_questions(role, kind)
+
+
+async def _real_interview_feedback(profile, role, qa):  # type: ignore[no-untyped-def]
+    transcript = "\n\n".join(f"Q: {q}\nA: {a or '(no answer)'}" for q, a in qa)
+    try:
+        res = await _chat_json(
+            f"You are a senior interviewer evaluating a candidate for a {role} role. For each "
+            "question rate the answer 1-5 and give one specific, actionable line of feedback. Then "
+            "give an overall 0-100 score and a 1-2 sentence summary. Return JSON {overallScore:int, "
+            "summary:string, perQuestion:[{question, answer, rating:int, feedback}]}.",
+            transcript[:7000],
+            task="interview_feedback",
+        )
+        per = []
+        for i, item in enumerate(res.get("perQuestion") or []):
+            item = item or {}
+            q, a = (qa[i] if i < len(qa) else ("", ""))
+            per.append({
+                "question": _s(item.get("question")) or q,
+                "answer": _s(item.get("answer")) or (a or ""),
+                "rating": max(1, min(5, int(item.get("rating") or 3))),
+                "feedback": _s(item.get("feedback")),
+            })
+        if not per:
+            return _stub_interview_feedback(qa)
+        return {
+            "overallScore": max(0, min(100, int(res.get("overallScore") or 0))),
+            "summary": _s(res.get("summary")),
+            "perQuestion": per,
+        }
+    except Exception:
+        return _stub_interview_feedback(qa)
+
+
+async def _real_personalized_cover_letter(profile, jd, company, role, highlights, tone):  # type: ignore[no-untyped-def]
+    try:
+        return await _chat_text(
+            f"Write a fully personalized 250-380 word cover letter in a {tone} tone, addressed to "
+            f"{company or 'the hiring team'} for the {role or 'role'}. Reference concrete, relevant "
+            "facts from the candidate profile and weave in the points they want to emphasize. Avoid "
+            "generic filler. Never invent experience the profile does not contain.",
+            f"JOB DESCRIPTION:\n{jd[:3500]}\n\nEMPHASIZE: {highlights or '(candidate did not specify)'}"
+            f"\n\nCANDIDATE PROFILE:\n{json.dumps(profile)[:3500]}",
+            task="cover_letter_pro",
+        )
+    except Exception:
+        return _stub_personalized_cover_letter(profile, company, role, tone)
 
 
 def _cache_key(*parts: str) -> str:

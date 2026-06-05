@@ -22,6 +22,7 @@ from app.routers import (
     portals,
     profiles,
     recommendations,
+    referrals,
     users,
 )
 from app.seed import seed
@@ -90,6 +91,7 @@ for r in (
     agent.router,
     credits.router,
     faq.router,
+    referrals.router,
 ):
     app.include_router(r, prefix="/api")
 

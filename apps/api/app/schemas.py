@@ -25,7 +25,13 @@ class JobPreferences(BaseModel):
     locations: list[str] = []
     remote: Literal["onsite", "hybrid", "remote", "any"] = "any"
     salaryMin: int | None = None
+    salaryMax: int | None = None
     salaryCurrency: str | None = "USD"
+    salaryPeriod: Literal["year", "month", "hour"] = "year"
+    salaryType: Literal["gross", "net"] = "gross"
+    availability: str | None = None  # "immediate" | "2 weeks" | "1 month" | ...
+    workAuthorization: str | None = None  # visa / legal-status note
+    industries: list[str] = []
 
 
 class UserOut(BaseModel):
@@ -121,14 +127,35 @@ class ComplementaryInfo(BaseModel):
     preferredStartDate: str | None = None
 
 
+class Certification(BaseModel):
+    id: str
+    name: str
+    issuer: str | None = None
+    year: str | None = None
+    credentialUrl: str | None = None
+
+
+class ProjectItem(BaseModel):
+    id: str
+    name: str
+    description: str | None = None
+    url: str | None = None
+    skills: list[str] = []
+
+
 class Profile(BaseModel):
     personal: PersonalInfo = PersonalInfo()
     experience: list[WorkExperience] = []
     education: list[Education] = []
     skills: list[str] = []
+    skillsToAvoid: list[str] = []  # technologies/roles the candidate wants to avoid
     languages: list[LanguageSkill] = []
     links: list[ProfileLink] = []
+    certifications: list[Certification] = []
+    projects: list[ProjectItem] = []
+    baseCoverLetter: str = ""  # reusable letter the AI personalizes per posting
     complementary: ComplementaryInfo = ComplementaryInfo()
+    analysis: dict[str, Any] | None = None  # cached personal-analysis result
     version: int = 1
 
 
@@ -221,6 +248,56 @@ class SkillSuggestionsOut(BaseModel):
     skills: list[str]
 
 
+class PersonalizedLetterInput(BaseModel):
+    jobDescription: str
+    company: str | None = None
+    role: str | None = None
+    highlights: str | None = None  # what the candidate wants to emphasize
+    tone: Literal["professional", "warm", "direct"] = "professional"
+
+
+# --- AI Interview -------------------------------------------------------------
+
+
+class InterviewStartInput(BaseModel):
+    role: str
+    jobDescription: str | None = None
+    kind: Literal["behavioral", "technical", "mixed"] = "mixed"
+
+
+class InterviewStartOut(BaseModel):
+    sessionId: str
+    questions: list[str]
+
+
+class InterviewAnswerInput(BaseModel):
+    sessionId: str
+    answers: list[str]
+
+
+class InterviewQuestionFeedback(BaseModel):
+    question: str
+    answer: str
+    rating: int  # 1-5
+    feedback: str
+
+
+class InterviewFeedbackOut(BaseModel):
+    overallScore: int  # 0-100
+    summary: str
+    perQuestion: list[InterviewQuestionFeedback]
+
+
+class InterviewSessionOut(BaseModel):
+    id: str
+    role: str
+    kind: str
+    createdAt: datetime
+    questionCount: int
+    overallScore: int | None = None
+    completed: bool
+
+
 class GeneratedDoc(BaseModel):
     id: str
     title: str
@@ -289,8 +366,46 @@ class OperationOut(BaseModel):
     result: dict[str, Any] | None = None
 
 
+# --- Referrals ----------------------------------------------------------------
+
+
+class ReferralOut(BaseModel):
+    code: str
+    link: str
+    referredCount: int
+    earned: int
+    reward: int
+
+
+class RedeemInput(BaseModel):
+    code: str
+
+
+class RedeemOut(BaseModel):
+    ok: bool
+    amount: int = 0
+    message: str
+
+
 # --- Billing ------------------------------------------------------------------
 
 
 class CheckoutOut(BaseModel):
     url: str
+
+
+class PlanOut(BaseModel):
+    id: str
+    name: str
+    price: float
+    currency: str = "USD"
+    interval: Literal["month", "year", "once"]
+    credits: int | None = None
+    features: list[str]
+    highlighted: bool = False
+    kind: Literal["subscription", "credits"]
+    current: bool = False
+
+
+class CreditPackInput(BaseModel):
+    pack: str  # id of a "credits" PlanOut

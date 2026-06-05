@@ -14,13 +14,17 @@ WELCOME_BONUS = 100
 CHECKIN_BASE = 10
 DOUBLE_DAYS = {7, 14, 21, 30}
 CYCLE_DAYS = 30
+# Both sides of a successful referral receive this many credits.
+REFERRAL_REWARD = 100
 
 # Credit cost per AI action (tuned for our economy; the competitor charges more).
 AI_COSTS = {
     "super_cv": 50,
     "cover_letter": 20,
+    "cover_letter_pro": 40,  # 100%-personalized, from-scratch letter
     "personal_analysis": 10,
     "skill_suggestions": 10,
+    "interview": 30,  # one mock-interview session (questions + feedback)
 }
 
 # One-time credits for completing each profile section (the competitor's model).

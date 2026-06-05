@@ -183,3 +183,30 @@ class FaqAnswer(Base):
     question: Mapped[str] = mapped_column(Text)
     answer: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class InterviewSession(Base):
+    """A mock-interview run: generated questions, the user's answers, and AI feedback."""
+
+    __tablename__ = "interview_sessions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    role: Mapped[str] = mapped_column(String)
+    kind: Mapped[str] = mapped_column(String, default="mixed")
+    questions: Mapped[list] = mapped_column(JSON, default=list)
+    answers: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    feedback: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    overall_score: Mapped[int | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class Referral(Base):
+    """One row per redeemed referral code — a user can only be referred once."""
+
+    __tablename__ = "referrals"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    referrer_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    referred_id: Mapped[str] = mapped_column(ForeignKey("users.id"), unique=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
