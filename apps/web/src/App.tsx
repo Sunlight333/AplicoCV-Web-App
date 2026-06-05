@@ -15,6 +15,11 @@ const RewardsPage = lazy(() => import('@/pages/RewardsPage'))
 const FaqPage = lazy(() => import('@/pages/FaqPage'))
 const OptimizePage = lazy(() => import('@/pages/OptimizePage'))
 const DocumentsPage = lazy(() => import('@/pages/DocumentsPage'))
+const InterviewPage = lazy(() => import('@/pages/InterviewPage'))
+const AtsSimulatorPage = lazy(() => import('@/pages/AtsSimulatorPage'))
+const ReferralPage = lazy(() => import('@/pages/ReferralPage'))
+const GuidePage = lazy(() => import('@/pages/GuidePage'))
+const SupportedPortalsPage = lazy(() => import('@/pages/SupportedPortalsPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
@@ -58,6 +63,11 @@ export function App() {
               <Route path="/faq" element={<FaqPage />} />
               <Route path="/optimize" element={<OptimizePage />} />
               <Route path="/documents" element={<DocumentsPage />} />
+              <Route path="/interview" element={<InterviewPage />} />
+              <Route path="/ats" element={<AtsSimulatorPage />} />
+              <Route path="/referrals" element={<ReferralPage />} />
+              <Route path="/guide" element={<GuidePage />} />
+              <Route path="/portals" element={<SupportedPortalsPage />} />
               <Route path="/settings/account" element={<AccountPage />} />
               <Route path="/settings/credentials" element={<CredentialsPage />} />
               <Route path="/settings/billing" element={<BillingPage />} />

@@ -36,6 +36,39 @@ export async function listApplications(
   return api.get<Application[]>(`/applications${qs ? `?${qs}` : ''}`)
 }
 
+export interface NewApplication {
+  company: string
+  jobTitle: string
+  portal: string
+  jobUrl?: string
+  jobDescription?: string
+}
+
+/** Manually add an application (the extension adds them automatically too). */
+export async function createApplication(input: NewApplication): Promise<Application> {
+  if (env.useMocks) {
+    await delay(200)
+    const app: Application = {
+      id: `app_${Date.now()}`,
+      jobUrl: input.jobUrl || '',
+      portal: input.portal || 'Manual',
+      jobTitle: input.jobTitle,
+      company: input.company,
+      status: 'applied',
+      appliedAt: new Date().toISOString(),
+    }
+    store.applications.unshift(app)
+    return { ...app }
+  }
+  return api.post<Application>('/applications', {
+    jobUrl: input.jobUrl || '',
+    portal: input.portal || 'Manual',
+    jobTitle: input.jobTitle,
+    company: input.company,
+    jobDescription: input.jobDescription,
+  })
+}
+
 export async function updateApplicationStatus(
   id: string,
   status: ApplicationStatus,

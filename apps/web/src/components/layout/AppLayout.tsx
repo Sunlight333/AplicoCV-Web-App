@@ -22,6 +22,11 @@ const navIcons = {
   optimize: 'M5 19l7-7 3 3 6-6M14 6h5v5',
   documents: 'M7 3h7l5 5v13H7zM14 3v5h5',
   extension: 'M4 4h16v16H4zM9 9h6v6H9z',
+  interview: 'M21 11.5a8.38 8.38 0 01-9 8.4L3 21l1.1-3.3A8.38 8.38 0 1121 11.5zM8 11h8M8 14h5',
+  ats: 'M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M8 12l2.5 2.5L16 9',
+  referrals: 'M20 12v9H4v-9M2 7h20v5H2zM12 7V4M9 4a2 2 0 014 0 2 2 0 01-4 0zm6 0a2 2 0 00-3 0',
+  guide: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V5a2 2 0 012-2h14v14H6.5A2.5 2.5 0 004 19.5z',
+  portals: 'M4 5h16v14H4zM4 9h16M9 9v10',
 }
 
 function NavIcon({ d }: { d: string }) {
@@ -45,21 +50,29 @@ export function AppLayout() {
     navigate(q.trim() ? `/applications?search=${encodeURIComponent(q.trim())}` : '/applications')
   }, 350)
 
+  const tm = t.app.more.nav
   const navItems = [
     { to: '/dashboard', label: t.app.nav.dashboard, icon: navIcons.dashboard },
     { to: '/profile', label: t.app.nav.profile, icon: navIcons.profile },
     { to: '/applications', label: t.app.nav.applications, icon: navIcons.applications },
     { to: '/ai-tools', label: t.app.nav.aiTools, icon: navIcons.aiTools },
-    { to: '/optimize', label: 'Optimize CV', icon: navIcons.optimize },
-    { to: '/documents', label: 'Documents', icon: navIcons.documents },
-    { to: '/rewards', label: 'Rewards', icon: navIcons.rewards },
-    { to: '/faq', label: 'Questions', icon: navIcons.faq },
+    { to: '/optimize', label: tm.optimize, icon: navIcons.optimize },
+    { to: '/interview', label: tm.interview, icon: navIcons.interview },
+    { to: '/ats', label: tm.ats, icon: navIcons.ats },
+    { to: '/documents', label: tm.documents, icon: navIcons.documents },
+    { to: '/rewards', label: tm.rewards, icon: navIcons.rewards },
+    { to: '/referrals', label: tm.referrals, icon: navIcons.referrals },
+    { to: '/faq', label: tm.questions, icon: navIcons.faq },
     { to: '/extension', label: t.app.nav.extension, icon: navIcons.extension },
   ]
+  const resourceItems = [
+    { to: '/guide', label: tm.guide, icon: navIcons.guide },
+    { to: '/portals', label: tm.portals, icon: navIcons.portals },
+  ]
   const settingsItems = [
-    { to: '/settings/account', label: 'Account' },
+    { to: '/settings/account', label: tm.account },
     { to: '/settings/credentials', label: t.app.nav.credentials },
-    { to: '/settings/billing', label: t.app.nav.billing },
+    { to: '/settings/billing', label: tm.plans },
   ]
 
   const handleLogout = async () => {
@@ -83,6 +96,12 @@ export function AppLayout() {
         </NavLink>
         <nav className="mt-8 flex flex-1 flex-col gap-1">
           {navItems.map((item) => (
+            <NavLink key={item.to} to={item.to} className={linkClass}>
+              <NavIcon d={item.icon} />
+              {item.label}
+            </NavLink>
+          ))}
+          {resourceItems.map((item) => (
             <NavLink key={item.to} to={item.to} className={linkClass}>
               <NavIcon d={item.icon} />
               {item.label}

@@ -6,11 +6,14 @@ import { PageTransition } from '@/components/PageTransition'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
+import { Input } from '@/components/ui/Field'
 import { useToast } from '@/components/Toast'
 import {
   listApplications,
   updateApplicationStatus,
   updateApplicationNotes,
+  createApplication,
 } from '@/services/applications'
 import type { Application, ApplicationStatus } from '@/types'
 import { statusOrder } from './tracking/statusMeta'
@@ -26,6 +29,9 @@ export default function TrackingPage() {
   const [portalFilter, setPortalFilter] = useState('')
   const [searchParams, setSearchParams] = useSearchParams()
   const search = searchParams.get('search') ?? ''
+  const ta = t.app.more.addApp
+  const [showAdd, setShowAdd] = useState(false)
+  const [form, setForm] = useState({ company: '', jobTitle: '', portal: '', jobUrl: '' })
 
   const { data, isLoading } = useQuery({
     queryKey: ['applications', search],
@@ -57,6 +63,23 @@ export default function TrackingPage() {
         old?.map((a) => (a.id === updated.id ? updated : a)),
       )
     },
+  })
+
+  const addMutation = useMutation({
+    mutationFn: () =>
+      createApplication({
+        company: form.company.trim(),
+        jobTitle: form.jobTitle.trim(),
+        portal: form.portal.trim() || 'Manual',
+        jobUrl: form.jobUrl.trim() || undefined,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['applications'] })
+      setShowAdd(false)
+      setForm({ company: '', jobTitle: '', portal: '', jobUrl: '' })
+      toast(ta.added)
+    },
+    onError: () => toast(t.app.aiTools.error, 'error'),
   })
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }))
@@ -115,6 +138,7 @@ export default function TrackingPage() {
             <option key={p} value={p}>{p}</option>
           ))}
         </select>
+        <Button className="rounded-lg" onClick={() => setShowAdd(true)}>+ {ta.title}</Button>
         </div>
       </div>
 
@@ -162,6 +186,28 @@ export default function TrackingPage() {
         onClose={() => setActive(null)}
         onSaveNotes={(id, notes) => notesMutation.mutate({ id, notes })}
       />
+
+      <Modal open={showAdd} onClose={() => setShowAdd(false)}>
+        <Card className="p-6">
+          <h2 className="text-lg font-semibold text-navy-900">{ta.title}</h2>
+          <div className="mt-4 space-y-3">
+            <Input label={ta.company} value={form.company} onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))} />
+            <Input label={ta.role} value={form.jobTitle} onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))} />
+            <Input label={ta.portal} placeholder="LinkedIn, Indeed…" value={form.portal} onChange={(e) => setForm((f) => ({ ...f, portal: e.target.value }))} />
+            <Input label={ta.url} value={form.jobUrl} onChange={(e) => setForm((f) => ({ ...f, jobUrl: e.target.value }))} />
+          </div>
+          <div className="mt-5 flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setShowAdd(false)}>{t.app.tracking.close}</Button>
+            <Button
+              loading={addMutation.isPending}
+              disabled={!form.company.trim() || !form.jobTitle.trim()}
+              onClick={() => addMutation.mutate()}
+            >
+              {ta.add}
+            </Button>
+          </div>
+        </Card>
+      </Modal>
     </PageTransition>
   )
 }

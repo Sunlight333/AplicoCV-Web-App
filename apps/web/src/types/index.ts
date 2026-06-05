@@ -32,7 +32,13 @@ export interface JobPreferences {
   locations: string[]
   remote: 'onsite' | 'hybrid' | 'remote' | 'any'
   salaryMin?: number
+  salaryMax?: number
   salaryCurrency?: string
+  salaryPeriod?: 'year' | 'month' | 'hour'
+  salaryType?: 'gross' | 'net'
+  availability?: string
+  workAuthorization?: string
+  industries?: string[]
 }
 
 export interface WorkExperience {
@@ -83,14 +89,41 @@ export interface PersonalInfo {
   summary: string
 }
 
+export interface Certification {
+  id: string
+  name: string
+  issuer?: string
+  year?: string
+  credentialUrl?: string
+}
+
+export interface ProjectItem {
+  id: string
+  name: string
+  description?: string
+  url?: string
+  skills?: string[]
+}
+
+export interface PersonalAnalysis {
+  strengths: string[]
+  weaknesses: string
+  motivation: string
+}
+
 export interface Profile {
   personal: PersonalInfo
   experience: WorkExperience[]
   education: Education[]
   skills: string[]
+  skillsToAvoid?: string[]
   languages: LanguageSkill[]
   links: ProfileLink[]
+  certifications?: Certification[]
+  projects?: ProjectItem[]
+  baseCoverLetter?: string
   complementary: ComplementaryInfo
+  analysis?: PersonalAnalysis | null
   version: number
 }
 

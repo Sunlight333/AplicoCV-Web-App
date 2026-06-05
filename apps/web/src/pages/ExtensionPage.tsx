@@ -19,6 +19,7 @@ function isChrome() {
 export default function ExtensionPage() {
   const t = useT()
   const te = t.app.extension
+  const ti = t.app.more.install
   const chrome = isChrome()
   const [installed, setInstalled] = useState(false)
 
@@ -91,6 +92,31 @@ export default function ExtensionPage() {
           )}
         </Card>
       </div>
+
+      {/* Manual install (developer mode) — works today, before the store listing */}
+      <Card className="mt-6 p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-semibold text-navy-900">{ti.manual}</h2>
+          <a href="/aplicocv-extension.zip" download>
+            <Button variant="secondary" size="sm">{ti.download}</Button>
+          </a>
+        </div>
+        <ol className="mt-4 space-y-3">
+          {[
+            'Download and unzip the AplicoCV package above.',
+            'Open chrome://extensions and turn on “Developer mode” (top-right).',
+            'Click “Load unpacked” and select the unzipped folder.',
+            'Pin AplicoCV, open it, and it connects to this account automatically.',
+          ].map((step, i) => (
+            <li key={i} className="flex items-start gap-3">
+              <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-navy-100 text-xs font-bold text-navy-500">
+                {i + 1}
+              </span>
+              <span className="text-sm text-navy-600">{step}</span>
+            </li>
+          ))}
+        </ol>
+      </Card>
 
       {/* CSS-animated three-frame walkthrough */}
       <Card className="mt-6 overflow-hidden p-6">

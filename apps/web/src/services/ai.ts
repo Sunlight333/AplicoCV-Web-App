@@ -43,6 +43,105 @@ export async function getSkillSuggestions(): Promise<string[]> {
   return res.skills
 }
 
+/** 100%-personalized, from-scratch cover letter (40 credits). */
+export async function generatePersonalizedLetter(input: {
+  jobDescription: string
+  company?: string
+  role?: string
+  highlights?: string
+  tone: CoverLetterTone
+}): Promise<string> {
+  if (env.useMocks) {
+    await delay(1100)
+    return `Dear Hiring Team at ${input.company || 'your company'},\n\nI am writing to apply for the ${input.role || 'role'}…`
+  }
+  const res = await api.post<{ text: string }>('/ai/cover-letter-pro', input)
+  return res.text
+}
+
+// --- AI mock interview --------------------------------------------------------
+
+export type InterviewKind = 'behavioral' | 'technical' | 'mixed'
+
+export interface InterviewStart {
+  sessionId: string
+  questions: string[]
+}
+
+export interface InterviewQuestionFeedback {
+  question: string
+  answer: string
+  rating: number
+  feedback: string
+}
+
+export interface InterviewFeedback {
+  overallScore: number
+  summary: string
+  perQuestion: InterviewQuestionFeedback[]
+}
+
+export interface InterviewSessionSummary {
+  id: string
+  role: string
+  kind: string
+  createdAt: string
+  questionCount: number
+  overallScore: number | null
+  completed: boolean
+}
+
+/** Start a mock interview (30 credits) — returns tailored questions. */
+export async function startInterview(input: {
+  role: string
+  jobDescription?: string
+  kind: InterviewKind
+}): Promise<InterviewStart> {
+  if (env.useMocks) {
+    await delay(900)
+    return {
+      sessionId: 'mock',
+      questions: [
+        `Tell me about yourself and why you're a fit for the ${input.role} role.`,
+        'Describe a challenging problem you solved and your specific contribution.',
+        'Tell me about a time you disagreed with a teammate. How did you handle it?',
+        'What are your biggest strengths for this role?',
+        'Where do you see yourself in three years, and why this company?',
+      ],
+    }
+  }
+  return api.post<InterviewStart>('/ai/interview/start', input)
+}
+
+/** Submit answers and get per-question + overall feedback. */
+export async function submitInterview(
+  sessionId: string,
+  answers: string[],
+): Promise<InterviewFeedback> {
+  if (env.useMocks) {
+    await delay(1200)
+    return {
+      overallScore: 82,
+      summary: 'Strong overall — concrete, outcome-focused answers.',
+      perQuestion: answers.map((a, i) => ({
+        question: `Question ${i + 1}`,
+        answer: a,
+        rating: 4,
+        feedback: 'Good structure — quantify the result to make it land harder.',
+      })),
+    }
+  }
+  return api.post<InterviewFeedback>('/ai/interview/feedback', { sessionId, answers })
+}
+
+export async function getInterviewHistory(): Promise<InterviewSessionSummary[]> {
+  if (env.useMocks) {
+    await delay(300)
+    return []
+  }
+  return api.get<InterviewSessionSummary[]>('/ai/interview/history')
+}
+
 /** Generate a cover letter for a job description (POST /cover-letters/generate). */
 export async function generateCoverLetter(
   jobDescription: string,
