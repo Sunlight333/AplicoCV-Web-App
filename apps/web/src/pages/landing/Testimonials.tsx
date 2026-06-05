@@ -1,7 +1,7 @@
 import { Reveal, RevealGroup } from '@/components/motion/Reveal'
 import { useT } from '@/i18n/I18nProvider'
 
-const initials = ['M', 'J', 'S']
+const avatars = ['avatar-01', 'avatar-02', 'avatar-03']
 
 export function Testimonials() {
   const t = useT()
@@ -25,9 +25,11 @@ export function Testimonials() {
               </div>
               <blockquote className="mt-4 flex-1 text-navy-600">“{item.quote}”</blockquote>
               <figcaption className="mt-6 flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-gradient text-sm font-semibold text-white">
-                  {initials[i]}
-                </span>
+                <img
+                  src={`/avatars/${avatars[i]}.png`}
+                  alt={item.name}
+                  className="h-11 w-11 rounded-full object-cover ring-2 ring-electric-100"
+                />
                 <div>
                   <p className="text-sm font-semibold text-navy-900">{item.name}</p>
                   <p className="text-xs text-navy-400">{item.role}</p>
