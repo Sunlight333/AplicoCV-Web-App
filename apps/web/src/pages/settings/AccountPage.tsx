@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import type { Locale } from '@/i18n/dictionaries'
+import { useCopy } from '@/i18n/useCopy'
 import { PageTransition } from '@/components/PageTransition'
 import { Card } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Field'
@@ -10,10 +12,76 @@ import { useAuth } from '@/auth/AuthContext'
 import { setPassword, updateName, deleteAccount } from '@/services/auth'
 import { ApiError } from '@/lib/apiClient'
 
+interface AccountCopy {
+  title: string; subtitle: string
+  profile: string; profileSub: string; displayName: string; email: string; saveName: string
+  nameUpdated: string; nameError: string
+  changePw: string; setPw: string; changePwSub: string; setPwSub: string
+  currentPw: string; newPw: string; newPwPh: string; confirmPw: string; updatePw: string; setPwBtn: string
+  pwTooShort: string; pwNeedNumber: string; pwMismatch: string; pwError: string; pwUpdated: string; pwSet: string
+  deleteTitle: string; deleteSub: string; deleteBtn: string; deleteError: string
+  confirmTitle: string; confirmSub: string; cancel: string; confirmBtn: string
+}
+
+const COPY: Record<Locale, AccountCopy> = {
+  en: {
+    title: 'Account & security', subtitle: 'Manage your profile, sign-in and account.',
+    profile: 'Profile', profileSub: 'Your display name and account email.', displayName: 'Display name', email: 'Email', saveName: 'Save name',
+    nameUpdated: 'Name updated', nameError: 'Could not update your name',
+    changePw: 'Change password', setPw: 'Set a password',
+    changePwSub: 'Enter your current password and choose a new one.',
+    setPwSub: 'You signed in with Google, so your account has no password yet. Set one to also sign in with your email and to use password reset.',
+    currentPw: 'Current password', newPw: 'New password', newPwPh: 'At least 8 characters, one number', confirmPw: 'Confirm new password',
+    updatePw: 'Update password', setPwBtn: 'Set password',
+    pwTooShort: 'New password must be at least 8 characters', pwNeedNumber: 'Include at least one number',
+    pwMismatch: 'Passwords do not match', pwError: 'Could not update your password',
+    pwUpdated: 'Password updated', pwSet: 'Password set — you can now sign in with email',
+    deleteTitle: 'Delete account', deleteSub: 'Permanently delete your account, profile, documents and all data. This can’t be undone.',
+    deleteBtn: 'Delete my account', deleteError: 'Could not delete your account',
+    confirmTitle: 'Delete your account?', confirmSub: 'This permanently removes your profile, CV, applications, documents and credits. There is no undo.',
+    cancel: 'Cancel', confirmBtn: 'Yes, delete everything',
+  },
+  es: {
+    title: 'Cuenta y seguridad', subtitle: 'Gestiona tu perfil, inicio de sesión y cuenta.',
+    profile: 'Perfil', profileSub: 'Tu nombre visible y el correo de la cuenta.', displayName: 'Nombre visible', email: 'Correo electrónico', saveName: 'Guardar nombre',
+    nameUpdated: 'Nombre actualizado', nameError: 'No se pudo actualizar tu nombre',
+    changePw: 'Cambiar contraseña', setPw: 'Establecer una contraseña',
+    changePwSub: 'Ingresa tu contraseña actual y elige una nueva.',
+    setPwSub: 'Iniciaste sesión con Google, así que tu cuenta aún no tiene contraseña. Establece una para iniciar sesión también con tu correo y poder restablecerla.',
+    currentPw: 'Contraseña actual', newPw: 'Nueva contraseña', newPwPh: 'Al menos 8 caracteres, un número', confirmPw: 'Confirmar nueva contraseña',
+    updatePw: 'Actualizar contraseña', setPwBtn: 'Establecer contraseña',
+    pwTooShort: 'La nueva contraseña debe tener al menos 8 caracteres', pwNeedNumber: 'Incluye al menos un número',
+    pwMismatch: 'Las contraseñas no coinciden', pwError: 'No se pudo actualizar tu contraseña',
+    pwUpdated: 'Contraseña actualizada', pwSet: 'Contraseña establecida — ahora puedes iniciar sesión con tu correo',
+    deleteTitle: 'Eliminar cuenta', deleteSub: 'Elimina permanentemente tu cuenta, perfil, documentos y todos los datos. No se puede deshacer.',
+    deleteBtn: 'Eliminar mi cuenta', deleteError: 'No se pudo eliminar tu cuenta',
+    confirmTitle: '¿Eliminar tu cuenta?', confirmSub: 'Esto elimina permanentemente tu perfil, CV, postulaciones, documentos y créditos. No hay forma de deshacerlo.',
+    cancel: 'Cancelar', confirmBtn: 'Sí, eliminar todo',
+  },
+  'pt-BR': {
+    title: 'Conta e segurança', subtitle: 'Gerencie seu perfil, login e conta.',
+    profile: 'Perfil', profileSub: 'Seu nome de exibição e o e-mail da conta.', displayName: 'Nome de exibição', email: 'E-mail', saveName: 'Salvar nome',
+    nameUpdated: 'Nome atualizado', nameError: 'Não foi possível atualizar seu nome',
+    changePw: 'Alterar senha', setPw: 'Definir uma senha',
+    changePwSub: 'Digite sua senha atual e escolha uma nova.',
+    setPwSub: 'Você entrou com o Google, então sua conta ainda não tem senha. Defina uma para entrar também com seu e-mail e poder redefini-la.',
+    currentPw: 'Senha atual', newPw: 'Nova senha', newPwPh: 'Pelo menos 8 caracteres, um número', confirmPw: 'Confirmar nova senha',
+    updatePw: 'Atualizar senha', setPwBtn: 'Definir senha',
+    pwTooShort: 'A nova senha deve ter pelo menos 8 caracteres', pwNeedNumber: 'Inclua pelo menos um número',
+    pwMismatch: 'As senhas não coincidem', pwError: 'Não foi possível atualizar sua senha',
+    pwUpdated: 'Senha atualizada', pwSet: 'Senha definida — agora você pode entrar com seu e-mail',
+    deleteTitle: 'Excluir conta', deleteSub: 'Exclua permanentemente sua conta, perfil, documentos e todos os dados. Isso não pode ser desfeito.',
+    deleteBtn: 'Excluir minha conta', deleteError: 'Não foi possível excluir sua conta',
+    confirmTitle: 'Excluir sua conta?', confirmSub: 'Isso remove permanentemente seu perfil, currículo, candidaturas, documentos e créditos. Não há como desfazer.',
+    cancel: 'Cancelar', confirmBtn: 'Sim, excluir tudo',
+  },
+}
+
 export default function AccountPage() {
   const { user, setUser, logout } = useAuth()
   const { toast } = useToast()
   const navigate = useNavigate()
+  const c = useCopy(COPY)
   const hasPassword = user?.hasPassword ?? false
 
   const [name, setName] = useState(user?.fullName ?? '')
@@ -33,9 +101,9 @@ export default function AccountPage() {
     try {
       const updated = await updateName(name.trim())
       setUser(updated)
-      toast('Name updated')
+      toast(c.nameUpdated)
     } catch {
-      toast('Could not update your name', 'error')
+      toast(c.nameError, 'error')
     } finally {
       setSavingName(false)
     }
@@ -48,7 +116,7 @@ export default function AccountPage() {
       await logout()
       navigate('/', { replace: true })
     } catch {
-      toast('Could not delete your account', 'error')
+      toast(c.deleteError, 'error')
       setDeleting(false)
     }
   }
@@ -56,20 +124,20 @@ export default function AccountPage() {
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
-    if (next.length < 8) return setError('New password must be at least 8 characters')
-    if (!/[0-9]/.test(next)) return setError('Include at least one number')
-    if (next !== confirm) return setError('Passwords do not match')
+    if (next.length < 8) return setError(c.pwTooShort)
+    if (!/[0-9]/.test(next)) return setError(c.pwNeedNumber)
+    if (next !== confirm) return setError(c.pwMismatch)
 
     setSaving(true)
     try {
       const updated = await setPassword(hasPassword ? current : null, next)
       setUser(updated)
-      toast(hasPassword ? 'Password updated' : 'Password set — you can now sign in with email')
+      toast(hasPassword ? c.pwUpdated : c.pwSet)
       setCurrent('')
       setNext('')
       setConfirm('')
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not update your password')
+      setError(err instanceof ApiError ? err.message : c.pwError)
     } finally {
       setSaving(false)
     }
@@ -78,100 +146,50 @@ export default function AccountPage() {
   return (
     <PageTransition>
       <div className="mx-auto max-w-xl">
-        <h1 className="text-2xl font-bold text-navy-900">Account &amp; security</h1>
-        <p className="mt-1 text-sm text-navy-500">Manage your profile, sign-in and account.</p>
+        <h1 className="text-2xl font-bold text-navy-900">{c.title}</h1>
+        <p className="mt-1 text-sm text-navy-500">{c.subtitle}</p>
 
         <Card className="mt-6 p-7">
-          <h2 className="text-lg font-semibold text-navy-900">Profile</h2>
-          <p className="mt-1 text-sm text-navy-500">Your display name and account email.</p>
+          <h2 className="text-lg font-semibold text-navy-900">{c.profile}</h2>
+          <p className="mt-1 text-sm text-navy-500">{c.profileSub}</p>
           <div className="mt-5 space-y-4">
-            <Input
-              label="Display name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <Input label="Email" value={user?.email ?? ''} disabled readOnly />
-            <Button
-              className="rounded-full"
-              loading={savingName}
-              disabled={!name.trim() || name.trim() === user?.fullName}
-              onClick={saveName}
-            >
-              Save name
+            <Input label={c.displayName} value={name} onChange={(e) => setName(e.target.value)} />
+            <Input label={c.email} value={user?.email ?? ''} disabled readOnly />
+            <Button className="rounded-full" loading={savingName} disabled={!name.trim() || name.trim() === user?.fullName} onClick={saveName}>
+              {c.saveName}
             </Button>
           </div>
         </Card>
 
         <Card className="mt-6 p-7">
-          <h2 className="text-lg font-semibold text-navy-900">
-            {hasPassword ? 'Change password' : 'Set a password'}
-          </h2>
-          <p className="mt-1 text-sm text-navy-500">
-            {hasPassword
-              ? 'Enter your current password and choose a new one.'
-              : 'You signed in with Google, so your account has no password yet. Set one to also sign in with your email and to use password reset.'}
-          </p>
+          <h2 className="text-lg font-semibold text-navy-900">{hasPassword ? c.changePw : c.setPw}</h2>
+          <p className="mt-1 text-sm text-navy-500">{hasPassword ? c.changePwSub : c.setPwSub}</p>
 
           <form onSubmit={onSubmit} className="mt-5 space-y-4" noValidate>
             {hasPassword && (
-              <Input
-                id="current-password"
-                type="password"
-                label="Current password"
-                autoComplete="current-password"
-                value={current}
-                onChange={(e) => setCurrent(e.target.value)}
-              />
+              <Input id="current-password" type="password" label={c.currentPw} autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} />
             )}
-            <Input
-              id="new-password"
-              type="password"
-              label="New password"
-              placeholder="At least 8 characters, one number"
-              autoComplete="new-password"
-              value={next}
-              onChange={(e) => setNext(e.target.value)}
-            />
-            <Input
-              id="confirm-password"
-              type="password"
-              label="Confirm new password"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-            />
+            <Input id="new-password" type="password" label={c.newPw} placeholder={c.newPwPh} autoComplete="new-password" value={next} onChange={(e) => setNext(e.target.value)} />
+            <Input id="confirm-password" type="password" label={c.confirmPw} autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
             {error && <p className="text-sm font-medium text-red-600">{error}</p>}
-            <Button type="submit" loading={saving} className="rounded-full">
-              {hasPassword ? 'Update password' : 'Set password'}
-            </Button>
+            <Button type="submit" loading={saving} className="rounded-full">{hasPassword ? c.updatePw : c.setPwBtn}</Button>
           </form>
         </Card>
 
         <Card className="mt-6 border-red-100 p-7">
-          <h2 className="text-lg font-semibold text-red-600">Delete account</h2>
-          <p className="mt-1 text-sm text-navy-500">
-            Permanently delete your account, profile, documents and all data. This can’t be undone.
-          </p>
-          <Button variant="danger" className="mt-5 rounded-full" onClick={() => setConfirmDelete(true)}>
-            Delete my account
-          </Button>
+          <h2 className="text-lg font-semibold text-red-600">{c.deleteTitle}</h2>
+          <p className="mt-1 text-sm text-navy-500">{c.deleteSub}</p>
+          <Button variant="danger" className="mt-5 rounded-full" onClick={() => setConfirmDelete(true)}>{c.deleteBtn}</Button>
         </Card>
       </div>
 
       <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)}>
-        <div className="rounded-2xl bg-white p-7 shadow-card-hover">
-          <h2 className="text-lg font-semibold text-navy-900">Delete your account?</h2>
-          <p className="mt-2 text-sm text-navy-500">
-            This permanently removes your profile, CV, applications, documents and credits. There is
-            no undo.
-          </p>
+        <div className="rounded-2xl bg-white p-7 shadow-elev-4">
+          <h2 className="text-lg font-semibold text-navy-900">{c.confirmTitle}</h2>
+          <p className="mt-2 text-sm text-navy-500">{c.confirmSub}</p>
           <div className="mt-6 flex justify-end gap-2">
-            <Button variant="ghost" className="rounded-full" onClick={() => setConfirmDelete(false)}>
-              Cancel
-            </Button>
-            <Button variant="danger" className="rounded-full" loading={deleting} onClick={doDelete}>
-              Yes, delete everything
-            </Button>
+            <Button variant="ghost" className="rounded-full" onClick={() => setConfirmDelete(false)}>{c.cancel}</Button>
+            <Button variant="danger" className="rounded-full" loading={deleting} onClick={doDelete}>{c.confirmBtn}</Button>
           </div>
         </div>
       </Modal>

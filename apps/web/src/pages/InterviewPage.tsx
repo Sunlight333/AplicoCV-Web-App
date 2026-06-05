@@ -16,6 +16,15 @@ import {
   type InterviewFeedback,
 } from '@/services/ai'
 
+import { useCopy } from '@/i18n/useCopy'
+import type { Locale } from '@/i18n/dictionaries'
+
+const IC: Record<Locale, { newInterview: string; incomplete: string; questions: (n: number) => string }> = {
+  en: { newInterview: 'New interview', incomplete: 'Incomplete', questions: (n) => `${n} questions` },
+  es: { newInterview: 'Nueva entrevista', incomplete: 'Incompleta', questions: (n) => `${n} preguntas` },
+  'pt-BR': { newInterview: 'Nova entrevista', incomplete: 'Incompleta', questions: (n) => `${n} perguntas` },
+}
+
 type Phase = 'setup' | 'answer' | 'result'
 
 function ScoreRing({ score }: { score: number }) {
@@ -42,6 +51,7 @@ export default function InterviewPage() {
   const { toast } = useToast()
   const t = useT()
   const ti = t.app.more.interview
+  const ic = useCopy(IC)
 
   const [phase, setPhase] = useState<Phase>('setup')
   const [role, setRole] = useState('')
@@ -162,7 +172,7 @@ export default function InterviewPage() {
             ))}
           </div>
           <Button variant="secondary" className="mt-5 rounded-full" onClick={reset}>
-            New interview
+            {ic.newInterview}
           </Button>
         </Card>
       )}
@@ -176,7 +186,7 @@ export default function InterviewPage() {
                 <div>
                   <p className="font-medium text-navy-800">{s.role}</p>
                   <p className="text-xs text-navy-400">
-                    {new Date(s.createdAt).toLocaleDateString()} · {s.questionCount} questions
+                    {new Date(s.createdAt).toLocaleDateString()} · {ic.questions(s.questionCount)}
                   </p>
                 </div>
                 {s.overallScore != null ? (
@@ -184,7 +194,7 @@ export default function InterviewPage() {
                     {s.overallScore}
                   </Badge>
                 ) : (
-                  <Badge tone="neutral">Incomplete</Badge>
+                  <Badge tone="neutral">{ic.incomplete}</Badge>
                 )}
               </div>
             ))}

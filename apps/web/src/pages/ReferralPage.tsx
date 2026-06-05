@@ -7,12 +7,21 @@ import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
 import { getReferral, redeemReferral } from '@/services/referrals'
+import { useCopy } from '@/i18n/useCopy'
+import type { Locale } from '@/i18n/dictionaries'
+
+const RC: Record<Locale, { bonus: (n: number) => string }> = {
+  en: { bonus: (n) => `You and your friend each get ${n} credits when they join.` },
+  es: { bonus: (n) => `Tú y tu amigo reciben ${n} créditos cada uno cuando se une.` },
+  'pt-BR': { bonus: (n) => `Você e seu amigo ganham ${n} créditos cada um quando ele entra.` },
+}
 
 export default function ReferralPage() {
   const qc = useQueryClient()
   const { toast } = useToast()
   const t = useT()
   const tr = t.app.more.referrals
+  const rc = useCopy(RC)
   const [code, setCode] = useState('')
 
   const ref = useQuery({ queryKey: ['referral'], queryFn: getReferral })
@@ -74,7 +83,7 @@ export default function ReferralPage() {
             </div>
           </div>
           <div className="mt-3 rounded-lg bg-electric-50 p-3 text-sm text-electric-700">
-            🎁 You and your friend each get <strong>{ref.data?.reward ?? 100} credits</strong> when they join.
+            🎁 {rc.bonus(ref.data?.reward ?? 100)}
           </div>
         </Card>
       </div>

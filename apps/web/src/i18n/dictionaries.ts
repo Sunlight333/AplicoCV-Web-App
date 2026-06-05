@@ -85,6 +85,7 @@ export const en = {
     ],
     cta: 'Try the ATS score',
     matchLabel: 'match',
+    example: 'Example',
   },
   toolkit: {
     kicker: 'Your complete toolkit',
@@ -111,6 +112,7 @@ export const en = {
   testimonials: {
     kicker: 'Loved by job seekers',
     title: 'People apply more — and stress less',
+    illustrative: 'Illustrative examples',
     items: [
       { quote: 'I applied to 30 roles in a weekend without retyping my CV once. Two interviews booked by Monday. This is the tool I wish existed years ago.', name: 'María Fernández', role: 'Product Designer · Buenos Aires' },
       { quote: 'The ATS score told me exactly which keywords I was missing. My response rate genuinely doubled after I followed its suggestions.', name: 'James Okafor', role: 'Data Analyst · Remote' },
@@ -604,6 +606,7 @@ export const es: Dictionary = {
     ],
     cta: 'Probar el puntaje ATS',
     matchLabel: 'encaje',
+    example: 'Ejemplo',
   },
   toolkit: {
     kicker: 'Tu kit completo',
@@ -630,6 +633,7 @@ export const es: Dictionary = {
   testimonials: {
     kicker: 'Querido por quienes buscan empleo',
     title: 'Postúlate más — y estrésate menos',
+    illustrative: 'Ejemplos ilustrativos',
     items: [
       { quote: 'Me postulé a 30 puestos en un fin de semana sin reescribir mi CV ni una vez. Dos entrevistas el lunes. Es la herramienta que desearía haber tenido hace años.', name: 'María Fernández', role: 'Diseñadora de Producto · Buenos Aires' },
       { quote: 'El puntaje ATS me dijo exactamente qué palabras clave me faltaban. Mi tasa de respuesta se duplicó al seguir sus sugerencias.', name: 'James Okafor', role: 'Analista de Datos · Remoto' },
@@ -1106,6 +1110,7 @@ export const ptBR: Dictionary = {
     ],
     cta: 'Testar a pontuação ATS',
     matchLabel: 'compat.',
+    example: 'Exemplo',
   },
   toolkit: {
     kicker: 'Seu kit completo',
@@ -1132,6 +1137,7 @@ export const ptBR: Dictionary = {
   testimonials: {
     kicker: 'Amado por quem busca emprego',
     title: 'Candidate-se mais — e estresse menos',
+    illustrative: 'Exemplos ilustrativos',
     items: [
       { quote: 'Candidatei-me a 30 vagas em um fim de semana sem redigitar meu currículo nenhuma vez. Duas entrevistas marcadas na segunda. É a ferramenta que eu queria ter tido anos atrás.', name: 'María Fernández', role: 'Designer de Produto · Buenos Aires' },
       { quote: 'A pontuação ATS me disse exatamente quais palavras-chave faltavam. Minha taxa de resposta dobrou depois que segui as sugestões.', name: 'James Okafor', role: 'Analista de Dados · Remoto' },

@@ -392,7 +392,7 @@ function Showcase() {
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-navy-900">{t.showcase.cardTitle}</p>
                 <span className="rounded-full bg-navy-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-navy-400">
-                  Example
+                  {t.showcase.example}
                 </span>
               </div>
               <div className="mt-5 flex items-center gap-6">

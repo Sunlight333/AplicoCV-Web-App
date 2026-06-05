@@ -8,12 +8,21 @@ import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
 import { scoreAts } from '@/services/dashboard'
+import { useCopy } from '@/i18n/useCopy'
+import type { Locale } from '@/i18n/dictionaries'
 import type { AtsAnalysis } from '@/types'
+
+const AC: Record<Locale, { matched: (m: number, t: number) => string }> = {
+  en: { matched: (m, t) => `${m}/${t} keywords matched` },
+  es: { matched: (m, t) => `${m}/${t} palabras clave coincidentes` },
+  'pt-BR': { matched: (m, t) => `${m}/${t} palavras-chave correspondentes` },
+}
 
 export default function AtsSimulatorPage() {
   const { toast } = useToast()
   const t = useT()
   const ta = t.app.more.ats
+  const ac = useCopy(AC)
   const [jd, setJd] = useState('')
   const [result, setResult] = useState<AtsAnalysis | null>(null)
 
@@ -68,9 +77,7 @@ export default function AtsSimulatorPage() {
                   style={{ width: `${coverage}%` }}
                 />
               </div>
-              <p className="mt-1.5 text-xs text-navy-400">
-                {result.matchedKeywords.length}/{total} keywords matched
-              </p>
+              <p className="mt-1.5 text-xs text-navy-400">{ac.matched(result.matchedKeywords.length, total)}</p>
 
               <div className="mt-5">
                 <p className="text-sm font-semibold text-navy-700">{ta.matched}</p>

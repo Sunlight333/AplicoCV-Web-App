@@ -20,6 +20,14 @@ import { statusOrder } from './tracking/statusMeta'
 import { KanbanColumn } from './tracking/KanbanColumn'
 import { ApplicationDrawer } from './tracking/ApplicationDrawer'
 import { useT } from '@/i18n/I18nProvider'
+import { useCopy } from '@/i18n/useCopy'
+import type { Locale } from '@/i18n/dictionaries'
+
+const EMPTY_COPY: Record<Locale, { title: string; body: string; install: string }> = {
+  en: { title: 'No applications yet', body: 'When you apply on LinkedIn, Workday, Indeed and other portals with the AplicoCV extension, your applications show up here with their status.', install: 'Install the extension' },
+  es: { title: 'Aún no hay postulaciones', body: 'Cuando postules en LinkedIn, Workday, Indeed y otros portales con la extensión de AplicoCV, tus postulaciones aparecerán aquí con su estado.', install: 'Instalar la extensión' },
+  'pt-BR': { title: 'Nenhuma candidatura ainda', body: 'Quando você se candidatar no LinkedIn, Workday, Indeed e outros portais com a extensão da AplicoCV, suas candidaturas aparecerão aqui com o status.', install: 'Instalar a extensão' },
+}
 
 export default function TrackingPage() {
   const qc = useQueryClient()
@@ -30,6 +38,7 @@ export default function TrackingPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const search = searchParams.get('search') ?? ''
   const ta = t.app.more.addApp
+  const ec = useCopy(EMPTY_COPY)
   const [showAdd, setShowAdd] = useState(false)
   const [form, setForm] = useState({ company: '', jobTitle: '', portal: '', jobUrl: '' })
 
@@ -156,14 +165,11 @@ export default function TrackingPage() {
         <Card className="mt-6 flex flex-col items-center gap-4 p-12 text-center">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-electric-50 text-2xl">🗂️</div>
           <div>
-            <p className="font-semibold text-navy-900">No applications yet</p>
-            <p className="mx-auto mt-1 max-w-md text-sm text-navy-500">
-              When you apply on LinkedIn, Workday, Indeed and other portals with the AplicoCV
-              extension, your applications show up here with their status.
-            </p>
+            <p className="font-semibold text-navy-900">{ec.title}</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-navy-500">{ec.body}</p>
           </div>
           <Link to="/extension">
-            <Button className="rounded-full">Install the extension</Button>
+            <Button className="rounded-full">{ec.install}</Button>
           </Link>
         </Card>
       ) : (

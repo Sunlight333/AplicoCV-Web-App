@@ -10,7 +10,7 @@ export function Testimonials() {
       <Reveal className="text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-violet-600">{t.testimonials.kicker}</p>
         <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 sm:text-4xl">{t.testimonials.title}</h2>
-        <p className="mt-2 text-xs text-navy-400">Illustrative examples</p>
+        <p className="mt-2 text-xs text-navy-400">{t.testimonials.illustrative}</p>
       </Reveal>
 
       <RevealGroup className="mt-14 grid gap-6 md:grid-cols-3">

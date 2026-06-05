@@ -5,6 +5,29 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/cn'
 import { useT } from '@/i18n/I18nProvider'
+import { useCopy } from '@/i18n/useCopy'
+import type { Locale } from '@/i18n/dictionaries'
+
+const MANUAL_STEPS: Record<Locale, string[]> = {
+  en: [
+    'Download and unzip the AplicoCV package above.',
+    'Open chrome://extensions and turn on “Developer mode” (top-right).',
+    'Click “Load unpacked” and select the unzipped folder.',
+    'Pin AplicoCV, open it, and it connects to this account automatically.',
+  ],
+  es: [
+    'Descarga y descomprime el paquete de AplicoCV de arriba.',
+    'Abre chrome://extensions y activa el “Modo de desarrollador” (arriba a la derecha).',
+    'Haz clic en “Cargar descomprimida” y selecciona la carpeta descomprimida.',
+    'Fija AplicoCV, ábrela y se conectará a esta cuenta automáticamente.',
+  ],
+  'pt-BR': [
+    'Baixe e descompacte o pacote da AplicoCV acima.',
+    'Abra chrome://extensions e ative o “Modo de desenvolvedor” (canto superior direito).',
+    'Clique em “Carregar sem compactação” e selecione a pasta descompactada.',
+    'Fixe a AplicoCV, abra-a e ela se conectará a esta conta automaticamente.',
+  ],
+}
 
 // Key-ready: set VITE_CHROME_STORE_URL once the listing is published; until then
 // the button routes users to register/onboarding rather than a dead store URL.
@@ -20,6 +43,7 @@ export default function ExtensionPage() {
   const t = useT()
   const te = t.app.extension
   const ti = t.app.more.install
+  const manualSteps = useCopy(MANUAL_STEPS)
   const chrome = isChrome()
   const [installed, setInstalled] = useState(false)
 
@@ -55,7 +79,7 @@ export default function ExtensionPage() {
                   <Button size="lg" disabled>
                     {te.addToChrome}
                   </Button>
-                  <p className="mt-2 text-sm text-navy-400">Coming soon to the Chrome Web Store.</p>
+                  <p className="mt-2 text-sm text-navy-400">{ti.comingSoon}</p>
                 </div>
               )}
             </>
@@ -102,12 +126,7 @@ export default function ExtensionPage() {
           </a>
         </div>
         <ol className="mt-4 space-y-3">
-          {[
-            'Download and unzip the AplicoCV package above.',
-            'Open chrome://extensions and turn on “Developer mode” (top-right).',
-            'Click “Load unpacked” and select the unzipped folder.',
-            'Pin AplicoCV, open it, and it connects to this account automatically.',
-          ].map((step, i) => (
+          {manualSteps.map((step, i) => (
             <li key={i} className="flex items-start gap-3">
               <span className="flex h-6 w-6 flex-none items-center justify-center rounded-full bg-navy-100 text-xs font-bold text-navy-500">
                 {i + 1}
