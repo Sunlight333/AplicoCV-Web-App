@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom'
 import type { Locale } from '@/i18n/dictionaries'
 import { MarketingShell } from '@/components/layout/MarketingShell'
 import { Card } from '@/components/ui/Card'
+import { IconTile } from '@/components/ui/IconTile'
+import type { IconName } from '@/components/ui/Icon'
 import { useCopy } from './useCopy'
 
 interface HelpCopy {
   eyebrow: string; title: string; subtitle: string
   faqTitle: string; stillTitle: string; stillBody: string; contact: string
-  categories: { icon: string; title: string; body: string }[]
+  categories: { icon: IconName; title: string; body: string }[]
   faqs: { q: string; a: string }[]
 }
 
@@ -19,10 +21,10 @@ const COPY: Record<Locale, HelpCopy> = {
     faqTitle: 'Frequently asked questions', stillTitle: 'Still need help?',
     stillBody: 'Our team usually replies within one business day.', contact: 'Contact support →',
     categories: [
-      { icon: '🚀', title: 'Getting started', body: 'Import your CV, complete your profile, install the extension.' },
-      { icon: '🧩', title: 'The extension', body: 'Autofill, tailored CVs, cover letters, and auto-tracking.' },
-      { icon: '✦', title: 'Credits & billing', body: 'Earn credits, buy packs, manage your subscription.' },
-      { icon: '🔐', title: 'Account & privacy', body: 'Passwords, data export, deleting your account.' },
+      { icon: 'rocket', title: 'Getting started', body: 'Import your CV, complete your profile, install the extension.' },
+      { icon: 'extension', title: 'The extension', body: 'Autofill, tailored CVs, cover letters, and auto-tracking.' },
+      { icon: 'sparkles', title: 'Credits & billing', body: 'Earn credits, buy packs, manage your subscription.' },
+      { icon: 'shield', title: 'Account & privacy', body: 'Passwords, data export, deleting your account.' },
     ],
     faqs: [
       { q: 'How does AplicoCV fill out application forms?', a: 'Upload your CV once and our AI structures your data. The Chrome extension then detects form fields on job portals and fills them automatically — matching each field to the right data, even on dynamic sites like LinkedIn and Workday.' },
@@ -39,10 +41,10 @@ const COPY: Record<Locale, HelpCopy> = {
     faqTitle: 'Preguntas frecuentes', stillTitle: '¿Aún necesitas ayuda?',
     stillBody: 'Nuestro equipo suele responder en un día hábil.', contact: 'Contactar a soporte →',
     categories: [
-      { icon: '🚀', title: 'Primeros pasos', body: 'Importa tu CV, completa tu perfil, instala la extensión.' },
-      { icon: '🧩', title: 'La extensión', body: 'Autocompletado, CVs adaptados, cartas y seguimiento automático.' },
-      { icon: '✦', title: 'Créditos y facturación', body: 'Gana créditos, compra paquetes, gestiona tu suscripción.' },
-      { icon: '🔐', title: 'Cuenta y privacidad', body: 'Contraseñas, exportar datos, eliminar tu cuenta.' },
+      { icon: 'rocket', title: 'Primeros pasos', body: 'Importa tu CV, completa tu perfil, instala la extensión.' },
+      { icon: 'extension', title: 'La extensión', body: 'Autocompletado, CVs adaptados, cartas y seguimiento automático.' },
+      { icon: 'sparkles', title: 'Créditos y facturación', body: 'Gana créditos, compra paquetes, gestiona tu suscripción.' },
+      { icon: 'shield', title: 'Cuenta y privacidad', body: 'Contraseñas, exportar datos, eliminar tu cuenta.' },
     ],
     faqs: [
       { q: '¿Cómo completa AplicoCV los formularios de postulación?', a: 'Sube tu CV una vez y nuestra IA estructura tus datos. La extensión de Chrome detecta los campos en los portales y los completa automáticamente — asignando cada campo al dato correcto, incluso en sitios dinámicos como LinkedIn y Workday.' },
@@ -59,10 +61,10 @@ const COPY: Record<Locale, HelpCopy> = {
     faqTitle: 'Perguntas frequentes', stillTitle: 'Ainda precisa de ajuda?',
     stillBody: 'Nossa equipe costuma responder em um dia útil.', contact: 'Falar com o suporte →',
     categories: [
-      { icon: '🚀', title: 'Primeiros passos', body: 'Importe seu currículo, complete seu perfil, instale a extensão.' },
-      { icon: '🧩', title: 'A extensão', body: 'Preenchimento, currículos adaptados, cartas e rastreio automático.' },
-      { icon: '✦', title: 'Créditos e faturamento', body: 'Ganhe créditos, compre pacotes, gerencie sua assinatura.' },
-      { icon: '🔐', title: 'Conta e privacidade', body: 'Senhas, exportar dados, excluir sua conta.' },
+      { icon: 'rocket', title: 'Primeiros passos', body: 'Importe seu currículo, complete seu perfil, instale a extensão.' },
+      { icon: 'extension', title: 'A extensão', body: 'Preenchimento, currículos adaptados, cartas e rastreio automático.' },
+      { icon: 'sparkles', title: 'Créditos e faturamento', body: 'Ganhe créditos, compre pacotes, gerencie sua assinatura.' },
+      { icon: 'shield', title: 'Conta e privacidade', body: 'Senhas, exportar dados, excluir sua conta.' },
     ],
     faqs: [
       { q: 'Como a AplicoCV preenche os formulários de candidatura?', a: 'Envie seu currículo uma vez e nossa IA estrutura seus dados. A extensão do Chrome detecta os campos nos portais e os preenche automaticamente — associando cada campo ao dado certo, mesmo em sites dinâmicos como LinkedIn e Workday.' },
@@ -95,7 +97,7 @@ export default function HelpPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {c.categories.map((cat) => (
           <Card key={cat.title} className="p-5">
-            <div className="text-2xl">{cat.icon}</div>
+            <IconTile name={cat.icon} size="md" />
             <h3 className="mt-2 font-semibold text-navy-900">{cat.title}</h3>
             <p className="mt-1 text-sm text-navy-500">{cat.body}</p>
           </Card>

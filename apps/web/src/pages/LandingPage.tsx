@@ -3,8 +3,11 @@ import { Link } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/Button'
+import { IconTile } from '@/components/ui/IconTile'
+import { type IconName } from '@/components/ui/Icon'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { Reveal, RevealGroup } from '@/components/motion/Reveal'
+import { TiltCard } from '@/components/motion/TiltCard'
 import { MagneticButton } from '@/components/motion/MagneticButton'
 import { Marquee } from '@/components/motion/Marquee'
 import { ScrollProgress } from '@/components/motion/ScrollProgress'
@@ -23,15 +26,8 @@ const portals = [
   'We Work Remotely', 'WeRemoto', 'Konzerta',
 ]
 
-// 3D rendered feature icons (generated, brand-gradient). Order matches t.features.items.
-const featureIcons = [
-  '/features/autofill.png',
-  '/features/tailoring.png',
-  '/features/ats-score.png',
-  '/features/cover-letter.png',
-  '/features/tracking.png',
-  '/features/job-agent.png',
-]
+// Clean line icons (in gradient tiles). Order matches t.features.items.
+const featureIconNames: IconName[] = ['bolt', 'sparkles', 'ats', 'document', 'applications', 'rocket']
 
 const stepNumbers = ['01', '02', '03']
 const statValues = [14, 300, 21, 95]
@@ -116,7 +112,7 @@ function Nav() {
     >
       <div
         className={`mx-auto flex h-[72px] max-w-6xl items-center justify-between rounded-2xl px-5 transition-all duration-300 sm:px-6 ${
-          scrolled ? 'border border-navy-100 bg-white/80 shadow-card backdrop-blur-xl' : 'border border-transparent'
+          scrolled ? 'border border-white/60 bg-white/75 shadow-elev-2 backdrop-blur-xl' : 'border border-transparent'
         }`}
       >
         <Logo size="md" />
@@ -321,9 +317,9 @@ function HowItWorks() {
             <motion.div
               whileHover={{ y: -6 }}
               transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="relative h-full rounded-2xl border border-navy-100 bg-white p-7 shadow-card"
+              className="relative h-full rounded-2xl border border-navy-100/70 bg-white p-7 shadow-elev-2"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient text-lg font-bold text-white shadow-glow">
+              <div className="sheen-top relative flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient text-lg font-bold text-white shadow-tile">
                 {stepNumbers[i]}
               </div>
               <h3 className="mt-5 text-xl font-semibold text-navy-900">{s.title}</h3>
@@ -358,24 +354,13 @@ function Features() {
         <RevealGroup className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {t.features.items.map((f, i) => (
             <Reveal key={f.title}>
-              <motion.div
-                whileHover={{ y: -6 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="group relative h-full overflow-hidden rounded-2xl border border-navy-100 bg-white p-7 shadow-card transition-shadow hover:shadow-card-hover"
-              >
+              <TiltCard className="group relative h-full overflow-hidden rounded-2xl border border-navy-100/70 bg-white p-7 shadow-elev-2 transition-shadow hover:shadow-elev-4">
                 {/* hover glow wash */}
-                <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand-gradient opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-15" />
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-electric-50 to-violet-50">
-                  <img
-                    src={featureIcons[i]}
-                    alt=""
-                    className="h-14 w-14 object-contain drop-shadow-sm transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3"
-                    loading="lazy"
-                  />
-                </div>
+                <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand-gradient opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20" />
+                <IconTile name={featureIconNames[i]} size="lg" className="transition-transform duration-300 group-hover:-rotate-3" />
                 <h3 className="relative mt-5 text-lg font-semibold text-navy-900">{f.title}</h3>
                 <p className="relative mt-1.5 text-sm leading-relaxed text-navy-500">{f.body}</p>
-              </motion.div>
+              </TiltCard>
             </Reveal>
           ))}
         </RevealGroup>
@@ -459,14 +444,7 @@ function Showcase() {
   )
 }
 
-const toolkitIcons = [
-  'M5 19l7-7 3 3 6-6M14 6h5v5', // super cv (optimize)
-  'M8 12l2.5 2.5L16 9M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2', // ats scan
-  'M21 11.5a8.38 8.38 0 01-9 8.4L3 21l1.1-3.3A8.38 8.38 0 1121 11.5zM8 11h8M8 14h5', // interview chat
-  'M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h4', // cover letter doc
-  'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 17.8 5.6 18.2l.9-5.5-4-3.9 5.5-.8z', // credits star
-  'M20 12v9H4v-9M2 7h20v5H2zM12 7V4M9 4a2 2 0 014 0 2 2 0 01-4 0zm6 0a2 2 0 00-3 0', // referrals gift
-]
+const toolkitIconNames: IconName[] = ['optimize', 'ats', 'interview', 'document', 'star', 'gift']
 
 function Toolkit() {
   const t = useT()
@@ -481,19 +459,11 @@ function Toolkit() {
       <RevealGroup className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {t.toolkit.items.map((item, i) => (
           <Reveal key={item.title}>
-            <motion.div
-              whileHover={{ y: -6 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-              className="group h-full rounded-2xl border border-navy-100 bg-white p-7 shadow-card transition-shadow hover:shadow-card-hover"
-            >
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient shadow-glow">
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-                  <path d={toolkitIcons[i]} />
-                </svg>
-              </div>
+            <TiltCard className="h-full rounded-2xl border border-navy-100/70 bg-white p-7 shadow-elev-2 transition-shadow hover:shadow-elev-4">
+              <IconTile name={toolkitIconNames[i]} size="lg" />
               <h3 className="mt-5 text-lg font-semibold text-navy-900">{item.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-navy-500">{item.body}</p>
-            </motion.div>
+            </TiltCard>
           </Reveal>
         ))}
       </RevealGroup>
@@ -599,7 +569,7 @@ function Pricing() {
 
       <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
         <Reveal direction="right">
-          <div className="flex h-full flex-col rounded-2xl border border-navy-100 bg-white p-8 shadow-card">
+          <div className="flex h-full flex-col rounded-2xl border border-navy-100/70 bg-white p-8 shadow-elev-2">
             <h3 className="font-semibold text-navy-900">{t.pricing.free.name}</h3>
             <p className="mt-3 text-5xl font-extrabold text-navy-900">$0</p>
             <p className="mt-1 text-sm text-navy-400">{t.pricing.forever}</p>

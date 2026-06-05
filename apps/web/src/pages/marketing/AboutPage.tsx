@@ -3,6 +3,8 @@ import type { Locale } from '@/i18n/dictionaries'
 import { MarketingShell } from '@/components/layout/MarketingShell'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { IconTile } from '@/components/ui/IconTile'
+import type { IconName } from '@/components/ui/Icon'
 import { useCopy } from './useCopy'
 
 interface AboutCopy {
@@ -11,7 +13,7 @@ interface AboutCopy {
   subtitle: string
   p1: string
   p2: string
-  values: { icon: string; title: string; body: string }[]
+  values: { icon: IconName; title: string; body: string }[]
   stats: { v: string; l: string }[]
   cta: string
 }
@@ -24,10 +26,10 @@ const COPY: Record<Locale, AboutCopy> = {
     p1: 'Job hunting means filling the same form over and over: name, email, work history, “why do you want this role?” — on portal after portal. We started AplicoCV because that work is repetitive, slow, and completely automatable.',
     p2: 'Today AplicoCV structures your CV once, then autofills applications across LinkedIn, Workday, Indeed and a dozen more — tailoring your profile and generating cover letters per role, scoring your ATS fit before you apply, and even running mock interviews so you walk in prepared.',
     values: [
-      { icon: '🎯', title: 'Honest by default', body: 'Our AI reframes your real experience — it never invents employers, titles or achievements.' },
-      { icon: '⚡', title: 'Less busywork', body: 'Apply once, autofill everywhere. We remove the copy-paste so you can focus on the right roles.' },
-      { icon: '🔒', title: 'Your data, your control', body: 'Profiles are encrypted, portal passwords never reach the browser, and you can delete everything anytime.' },
-      { icon: '🌎', title: 'Built for LATAM and beyond', body: 'Spanish, Portuguese and English, with first-class support for the portals people actually use.' },
+      { icon: 'target', title: 'Honest by default', body: 'Our AI reframes your real experience — it never invents employers, titles or achievements.' },
+      { icon: 'bolt', title: 'Less busywork', body: 'Apply once, autofill everywhere. We remove the copy-paste so you can focus on the right roles.' },
+      { icon: 'lock', title: 'Your data, your control', body: 'Profiles are encrypted, portal passwords never reach the browser, and you can delete everything anytime.' },
+      { icon: 'globe', title: 'Built for LATAM and beyond', body: 'Spanish, Portuguese and English, with first-class support for the portals people actually use.' },
     ],
     stats: [
       { v: '14+', l: 'Portals supported' },
@@ -44,10 +46,10 @@ const COPY: Record<Locale, AboutCopy> = {
     p1: 'Buscar empleo significa llenar el mismo formulario una y otra vez: nombre, correo, experiencia, “¿por qué quieres este puesto?” — en portal tras portal. Creamos AplicoCV porque ese trabajo es repetitivo, lento y totalmente automatizable.',
     p2: 'Hoy AplicoCV estructura tu CV una vez y luego autocompleta postulaciones en LinkedIn, Workday, Indeed y una docena más — adaptando tu perfil y generando cartas por puesto, evaluando tu compatibilidad ATS antes de postular, e incluso simulando entrevistas para que llegues preparado.',
     values: [
-      { icon: '🎯', title: 'Honestidad por defecto', body: 'Nuestra IA reformula tu experiencia real — nunca inventa empleadores, cargos ni logros.' },
-      { icon: '⚡', title: 'Menos trabajo repetitivo', body: 'Postula una vez, autocompleta en todas partes. Quitamos el copiar y pegar para que te enfoques en los puestos correctos.' },
-      { icon: '🔒', title: 'Tus datos, tu control', body: 'Los perfiles están cifrados, las contraseñas de portales nunca llegan al navegador y puedes borrarlo todo cuando quieras.' },
-      { icon: '🌎', title: 'Hecho para LATAM y más allá', body: 'Español, portugués e inglés, con soporte de primera para los portales que la gente realmente usa.' },
+      { icon: 'target', title: 'Honestidad por defecto', body: 'Nuestra IA reformula tu experiencia real — nunca inventa empleadores, cargos ni logros.' },
+      { icon: 'bolt', title: 'Menos trabajo repetitivo', body: 'Postula una vez, autocompleta en todas partes. Quitamos el copiar y pegar para que te enfoques en los puestos correctos.' },
+      { icon: 'lock', title: 'Tus datos, tu control', body: 'Los perfiles están cifrados, las contraseñas de portales nunca llegan al navegador y puedes borrarlo todo cuando quieras.' },
+      { icon: 'globe', title: 'Hecho para LATAM y más allá', body: 'Español, portugués e inglés, con soporte de primera para los portales que la gente realmente usa.' },
     ],
     stats: [
       { v: '14+', l: 'Portales compatibles' },
@@ -64,10 +66,10 @@ const COPY: Record<Locale, AboutCopy> = {
     p1: 'Procurar emprego significa preencher o mesmo formulário repetidamente: nome, e-mail, experiência, “por que você quer esta vaga?” — em portal após portal. Criamos a AplicoCV porque esse trabalho é repetitivo, lento e totalmente automatizável.',
     p2: 'Hoje a AplicoCV estrutura seu currículo uma vez e preenche candidaturas no LinkedIn, Workday, Indeed e mais uma dezena — adaptando seu perfil e gerando cartas por vaga, avaliando sua compatibilidade ATS antes de se candidatar e até simulando entrevistas para você chegar preparado.',
     values: [
-      { icon: '🎯', title: 'Honestidade por padrão', body: 'Nossa IA reformula sua experiência real — nunca inventa empregadores, cargos ou conquistas.' },
-      { icon: '⚡', title: 'Menos trabalho repetitivo', body: 'Candidate-se uma vez, preencha em todo lugar. Tiramos o copiar e colar para você focar nas vagas certas.' },
-      { icon: '🔒', title: 'Seus dados, seu controle', body: 'Os perfis são criptografados, as senhas dos portais nunca chegam ao navegador e você pode apagar tudo quando quiser.' },
-      { icon: '🌎', title: 'Feito para a América Latina e além', body: 'Espanhol, português e inglês, com suporte de primeira aos portais que as pessoas realmente usam.' },
+      { icon: 'target', title: 'Honestidade por padrão', body: 'Nossa IA reformula sua experiência real — nunca inventa empregadores, cargos ou conquistas.' },
+      { icon: 'bolt', title: 'Menos trabalho repetitivo', body: 'Candidate-se uma vez, preencha em todo lugar. Tiramos o copiar e colar para você focar nas vagas certas.' },
+      { icon: 'lock', title: 'Seus dados, seu controle', body: 'Os perfis são criptografados, as senhas dos portais nunca chegam ao navegador e você pode apagar tudo quando quiser.' },
+      { icon: 'globe', title: 'Feito para a América Latina e além', body: 'Espanhol, português e inglês, com suporte de primeira aos portais que as pessoas realmente usam.' },
     ],
     stats: [
       { v: '14+', l: 'Portais compatíveis' },
@@ -91,7 +93,7 @@ export default function AboutPage() {
       <div className="mt-10 grid gap-4 sm:grid-cols-2">
         {c.values.map((v) => (
           <Card key={v.title} className="p-6">
-            <div className="text-2xl">{v.icon}</div>
+            <IconTile name={v.icon} size="md" />
             <h3 className="mt-3 font-semibold text-navy-900">{v.title}</h3>
             <p className="mt-1.5 text-sm text-navy-500">{v.body}</p>
           </Card>

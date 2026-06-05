@@ -4,6 +4,8 @@ import { MarketingShell } from '@/components/layout/MarketingShell'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { IconTile } from '@/components/ui/IconTile'
+import type { IconName } from '@/components/ui/Icon'
 import { useCopy } from './useCopy'
 
 const CHROME_STORE_URL = (import.meta.env.VITE_CHROME_STORE_URL as string | undefined) || ''
@@ -13,7 +15,7 @@ interface ExtCopy {
   eyebrow: string; title: string; subtitle: string
   addToChrome: string; comingSoon: string; download: string
   howTitle: string; ctaTitle: string; ctaBtn: string; ctaNote: string
-  perks: { icon: string; t: string; d: string }[]
+  perks: { icon: IconName; t: string; d: string }[]
   steps: { t: string; d: string }[]
 }
 
@@ -25,10 +27,10 @@ const COPY: Record<Locale, ExtCopy> = {
     download: 'Download the package for manual install →', howTitle: 'How it works',
     ctaTitle: 'Ready to apply in one click?', ctaBtn: 'Create your free account', ctaNote: 'Works on Google Chrome · Free to start',
     perks: [
-      { icon: '⚡', t: 'One-click autofill', d: 'Fill long forms instantly across 14+ portals.' },
-      { icon: '🎯', t: 'Tailored on the fly', d: 'Toggle a CV tailored to the exact posting.' },
-      { icon: '✍️', t: 'Cover letters inline', d: 'Generate and insert a focused letter without leaving the page.' },
-      { icon: '🗂️', t: 'Auto-tracking', d: 'Every application is logged to your board automatically.' },
+      { icon: 'bolt', t: 'One-click autofill', d: 'Fill long forms instantly across 14+ portals.' },
+      { icon: 'target', t: 'Tailored on the fly', d: 'Toggle a CV tailored to the exact posting.' },
+      { icon: 'pen', t: 'Cover letters inline', d: 'Generate and insert a focused letter without leaving the page.' },
+      { icon: 'folder', t: 'Auto-tracking', d: 'Every application is logged to your board automatically.' },
     ],
     steps: [
       { t: 'Open a job posting', d: 'Go to any application on a supported portal — LinkedIn, Workday, Indeed and more.' },
@@ -43,10 +45,10 @@ const COPY: Record<Locale, ExtCopy> = {
     download: 'Descargar el paquete para instalación manual →', howTitle: 'Cómo funciona',
     ctaTitle: '¿Listo para postular en un clic?', ctaBtn: 'Crea tu cuenta gratis', ctaNote: 'Funciona en Google Chrome · Gratis para empezar',
     perks: [
-      { icon: '⚡', t: 'Autocompletado en un clic', d: 'Llena formularios largos al instante en más de 14 portales.' },
-      { icon: '🎯', t: 'Adaptado al momento', d: 'Activa un CV adaptado a la oferta exacta.' },
-      { icon: '✍️', t: 'Cartas integradas', d: 'Genera e inserta una carta enfocada sin salir de la página.' },
-      { icon: '🗂️', t: 'Seguimiento automático', d: 'Cada postulación se registra en tu tablero automáticamente.' },
+      { icon: 'bolt', t: 'Autocompletado en un clic', d: 'Llena formularios largos al instante en más de 14 portales.' },
+      { icon: 'target', t: 'Adaptado al momento', d: 'Activa un CV adaptado a la oferta exacta.' },
+      { icon: 'pen', t: 'Cartas integradas', d: 'Genera e inserta una carta enfocada sin salir de la página.' },
+      { icon: 'folder', t: 'Seguimiento automático', d: 'Cada postulación se registra en tu tablero automáticamente.' },
     ],
     steps: [
       { t: 'Abre una oferta de empleo', d: 'Entra a cualquier postulación en un portal compatible — LinkedIn, Workday, Indeed y más.' },
@@ -61,10 +63,10 @@ const COPY: Record<Locale, ExtCopy> = {
     download: 'Baixar o pacote para instalação manual →', howTitle: 'Como funciona',
     ctaTitle: 'Pronto para se candidatar em um clique?', ctaBtn: 'Crie sua conta grátis', ctaNote: 'Funciona no Google Chrome · Grátis para começar',
     perks: [
-      { icon: '⚡', t: 'Preenchimento em um clique', d: 'Preencha formulários longos na hora em mais de 14 portais.' },
-      { icon: '🎯', t: 'Adaptado na hora', d: 'Ative um currículo adaptado à vaga exata.' },
-      { icon: '✍️', t: 'Cartas integradas', d: 'Gere e insira uma carta focada sem sair da página.' },
-      { icon: '🗂️', t: 'Rastreio automático', d: 'Cada candidatura é registrada no seu quadro automaticamente.' },
+      { icon: 'bolt', t: 'Preenchimento em um clique', d: 'Preencha formulários longos na hora em mais de 14 portais.' },
+      { icon: 'target', t: 'Adaptado na hora', d: 'Ative um currículo adaptado à vaga exata.' },
+      { icon: 'pen', t: 'Cartas integradas', d: 'Gere e insira uma carta focada sem sair da página.' },
+      { icon: 'folder', t: 'Rastreio automático', d: 'Cada candidatura é registrada no seu quadro automaticamente.' },
     ],
     steps: [
       { t: 'Abra uma vaga', d: 'Vá a qualquer candidatura em um portal compatível — LinkedIn, Workday, Indeed e mais.' },
@@ -97,7 +99,7 @@ export default function ChromeExtensionPage() {
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {c.perks.map((p) => (
           <Card key={p.t} className="p-5">
-            <div className="text-2xl">{p.icon}</div>
+            <IconTile name={p.icon} size="md" />
             <h3 className="mt-2 font-semibold text-navy-900">{p.t}</h3>
             <p className="mt-1 text-sm text-navy-500">{p.d}</p>
           </Card>

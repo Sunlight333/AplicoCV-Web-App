@@ -5,6 +5,8 @@ import { Card } from '@/components/ui/Card'
 import { Input, TextArea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/Toast'
+import { IconTile } from '@/components/ui/IconTile'
+import type { IconName } from '@/components/ui/Icon'
 import { useCopy } from './useCopy'
 
 const SUPPORT = 'support@aplicocv.com'
@@ -13,7 +15,7 @@ interface ContactCopy {
   eyebrow: string; title: string; subtitle: string
   formTitle: string; name: string; email: string; message: string; send: string
   sentNote: string; toast: string; response: string
-  channels: { icon: string; title: string; body: string; href: string }[]
+  channels: { icon: IconName; title: string; body: string; href: string }[]
 }
 
 const COPY: Record<Locale, ContactCopy> = {
@@ -25,9 +27,9 @@ const COPY: Record<Locale, ContactCopy> = {
     toast: 'Opening your email app — thanks for reaching out!',
     response: 'We typically reply within 1 business day. For account data requests, include the email on your account.',
     channels: [
-      { icon: '✉️', title: 'Email support', body: SUPPORT, href: `mailto:${SUPPORT}` },
-      { icon: '💬', title: 'Help center', body: 'Browse common questions', href: '/help' },
-      { icon: '🟢', title: 'Service status', body: 'Check live system status', href: '/status' },
+      { icon: 'mail', title: 'Email support', body: SUPPORT, href: `mailto:${SUPPORT}` },
+      { icon: 'chat', title: 'Help center', body: 'Browse common questions', href: '/help' },
+      { icon: 'activity', title: 'Service status', body: 'Check live system status', href: '/status' },
     ],
   },
   es: {
@@ -38,9 +40,9 @@ const COPY: Record<Locale, ContactCopy> = {
     toast: 'Abriendo tu app de correo — ¡gracias por escribir!',
     response: 'Normalmente respondemos en 1 día hábil. Para solicitudes sobre tus datos, incluye el correo de tu cuenta.',
     channels: [
-      { icon: '✉️', title: 'Soporte por correo', body: SUPPORT, href: `mailto:${SUPPORT}` },
-      { icon: '💬', title: 'Centro de ayuda', body: 'Explora preguntas frecuentes', href: '/help' },
-      { icon: '🟢', title: 'Estado del servicio', body: 'Mira el estado en vivo', href: '/status' },
+      { icon: 'mail', title: 'Soporte por correo', body: SUPPORT, href: `mailto:${SUPPORT}` },
+      { icon: 'chat', title: 'Centro de ayuda', body: 'Explora preguntas frecuentes', href: '/help' },
+      { icon: 'activity', title: 'Estado del servicio', body: 'Mira el estado en vivo', href: '/status' },
     ],
   },
   'pt-BR': {
@@ -51,9 +53,9 @@ const COPY: Record<Locale, ContactCopy> = {
     toast: 'Abrindo seu app de e-mail — obrigado por escrever!',
     response: 'Normalmente respondemos em 1 dia útil. Para solicitações sobre seus dados, inclua o e-mail da sua conta.',
     channels: [
-      { icon: '✉️', title: 'Suporte por e-mail', body: SUPPORT, href: `mailto:${SUPPORT}` },
-      { icon: '💬', title: 'Central de ajuda', body: 'Veja as perguntas frequentes', href: '/help' },
-      { icon: '🟢', title: 'Status do serviço', body: 'Veja o status ao vivo', href: '/status' },
+      { icon: 'mail', title: 'Suporte por e-mail', body: SUPPORT, href: `mailto:${SUPPORT}` },
+      { icon: 'chat', title: 'Central de ajuda', body: 'Veja as perguntas frequentes', href: '/help' },
+      { icon: 'activity', title: 'Status do serviço', body: 'Veja o status ao vivo', href: '/status' },
     ],
   },
 }
@@ -93,7 +95,7 @@ export default function ContactPage() {
           {c.channels.map((ch) => (
             <a key={ch.title} href={ch.href} className="block">
               <Card className="flex items-center gap-4 p-5 transition-shadow hover:shadow-card-hover">
-                <span className="text-2xl">{ch.icon}</span>
+                <IconTile name={ch.icon} size="md" />
                 <div>
                   <p className="font-semibold text-navy-900">{ch.title}</p>
                   <p className="text-sm text-navy-500">{ch.body}</p>

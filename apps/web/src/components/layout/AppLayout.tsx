@@ -5,6 +5,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { getCredits } from '@/services/credits'
 import { Logo } from '@/components/Logo'
 import { Badge } from '@/components/ui/Badge'
+import { Icon, type IconName } from '@/components/ui/Icon'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { cn } from '@/lib/cn'
 import { useToast } from '@/components/Toast'
@@ -12,28 +13,42 @@ import { useT } from '@/i18n/I18nProvider'
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'
 import { TrialModal } from '@/components/TrialModal'
 
-const navIcons = {
-  dashboard: 'M3 12l9-9 9 9M5 10v10h14V10',
-  profile: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0',
-  applications: 'M4 6h16M4 12h16M4 18h10',
-  aiTools: 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4zM5 17l.8 2 .8-2 2-.8-2-.8L5.8 14l-.8 2-2 .8z',
-  rewards: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 21l-4.9-2.8.9-5.5-4-3.9 5.5-.8z',
-  faq: 'M12 18h.01M9.1 9a3 3 0 015.8 1c0 2-3 2-3 4M4 5h16v12H7l-3 3z',
-  optimize: 'M5 19l7-7 3 3 6-6M14 6h5v5',
-  documents: 'M7 3h7l5 5v13H7zM14 3v5h5',
-  extension: 'M4 4h16v16H4zM9 9h6v6H9z',
-  interview: 'M21 11.5a8.38 8.38 0 01-9 8.4L3 21l1.1-3.3A8.38 8.38 0 1121 11.5zM8 11h8M8 14h5',
-  ats: 'M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2M8 12l2.5 2.5L16 9',
-  referrals: 'M20 12v9H4v-9M2 7h20v5H2zM12 7V4M9 4a2 2 0 014 0 2 2 0 01-4 0zm6 0a2 2 0 00-3 0',
-  guide: 'M4 19.5A2.5 2.5 0 016.5 17H20M4 19.5V5a2 2 0 012-2h14v14H6.5A2.5 2.5 0 004 19.5z',
-  portals: 'M4 5h16v14H4zM4 9h16M9 9v10',
+interface NavItem {
+  to: string
+  label: string
+  icon: IconName
 }
 
-function NavIcon({ d }: { d: string }) {
+/** A sidebar row whose icon sits in a soft tile, promoted to a gradient tile when active. */
+function NavRow({ to, label, icon }: NavItem) {
   return (
-    <svg viewBox="0 0 24 24" className="h-5 w-5 flex-none" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
-      <path d={d} />
-    </svg>
+    <NavLink
+      to={to}
+      className={({ isActive }) =>
+        cn(
+          'group flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors',
+          isActive ? 'bg-electric-50/80' : 'hover:bg-navy-100/60',
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            className={cn(
+              'relative flex h-8 w-8 flex-none items-center justify-center rounded-lg transition-all',
+              isActive
+                ? 'sheen-top bg-brand-gradient text-white shadow-tile'
+                : 'bg-navy-50 text-navy-400 group-hover:bg-navy-100 group-hover:text-navy-700',
+            )}
+          >
+            <Icon name={icon} className="h-[18px] w-[18px]" strokeWidth={isActive ? 1.95 : 1.75} />
+          </span>
+          <span className={isActive ? 'text-navy-900' : 'text-navy-500 group-hover:text-navy-800'}>
+            {label}
+          </span>
+        </>
+      )}
+    </NavLink>
   )
 }
 
@@ -45,34 +60,33 @@ export function AppLayout() {
   const [search, setSearch] = useState('')
   const credits = useQuery({ queryKey: ['credits'], queryFn: getCredits })
 
-  // Global search routes to the applications board with a debounced ?search=.
   const runSearch = useDebouncedCallback((q: string) => {
     navigate(q.trim() ? `/applications?search=${encodeURIComponent(q.trim())}` : '/applications')
   }, 350)
 
   const tm = t.app.more.nav
-  const navItems = [
-    { to: '/dashboard', label: t.app.nav.dashboard, icon: navIcons.dashboard },
-    { to: '/profile', label: t.app.nav.profile, icon: navIcons.profile },
-    { to: '/applications', label: t.app.nav.applications, icon: navIcons.applications },
-    { to: '/ai-tools', label: t.app.nav.aiTools, icon: navIcons.aiTools },
-    { to: '/optimize', label: tm.optimize, icon: navIcons.optimize },
-    { to: '/interview', label: tm.interview, icon: navIcons.interview },
-    { to: '/ats', label: tm.ats, icon: navIcons.ats },
-    { to: '/documents', label: tm.documents, icon: navIcons.documents },
-    { to: '/rewards', label: tm.rewards, icon: navIcons.rewards },
-    { to: '/referrals', label: tm.referrals, icon: navIcons.referrals },
-    { to: '/faq', label: tm.questions, icon: navIcons.faq },
-    { to: '/extension', label: t.app.nav.extension, icon: navIcons.extension },
+  const navItems: NavItem[] = [
+    { to: '/dashboard', label: t.app.nav.dashboard, icon: 'dashboard' },
+    { to: '/profile', label: t.app.nav.profile, icon: 'user' },
+    { to: '/applications', label: t.app.nav.applications, icon: 'applications' },
+    { to: '/ai-tools', label: t.app.nav.aiTools, icon: 'sparkles' },
+    { to: '/optimize', label: tm.optimize, icon: 'optimize' },
+    { to: '/interview', label: tm.interview, icon: 'interview' },
+    { to: '/ats', label: tm.ats, icon: 'ats' },
+    { to: '/documents', label: tm.documents, icon: 'document' },
+    { to: '/rewards', label: tm.rewards, icon: 'gift' },
+    { to: '/referrals', label: tm.referrals, icon: 'referrals' },
+    { to: '/faq', label: tm.questions, icon: 'help' },
+    { to: '/extension', label: t.app.nav.extension, icon: 'extension' },
   ]
-  const resourceItems = [
-    { to: '/guide', label: tm.guide, icon: navIcons.guide },
-    { to: '/portals', label: tm.portals, icon: navIcons.portals },
+  const resourceItems: NavItem[] = [
+    { to: '/guide', label: tm.guide, icon: 'book' },
+    { to: '/portals', label: tm.portals, icon: 'grid' },
   ]
-  const settingsItems = [
-    { to: '/settings/account', label: tm.account },
-    { to: '/settings/credentials', label: t.app.nav.credentials },
-    { to: '/settings/billing', label: tm.plans },
+  const settingsItems: NavItem[] = [
+    { to: '/settings/account', label: tm.account, icon: 'settings' },
+    { to: '/settings/credentials', label: t.app.nav.credentials, icon: 'key' },
+    { to: '/settings/billing', label: tm.plans, icon: 'card' },
   ]
 
   const handleLogout = async () => {
@@ -81,59 +95,49 @@ export function AppLayout() {
     navigate('/login')
   }
 
-  const linkClass = ({ isActive }: { isActive: boolean }) =>
-    cn(
-      'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-      isActive ? 'bg-electric-50 text-electric-700' : 'text-navy-500 hover:bg-navy-100 hover:text-navy-800',
-    )
-
   return (
-    <div className="flex min-h-screen bg-navy-50">
+    <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 flex-col border-r border-navy-100 bg-white px-4 py-5 lg:flex">
+      <aside className="sticky top-0 hidden h-screen w-60 flex-col border-r border-navy-100/70 bg-white/80 px-4 py-5 backdrop-blur-xl lg:flex">
         <NavLink to="/dashboard" className="px-2">
           <Logo />
         </NavLink>
-        <nav className="mt-8 flex flex-1 flex-col gap-1">
+        <nav className="mt-8 flex flex-1 flex-col gap-1 overflow-y-auto pr-1">
           {navItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={linkClass}>
-              <NavIcon d={item.icon} />
-              {item.label}
-            </NavLink>
+            <NavRow key={item.to} {...item} />
           ))}
+          <p className="mb-1 mt-5 px-3 text-xs font-semibold uppercase tracking-wider text-navy-300">
+            {tm.guide}
+          </p>
           {resourceItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={linkClass}>
-              <NavIcon d={item.icon} />
-              {item.label}
-            </NavLink>
+            <NavRow key={item.to} {...item} />
           ))}
-          <p className="mt-6 px-3 text-xs font-semibold uppercase tracking-wider text-navy-300">
+          <p className="mb-1 mt-5 px-3 text-xs font-semibold uppercase tracking-wider text-navy-300">
             {t.app.nav.settings}
           </p>
           {settingsItems.map((item) => (
-            <NavLink key={item.to} to={item.to} className={linkClass}>
-              <span className="w-5" />
-              {item.label}
-            </NavLink>
+            <NavRow key={item.to} {...item} />
           ))}
         </nav>
         <button
           onClick={handleLogout}
-          className="mt-auto flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-navy-500 transition-colors hover:bg-red-50 hover:text-red-600"
+          className="group mt-3 flex items-center gap-3 rounded-xl px-2.5 py-2 text-sm font-medium text-navy-500 transition-colors hover:bg-red-50 hover:text-red-600"
         >
-          <NavIcon d="M16 17l5-5-5-5M21 12H9M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-navy-50 text-navy-400 transition-colors group-hover:bg-red-100 group-hover:text-red-600">
+            <Icon name="logout" className="h-[18px] w-[18px]" />
+          </span>
           {t.app.nav.signOut}
         </button>
       </aside>
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-navy-100 bg-white/80 px-5 backdrop-blur">
-          <div className="relative flex-1 max-w-md">
-            <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300" fill="none" stroke="currentColor" strokeWidth={2}>
-              <circle cx="11" cy="11" r="7" />
-              <path d="M21 21l-4-4" strokeLinecap="round" />
-            </svg>
+        <header className="glass-nav sticky top-0 z-30 flex h-16 items-center gap-4 px-5">
+          <div className="relative max-w-md flex-1">
+            <Icon
+              name="search"
+              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-navy-300"
+            />
             <input
               value={search}
               onChange={(e) => {
@@ -144,34 +148,28 @@ export function AppLayout() {
                 if (e.key === 'Enter') runSearch.flush(search)
               }}
               placeholder={t.app.nav.search}
-              className="h-10 w-full rounded-lg border border-navy-200 bg-navy-50 pl-9 pr-3 text-sm placeholder:text-navy-300 focus:border-electric-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-electric-400/40"
+              className="h-10 w-full rounded-xl border border-navy-200/70 bg-navy-50/60 pl-9 pr-3 text-sm shadow-[inset_0_1px_2px_rgba(11,20,38,0.05)] placeholder:text-navy-300 focus:border-electric-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-electric-400/40"
             />
           </div>
           <div className="ml-auto flex items-center gap-3">
             <NavLink
               to="/rewards"
-              className="inline-flex items-center gap-1.5 rounded-full bg-brand-gradient px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-105"
+              className="sheen-top relative inline-flex items-center gap-1.5 rounded-full bg-brand-gradient px-3.5 py-2 text-sm font-semibold text-white shadow-tile transition-transform hover:-translate-y-0.5"
               title="Rewards & credits"
             >
-              <span>✦</span>
+              <Icon name="star" className="h-4 w-4" strokeWidth={2} />
               <span className="tabular-nums">{credits.data?.balance ?? '–'}</span>
             </NavLink>
             <LanguageSwitcher />
             <span className="hidden h-6 w-px bg-navy-100 sm:block" />
             <Badge tone={user?.premiumActive ? 'info' : 'neutral'}>
-              {user?.plan === 'premium'
-                ? t.app.nav.premium
-                : user?.onTrial
-                  ? 'Trial'
-                  : t.app.nav.free}
+              {user?.plan === 'premium' ? t.app.nav.premium : user?.onTrial ? 'Trial' : t.app.nav.free}
             </Badge>
             <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-900 text-sm font-semibold text-white">
+              <div className="sheen-top relative flex h-9 w-9 items-center justify-center rounded-full bg-btn-navy text-sm font-semibold text-white shadow-btn-dark">
                 {user?.fullName?.[0]?.toUpperCase() ?? 'U'}
               </div>
-              <span className="hidden text-sm font-medium text-navy-700 sm:block">
-                {user?.fullName}
-              </span>
+              <span className="hidden text-sm font-medium text-navy-700 sm:block">{user?.fullName}</span>
             </div>
           </div>
         </header>

@@ -2,6 +2,8 @@ import type { Locale } from '@/i18n/dictionaries'
 import { MarketingShell } from '@/components/layout/MarketingShell'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
+import { IconTile } from '@/components/ui/IconTile'
+import type { IconName } from '@/components/ui/Icon'
 import { useCopy } from './useCopy'
 
 const APPLY = 'mailto:careers@aplicocv.com?subject=Open%20application'
@@ -9,7 +11,7 @@ const APPLY = 'mailto:careers@aplicocv.com?subject=Open%20application'
 interface CareersCopy {
   eyebrow: string; title: string; subtitle: string
   openRoles: string; apply: string; noRoleTitle: string; noRoleBody: string; openApp: string
-  perks: { icon: string; title: string; body: string }[]
+  perks: { icon: IconName; title: string; body: string }[]
   roles: { title: string; team: string; type: string }[]
 }
 
@@ -21,10 +23,10 @@ const COPY: Record<Locale, CareersCopy> = {
     noRoleBody: 'We’re always happy to meet talented people. Send us your CV and tell us how you’d make AplicoCV better.',
     openApp: 'Send an open application',
     perks: [
-      { icon: '🌍', title: 'Remote-first', body: 'Work from anywhere across the Americas and Europe.' },
-      { icon: '📈', title: 'Real ownership', body: 'Small team, big surface area — your work ships to users fast.' },
-      { icon: '🧠', title: 'Learning budget', body: 'Courses, books and conferences to keep growing.' },
-      { icon: '🌴', title: 'Flexible time off', body: 'Take the time you need to do your best work.' },
+      { icon: 'globe', title: 'Remote-first', body: 'Work from anywhere across the Americas and Europe.' },
+      { icon: 'trending', title: 'Real ownership', body: 'Small team, big surface area — your work ships to users fast.' },
+      { icon: 'brain', title: 'Learning budget', body: 'Courses, books and conferences to keep growing.' },
+      { icon: 'leaf', title: 'Flexible time off', body: 'Take the time you need to do your best work.' },
     ],
     roles: [
       { title: 'Senior Full-stack Engineer', team: 'Engineering', type: 'Remote · Full-time' },
@@ -39,10 +41,10 @@ const COPY: Record<Locale, CareersCopy> = {
     noRoleBody: 'Siempre nos alegra conocer gente talentosa. Envíanos tu CV y cuéntanos cómo mejorarías AplicoCV.',
     openApp: 'Enviar postulación abierta',
     perks: [
-      { icon: '🌍', title: 'Remoto primero', body: 'Trabaja desde cualquier lugar de América y Europa.' },
-      { icon: '📈', title: 'Responsabilidad real', body: 'Equipo pequeño, gran alcance — tu trabajo llega rápido a los usuarios.' },
-      { icon: '🧠', title: 'Presupuesto de aprendizaje', body: 'Cursos, libros y conferencias para seguir creciendo.' },
-      { icon: '🌴', title: 'Vacaciones flexibles', body: 'Tómate el tiempo que necesites para dar lo mejor.' },
+      { icon: 'globe', title: 'Remoto primero', body: 'Trabaja desde cualquier lugar de América y Europa.' },
+      { icon: 'trending', title: 'Responsabilidad real', body: 'Equipo pequeño, gran alcance — tu trabajo llega rápido a los usuarios.' },
+      { icon: 'brain', title: 'Presupuesto de aprendizaje', body: 'Cursos, libros y conferencias para seguir creciendo.' },
+      { icon: 'leaf', title: 'Vacaciones flexibles', body: 'Tómate el tiempo que necesites para dar lo mejor.' },
     ],
     roles: [
       { title: 'Ingeniero/a Full-stack Senior', team: 'Ingeniería', type: 'Remoto · Tiempo completo' },
@@ -57,10 +59,10 @@ const COPY: Record<Locale, CareersCopy> = {
     noRoleBody: 'Adoramos conhecer pessoas talentosas. Envie seu currículo e conte como você deixaria a AplicoCV melhor.',
     openApp: 'Enviar candidatura espontânea',
     perks: [
-      { icon: '🌍', title: 'Remoto em primeiro lugar', body: 'Trabalhe de qualquer lugar das Américas e da Europa.' },
-      { icon: '📈', title: 'Autonomia real', body: 'Time pequeno, grande alcance — seu trabalho chega rápido aos usuários.' },
-      { icon: '🧠', title: 'Verba de aprendizado', body: 'Cursos, livros e conferências para você continuar crescendo.' },
-      { icon: '🌴', title: 'Férias flexíveis', body: 'Tire o tempo que precisar para fazer seu melhor trabalho.' },
+      { icon: 'globe', title: 'Remoto em primeiro lugar', body: 'Trabalhe de qualquer lugar das Américas e da Europa.' },
+      { icon: 'trending', title: 'Autonomia real', body: 'Time pequeno, grande alcance — seu trabalho chega rápido aos usuários.' },
+      { icon: 'brain', title: 'Verba de aprendizado', body: 'Cursos, livros e conferências para você continuar crescendo.' },
+      { icon: 'leaf', title: 'Férias flexíveis', body: 'Tire o tempo que precisar para fazer seu melhor trabalho.' },
     ],
     roles: [
       { title: 'Engenheiro(a) Full-stack Sênior', team: 'Engenharia', type: 'Remoto · Tempo integral' },
@@ -77,7 +79,7 @@ export default function CareersPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {c.perks.map((p) => (
           <Card key={p.title} className="p-5">
-            <div className="text-2xl">{p.icon}</div>
+            <IconTile name={p.icon} size="md" />
             <h3 className="mt-2 font-semibold text-navy-900">{p.title}</h3>
             <p className="mt-1 text-sm text-navy-500">{p.body}</p>
           </Card>
