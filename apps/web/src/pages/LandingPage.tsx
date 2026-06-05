@@ -459,6 +459,48 @@ function Showcase() {
   )
 }
 
+const toolkitIcons = [
+  'M5 19l7-7 3 3 6-6M14 6h5v5', // super cv (optimize)
+  'M8 12l2.5 2.5L16 9M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2', // ats scan
+  'M21 11.5a8.38 8.38 0 01-9 8.4L3 21l1.1-3.3A8.38 8.38 0 1121 11.5zM8 11h8M8 14h5', // interview chat
+  'M7 3h7l5 5v13H7zM14 3v5h5M9 13h6M9 17h4', // cover letter doc
+  'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 17.8 5.6 18.2l.9-5.5-4-3.9 5.5-.8z', // credits star
+  'M20 12v9H4v-9M2 7h20v5H2zM12 7V4M9 4a2 2 0 014 0 2 2 0 01-4 0zm6 0a2 2 0 00-3 0', // referrals gift
+]
+
+function Toolkit() {
+  const t = useT()
+  return (
+    <section className="mx-auto max-w-6xl px-6 py-28">
+      <Reveal className="mx-auto max-w-2xl text-center">
+        <p className="text-sm font-semibold uppercase tracking-widest text-electric-600">{t.toolkit.kicker}</p>
+        <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 sm:text-[2.6rem]">{t.toolkit.title}</h2>
+        <p className="mt-4 text-navy-500">{t.toolkit.subtitle}</p>
+      </Reveal>
+
+      <RevealGroup className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {t.toolkit.items.map((item, i) => (
+          <Reveal key={item.title}>
+            <motion.div
+              whileHover={{ y: -6 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 20 }}
+              className="group h-full rounded-2xl border border-navy-100 bg-white p-7 shadow-card transition-shadow hover:shadow-card-hover"
+            >
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient shadow-glow">
+                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="white" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+                  <path d={toolkitIcons[i]} />
+                </svg>
+              </div>
+              <h3 className="mt-5 text-lg font-semibold text-navy-900">{item.title}</h3>
+              <p className="mt-1.5 text-sm leading-relaxed text-navy-500">{item.body}</p>
+            </motion.div>
+          </Reveal>
+        ))}
+      </RevealGroup>
+    </section>
+  )
+}
+
 function Ring({ score, label }: { score: number; label: string }) {
   const n = useCountUp(score)
   const r = 46
@@ -654,6 +696,7 @@ export default function LandingPage() {
         <LogoStrip />
         <HowItWorks />
         <Features />
+        <Toolkit />
         <Showcase />
         <StatBand />
         <Testimonials />

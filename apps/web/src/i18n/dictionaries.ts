@@ -86,6 +86,20 @@ export const en = {
     cta: 'Try the ATS score',
     matchLabel: 'match',
   },
+  toolkit: {
+    kicker: 'Your complete toolkit',
+    title: 'Everything you need after the autofill',
+    subtitle:
+      'AplicoCV is more than a form-filler — it’s an AI career assistant that helps you apply smarter and interview better.',
+    items: [
+      { title: 'Super CV optimizer', body: 'Rewrite your experience with the X-Y-Z formula and an instant ATS score — always truthful to your real background.' },
+      { title: 'ATS simulator', body: 'See exactly how tracking software reads your CV against a posting, with the keywords to add.' },
+      { title: 'AI mock interview', body: 'Practice role-specific questions and get scored, actionable feedback before the real thing.' },
+      { title: 'Personalized cover letters', body: 'A focused letter written from scratch for each posting, in your chosen tone.' },
+      { title: 'Credits & rewards', body: 'Earn credits with a daily streak and profile milestones — then spend them on AI tools.' },
+      { title: 'Invite & earn', body: 'Share your referral code and you both get credits when a friend joins.' },
+    ],
+  },
   stats: {
     items: [
       { label: 'Portals supported' },
@@ -591,6 +605,20 @@ export const es: Dictionary = {
     cta: 'Probar el puntaje ATS',
     matchLabel: 'encaje',
   },
+  toolkit: {
+    kicker: 'Tu kit completo',
+    title: 'Todo lo que necesitas después del autocompletado',
+    subtitle:
+      'AplicoCV es más que un rellenador de formularios: es un asistente de carrera con IA que te ayuda a postularte mejor y a preparar entrevistas.',
+    items: [
+      { title: 'Optimizador Super CV', body: 'Reescribe tu experiencia con la fórmula X-Y-Z y un puntaje ATS al instante — siempre fiel a tu trayectoria real.' },
+      { title: 'Simulador ATS', body: 'Mira exactamente cómo el software lee tu CV frente a una oferta, con las palabras clave que debes agregar.' },
+      { title: 'Entrevista simulada con IA', body: 'Practica preguntas según el puesto y recibe feedback con puntaje y acciones concretas antes de la entrevista real.' },
+      { title: 'Cartas personalizadas', body: 'Una carta enfocada escrita desde cero para cada oferta, en el tono que elijas.' },
+      { title: 'Créditos y recompensas', body: 'Gana créditos con una racha diaria y logros de perfil — y úsalos en las herramientas de IA.' },
+      { title: 'Invita y gana', body: 'Comparte tu código de referido y ambos ganan créditos cuando un amigo se une.' },
+    ],
+  },
   stats: {
     items: [
       { label: 'Portales compatibles' },
@@ -1078,6 +1106,20 @@ export const ptBR: Dictionary = {
     ],
     cta: 'Testar a pontuação ATS',
     matchLabel: 'compat.',
+  },
+  toolkit: {
+    kicker: 'Seu kit completo',
+    title: 'Tudo o que você precisa depois do preenchimento',
+    subtitle:
+      'A AplicoCV é mais do que um preenchedor de formulários — é um assistente de carreira com IA que ajuda você a se candidatar melhor e a treinar para entrevistas.',
+    items: [
+      { title: 'Otimizador Super CV', body: 'Reescreve sua experiência com a fórmula X-Y-Z e uma pontuação ATS na hora — sempre fiel ao seu histórico real.' },
+      { title: 'Simulador ATS', body: 'Veja exatamente como o software lê seu currículo diante de uma vaga, com as palavras-chave a adicionar.' },
+      { title: 'Entrevista simulada com IA', body: 'Pratique perguntas conforme a vaga e receba feedback com pontuação e ações concretas antes da entrevista real.' },
+      { title: 'Cartas personalizadas', body: 'Uma carta focada escrita do zero para cada vaga, no tom que você escolher.' },
+      { title: 'Créditos e recompensas', body: 'Ganhe créditos com uma sequência diária e marcos de perfil — e use-os nas ferramentas de IA.' },
+      { title: 'Convide e ganhe', body: 'Compartilhe seu código de indicação e vocês dois ganham créditos quando um amigo entra.' },
+    ],
   },
   stats: {
     items: [
