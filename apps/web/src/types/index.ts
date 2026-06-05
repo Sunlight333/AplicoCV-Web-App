@@ -16,6 +16,14 @@ export interface User {
   plan: PlanTier
   onboarded: boolean
   preferences: JobPreferences
+  /** False for Google accounts that haven't set a password yet. */
+  hasPassword?: boolean
+  /** Premium unlocked: paid OR within the free trial window. */
+  premiumActive?: boolean
+  /** Currently on the free trial (premium unlocked, not paying). */
+  onTrial?: boolean
+  /** ISO timestamp the free trial ends; null/undefined for paying members. */
+  trialEndsAt?: string | null
 }
 
 export interface JobPreferences {

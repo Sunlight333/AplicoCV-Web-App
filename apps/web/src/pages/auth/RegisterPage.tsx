@@ -38,7 +38,7 @@ export default function RegisterPage() {
   })
 
   return (
-    <AuthShell title={tr.title} subtitle={tr.subtitle}>
+    <AuthShell title={tr.title} subtitle={tr.subtitle} bgImage="/backgrounds/auth-register-bg.png">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
           id="fullName"

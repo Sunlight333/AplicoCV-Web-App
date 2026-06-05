@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/auth/AuthContext'
+import { getCredits } from '@/services/credits'
 import { Logo } from '@/components/Logo'
 import { Badge } from '@/components/ui/Badge'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
@@ -8,12 +10,15 @@ import { cn } from '@/lib/cn'
 import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'
+import { TrialModal } from '@/components/TrialModal'
 
 const navIcons = {
   dashboard: 'M3 12l9-9 9 9M5 10v10h14V10',
   profile: 'M12 12a4 4 0 100-8 4 4 0 000 8zM4 20a8 8 0 0116 0',
   applications: 'M4 6h16M4 12h16M4 18h10',
   aiTools: 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4zM5 17l.8 2 .8-2 2-.8-2-.8L5.8 14l-.8 2-2 .8z',
+  rewards: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 21l-4.9-2.8.9-5.5-4-3.9 5.5-.8z',
+  faq: 'M12 18h.01M9.1 9a3 3 0 015.8 1c0 2-3 2-3 4M4 5h16v12H7l-3 3z',
   extension: 'M4 4h16v16H4zM9 9h6v6H9z',
 }
 
@@ -31,6 +36,7 @@ export function AppLayout() {
   const { toast } = useToast()
   const t = useT()
   const [search, setSearch] = useState('')
+  const credits = useQuery({ queryKey: ['credits'], queryFn: getCredits })
 
   // Global search routes to the applications board with a debounced ?search=.
   const runSearch = useDebouncedCallback((q: string) => {
@@ -42,9 +48,12 @@ export function AppLayout() {
     { to: '/profile', label: t.app.nav.profile, icon: navIcons.profile },
     { to: '/applications', label: t.app.nav.applications, icon: navIcons.applications },
     { to: '/ai-tools', label: t.app.nav.aiTools, icon: navIcons.aiTools },
+    { to: '/rewards', label: 'Rewards', icon: navIcons.rewards },
+    { to: '/faq', label: 'Questions', icon: navIcons.faq },
     { to: '/extension', label: t.app.nav.extension, icon: navIcons.extension },
   ]
   const settingsItems = [
+    { to: '/settings/account', label: 'Account' },
     { to: '/settings/credentials', label: t.app.nav.credentials },
     { to: '/settings/billing', label: t.app.nav.billing },
   ]
@@ -116,10 +125,22 @@ export function AppLayout() {
             />
           </div>
           <div className="ml-auto flex items-center gap-3">
+            <NavLink
+              to="/rewards"
+              className="inline-flex items-center gap-1.5 rounded-full bg-brand-gradient px-3 py-1.5 text-sm font-semibold text-white shadow-sm transition-transform hover:scale-105"
+              title="Rewards & credits"
+            >
+              <span>✦</span>
+              <span className="tabular-nums">{credits.data?.balance ?? '–'}</span>
+            </NavLink>
             <LanguageSwitcher />
             <span className="hidden h-6 w-px bg-navy-100 sm:block" />
-            <Badge tone={user?.plan === 'premium' ? 'info' : 'neutral'}>
-              {user?.plan === 'premium' ? t.app.nav.premium : t.app.nav.free}
+            <Badge tone={user?.premiumActive ? 'info' : 'neutral'}>
+              {user?.plan === 'premium'
+                ? t.app.nav.premium
+                : user?.onTrial
+                  ? 'Trial'
+                  : t.app.nav.free}
             </Badge>
             <div className="flex items-center gap-2">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-navy-900 text-sm font-semibold text-white">
@@ -136,6 +157,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <TrialModal />
     </div>
   )
 }

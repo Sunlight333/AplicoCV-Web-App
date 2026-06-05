@@ -5,12 +5,16 @@ import { PageTransition } from '@/components/PageTransition'
 import { Card } from '@/components/ui/Card'
 import { Input, TextArea } from '@/components/ui/Field'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'
 import { getProfile, patchProfile } from '@/services/profile'
+import { parseText } from '@/services/documents'
 import type { Profile } from '@/types'
 import { SkillsEditor } from './profile/SkillsEditor'
+import { UploadStep } from './onboarding/UploadStep'
 import { cn } from '@/lib/cn'
 import { useT } from '@/i18n/I18nProvider'
 
@@ -32,8 +36,34 @@ export default function ProfilePage() {
   const tp = t.app.profile
   const [tab, setTab] = useState<Tab>('personal')
   const [draft, setDraft] = useState<Profile | null>(null)
+  const [reimportOpen, setReimportOpen] = useState(false)
+  const [pasteText, setPasteText] = useState('')
+  const [pasting, setPasting] = useState(false)
 
   const { data, isLoading } = useQuery({ queryKey: ['profile'], queryFn: getProfile })
+
+  // The CV re-import (parse) already persisted the new profile server-side; just
+  // reflect it locally and in the query cache, then close the modal.
+  const handleReimported = (profile: Profile) => {
+    setDraft(profile)
+    qc.setQueryData(['profile'], profile)
+    qc.invalidateQueries({ queryKey: ['credits'] })
+    setReimportOpen(false)
+    setPasteText('')
+    toast('CV imported — your profile was updated')
+  }
+
+  const handlePaste = async () => {
+    setPasting(true)
+    try {
+      const profile = await parseText(pasteText)
+      if (profile) handleReimported(profile)
+    } catch {
+      toast('Could not parse the pasted text', 'error')
+    } finally {
+      setPasting(false)
+    }
+  }
 
   useEffect(() => {
     if (data && !draft) setDraft(data)
@@ -70,10 +100,52 @@ export default function ProfilePage() {
 
   return (
     <PageTransition>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-navy-900">{tp.title}</h1>
-        {mutation.isPending && <span className="text-sm text-navy-400">{tp.saving}</span>}
+        <div className="flex items-center gap-3">
+          {mutation.isPending && <span className="text-sm text-navy-400">{tp.saving}</span>}
+          <Button variant="secondary" className="rounded-full" onClick={() => setReimportOpen(true)}>
+            ↑ Re-import CV
+          </Button>
+        </div>
       </div>
+
+      <Modal open={reimportOpen} onClose={() => setReimportOpen(false)}>
+        <div className="rounded-2xl bg-white p-7 shadow-card-hover">
+          <div className="mb-1 flex items-start justify-between gap-4">
+            <h2 className="text-lg font-semibold text-navy-900">Replace your CV</h2>
+            <button
+              onClick={() => setReimportOpen(false)}
+              className="text-navy-400 hover:text-navy-700"
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="mb-4 text-sm text-navy-500">
+            Upload a new CV — or paste your CV text — to re-parse and replace your current profile.
+            You can edit anything afterward.
+          </p>
+          <UploadStep onParsed={handleReimported} />
+          <div className="mt-5 border-t border-navy-100 pt-5">
+            <p className="mb-2 text-sm font-medium text-navy-700">…or paste your CV text</p>
+            <TextArea
+              rows={5}
+              placeholder="Paste your full CV text here — it's the main source for the AI."
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+            />
+            <Button
+              className="mt-3 rounded-full"
+              disabled={!pasteText.trim()}
+              loading={pasting}
+              onClick={handlePaste}
+            >
+              Parse pasted text
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Tabs with animated underline */}
       <div className="mt-6 flex gap-1 overflow-x-auto border-b border-navy-100">

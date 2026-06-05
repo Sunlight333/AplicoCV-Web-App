@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { useAuth } from '@/auth/AuthContext'
 import { useToast } from '@/components/Toast'
 import { ApiError } from '@/lib/apiClient'
+import { env } from '@/lib/env'
 import { useT } from '@/i18n/I18nProvider'
 
 export default function LoginPage() {
@@ -40,7 +41,7 @@ export default function LoginPage() {
   })
 
   return (
-    <AuthShell title={tl.title} subtitle={tl.subtitle}>
+    <AuthShell title={tl.title} subtitle={tl.subtitle} bgImage="/backgrounds/auth-login-bg.png">
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
           id="email"
@@ -60,6 +61,11 @@ export default function LoginPage() {
           error={errors.password?.message}
           {...register('password')}
         />
+        <div className="text-right">
+          <Link to="/forgot-password" className="text-sm font-medium text-electric-600 hover:underline">
+            {tl.forgotPassword}
+          </Link>
+        </div>
         {submitError && <p className="text-sm font-medium text-red-600">{submitError}</p>}
         <Button type="submit" className="w-full" loading={isSubmitting}>
           {tl.submit}
@@ -77,7 +83,9 @@ export default function LoginPage() {
           {tl.createAccount}
         </Link>
       </p>
-      <p className="mt-2 text-center text-xs text-navy-300">{tl.demoNote}</p>
+      {env.useMocks && (
+        <p className="mt-2 text-center text-xs text-navy-300">{tl.demoNote}</p>
+      )}
     </AuthShell>
   )
 }

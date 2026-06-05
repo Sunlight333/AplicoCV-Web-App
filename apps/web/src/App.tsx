@@ -8,6 +8,11 @@ import { FullPageLoader } from '@/components/FullPageLoader'
 const LandingPage = lazy(() => import('@/pages/LandingPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
+const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
+const AccountPage = lazy(() => import('@/pages/settings/AccountPage'))
+const RewardsPage = lazy(() => import('@/pages/RewardsPage'))
+const FaqPage = lazy(() => import('@/pages/FaqPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
@@ -29,6 +34,8 @@ export function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
 
           {/* Authenticated, pre-onboarding */}
@@ -43,6 +50,9 @@ export function App() {
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/applications" element={<TrackingPage />} />
               <Route path="/ai-tools" element={<AiToolsPage />} />
+              <Route path="/rewards" element={<RewardsPage />} />
+              <Route path="/faq" element={<FaqPage />} />
+              <Route path="/settings/account" element={<AccountPage />} />
               <Route path="/settings/credentials" element={<CredentialsPage />} />
               <Route path="/settings/billing" element={<BillingPage />} />
               <Route path="/extension" element={<ExtensionPage />} />

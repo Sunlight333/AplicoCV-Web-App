@@ -128,3 +128,23 @@ export async function saveParsedProfile(profile: ParseProgressEvent['profile']) 
     body: JSON.stringify(profile),
   })
 }
+
+/** Parse a pasted CV (plain text) into the profile — the alternative to upload. */
+export async function parseText(text: string): Promise<ParseProgressEvent['profile']> {
+  if (env.useMocks) {
+    await delay(400)
+    return store.profile
+  }
+  const res = await fetch(`${env.apiBaseUrl}/documents/parse-text`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${tokenStore.get() ?? ''}`,
+    },
+    credentials: 'include',
+    body: JSON.stringify({ text }),
+  })
+  if (!res.ok) throw new Error('Failed to parse pasted text')
+  const data = (await res.json()) as { profile: ParseProgressEvent['profile'] }
+  return data.profile
+}

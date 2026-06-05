@@ -8,6 +8,7 @@ import { AtsRing } from '@/components/AtsRing'
 import { useCountUp } from '@/hooks/useCountUp'
 import { useAuth } from '@/auth/AuthContext'
 import { getStats, getRecommendations } from '@/services/dashboard'
+import { getProfile } from '@/services/profile'
 import { runAgentScan } from '@/services/ai'
 import { listApplications } from '@/services/applications'
 import { statusMeta } from './tracking/statusMeta'
@@ -41,6 +42,7 @@ export default function DashboardPage() {
     queryFn: () => listApplications(),
   })
   const recs = useQuery({ queryKey: ['recommendations'], queryFn: getRecommendations })
+  const profile = useQuery({ queryKey: ['profile'], queryFn: getProfile })
 
   // The snapshot reflects the best ATS-scored match the agent has surfaced for
   // this user, rather than a hardcoded value. Null until any data exists.
@@ -62,6 +64,60 @@ export default function DashboardPage() {
         {td.welcome(user?.fullName.split(' ')[0] ?? '')}
       </h1>
       <p className="mt-1 text-navy-500">{td.subtitle}</p>
+
+      {/* Imported CV / profile summary — the first thing a user sees post-login */}
+      {profile.isLoading ? (
+        <Card className="mt-6 p-5">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="mt-3 h-4 w-full" />
+        </Card>
+      ) : profile.data && profile.data.personal.fullName ? (
+        <Card className="mt-6 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-lg font-bold text-navy-900">{profile.data.personal.fullName}</p>
+              {profile.data.personal.headline && (
+                <p className="text-sm font-medium text-electric-600">{profile.data.personal.headline}</p>
+              )}
+            </div>
+            <Link to="/profile" className="text-sm font-medium text-electric-600 hover:underline">
+              {td.viewProfile}
+            </Link>
+          </div>
+          {profile.data.personal.summary && (
+            <p className="mt-3 line-clamp-2 text-sm text-navy-500">{profile.data.personal.summary}</p>
+          )}
+          {profile.data.experience[0]?.title && (
+            <p className="mt-3 text-sm text-navy-600">
+              <span className="text-navy-400">{td.latestRole} </span>
+              {profile.data.experience[0].title}
+              {profile.data.experience[0].employer ? ` · ${profile.data.experience[0].employer}` : ''}
+            </p>
+          )}
+          {profile.data.skills.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {profile.data.skills.slice(0, 10).map((s) => (
+                <Badge key={s} tone="neutral">
+                  {s}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </Card>
+      ) : (
+        <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">
+          <div>
+            <p className="font-semibold text-navy-900">{td.importTitle}</p>
+            <p className="text-sm text-navy-500">{td.importSubtitle}</p>
+          </div>
+          <Link
+            to="/profile"
+            className="inline-flex h-10 items-center rounded-full bg-electric-500 px-5 text-sm font-semibold text-white transition-colors hover:bg-electric-600"
+          >
+            {td.importCta}
+          </Link>
+        </Card>
+      )}
 
       {/* Stats row */}
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

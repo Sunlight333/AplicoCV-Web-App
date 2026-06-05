@@ -90,6 +90,41 @@ export async function completeOnboarding(): Promise<User> {
   return api.patch<User>('/users/me', { onboarded: true })
 }
 
+/**
+ * Set or change the account password. `currentPassword` is null for accounts
+ * that don't have one yet (e.g. created via Google). Returns the updated user.
+ */
+export async function setPassword(currentPassword: string | null, newPassword: string): Promise<User> {
+  if (env.useMocks) {
+    await delay()
+    store.user = { ...store.user, hasPassword: true }
+    return store.user
+  }
+  return api.post<User>('/users/me/password', { currentPassword, newPassword })
+}
+
+/** Request a password-reset email. Resolves regardless of whether the email exists. */
+export async function forgotPassword(email: string): Promise<void> {
+  if (env.useMocks) {
+    await delay()
+    return
+  }
+  await api.post('/auth/forgot-password', { email }, { anonymous: true })
+}
+
+/** Consume a reset token, set the new password, and sign in. */
+export async function resetPassword(token: string, newPassword: string): Promise<User> {
+  if (env.useMocks) {
+    await delay()
+    tokenStore.set('mock-access-token')
+    persistedAuth.save(true)
+    return store.user
+  }
+  const res = await api.post<AuthResponse>('/auth/reset-password', { token, newPassword }, { anonymous: true })
+  tokenStore.set(res.accessToken)
+  return res.user
+}
+
 /** Kick off the server-driven Google OAuth redirect. */
 export function startGoogleOAuth() {
   window.location.href = env.googleOAuthUrl
