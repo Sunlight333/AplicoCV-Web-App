@@ -6,7 +6,10 @@ import { Badge } from '@/components/ui/Badge'
 import { cn } from '@/lib/cn'
 import { useT } from '@/i18n/I18nProvider'
 
-const CHROME_STORE_URL = 'https://chrome.google.com/webstore/detail/aplicocv'
+// Key-ready: set VITE_CHROME_STORE_URL once the listing is published; until then
+// the button routes users to register/onboarding rather than a dead store URL.
+const CHROME_STORE_URL = (import.meta.env.VITE_CHROME_STORE_URL as string | undefined) || ''
+const STORE_READY = Boolean(CHROME_STORE_URL)
 
 function isChrome() {
   const ua = navigator.userAgent
@@ -42,9 +45,18 @@ export default function ExtensionPage() {
             <>
               <Badge tone="success">{te.chromeDetected}</Badge>
               <p className="mt-4 text-navy-600">{te.chromeBlurb}</p>
-              <a href={CHROME_STORE_URL} target="_blank" rel="noreferrer" className="mt-5">
-                <Button size="lg">{te.addToChrome}</Button>
-              </a>
+              {STORE_READY ? (
+                <a href={CHROME_STORE_URL} target="_blank" rel="noreferrer" className="mt-5 inline-block">
+                  <Button size="lg">{te.addToChrome}</Button>
+                </a>
+              ) : (
+                <div className="mt-5">
+                  <Button size="lg" disabled>
+                    {te.addToChrome}
+                  </Button>
+                  <p className="mt-2 text-sm text-navy-400">Coming soon to the Chrome Web Store.</p>
+                </div>
+              )}
             </>
           ) : (
             <>

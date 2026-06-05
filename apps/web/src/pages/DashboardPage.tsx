@@ -189,7 +189,7 @@ export default function DashboardPage() {
             {latestAtsScore == null ? td.atsEmpty : latestAtsScore >= 75 ? td.atsStrong : td.atsModerate}
           </p>
           <Link
-            to="/applications"
+            to="/ai-tools"
             className="mt-3 text-sm font-medium text-electric-600 hover:underline"
           >
             {td.analyzeNew}

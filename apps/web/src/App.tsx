@@ -13,6 +13,8 @@ const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const AccountPage = lazy(() => import('@/pages/settings/AccountPage'))
 const RewardsPage = lazy(() => import('@/pages/RewardsPage'))
 const FaqPage = lazy(() => import('@/pages/FaqPage'))
+const OptimizePage = lazy(() => import('@/pages/OptimizePage'))
+const DocumentsPage = lazy(() => import('@/pages/DocumentsPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
@@ -22,6 +24,7 @@ const CredentialsPage = lazy(() => import('@/pages/CredentialsPage'))
 const BillingPage = lazy(() => import('@/pages/BillingPage'))
 const ExtensionPage = lazy(() => import('@/pages/ExtensionPage'))
 const PrivacyPage = lazy(() => import('@/pages/PrivacyPage'))
+const TermsPage = lazy(() => import('@/pages/TermsPage'))
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 export function App() {
@@ -37,6 +40,7 @@ export function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/terms" element={<TermsPage />} />
 
           {/* Authenticated, pre-onboarding */}
           <Route element={<ProtectedRoute requireOnboarded={false} />}>
@@ -52,6 +56,8 @@ export function App() {
               <Route path="/ai-tools" element={<AiToolsPage />} />
               <Route path="/rewards" element={<RewardsPage />} />
               <Route path="/faq" element={<FaqPage />} />
+              <Route path="/optimize" element={<OptimizePage />} />
+              <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/settings/account" element={<AccountPage />} />
               <Route path="/settings/credentials" element={<CredentialsPage />} />
               <Route path="/settings/billing" element={<BillingPage />} />

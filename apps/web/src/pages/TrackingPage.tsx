@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { DndContext, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { PageTransition } from '@/components/PageTransition'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Card } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/Toast'
 import {
   listApplications,
@@ -127,6 +128,20 @@ export default function TrackingPage() {
             </Card>
           ))}
         </div>
+      ) : data && data.length === 0 && !search ? (
+        <Card className="mt-6 flex flex-col items-center gap-4 p-12 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-electric-50 text-2xl">🗂️</div>
+          <div>
+            <p className="font-semibold text-navy-900">No applications yet</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-navy-500">
+              When you apply on LinkedIn, Workday, Indeed and other portals with the AplicoCV
+              extension, your applications show up here with their status.
+            </p>
+          </div>
+          <Link to="/extension">
+            <Button className="rounded-full">Install the extension</Button>
+          </Link>
+        </Card>
       ) : (
         <DndContext sensors={sensors} onDragEnd={onDragEnd}>
           <div className="mt-6 flex gap-4 overflow-x-auto pb-4">

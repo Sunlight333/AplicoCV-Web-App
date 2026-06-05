@@ -125,6 +125,28 @@ export async function resetPassword(token: string, newPassword: string): Promise
   return res.user
 }
 
+/** Update the display name. */
+export async function updateName(fullName: string): Promise<User> {
+  if (env.useMocks) {
+    await delay()
+    store.user = { ...store.user, fullName }
+    return store.user
+  }
+  return api.patch<User>('/users/me', { fullName })
+}
+
+/** Permanently delete the account and all data. */
+export async function deleteAccount(): Promise<void> {
+  if (env.useMocks) {
+    await delay()
+    tokenStore.clear()
+    persistedAuth.save(false)
+    return
+  }
+  await api.delete('/users/me')
+  tokenStore.clear()
+}
+
 /** Kick off the server-driven Google OAuth redirect. */
 export function startGoogleOAuth() {
   window.location.href = env.googleOAuthUrl

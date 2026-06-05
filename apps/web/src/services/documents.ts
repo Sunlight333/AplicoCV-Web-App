@@ -129,6 +129,54 @@ export async function saveParsedProfile(profile: ParseProgressEvent['profile']) 
   })
 }
 
+export interface GeneratedDoc {
+  id: string
+  title: string
+  createdAt: string
+  preview: string
+  atsScore?: number | null
+}
+
+export interface DocumentLibrary {
+  cvs: GeneratedDoc[]
+  letters: GeneratedDoc[]
+}
+
+export interface GeneratedDocFull {
+  id: string
+  title: string
+  text: string
+  atsScore?: number | null
+}
+
+/** Full text of a generated document (for view/copy/download). */
+export async function getGeneratedDoc(id: string): Promise<GeneratedDocFull> {
+  if (env.useMocks) {
+    await delay(120)
+    return { id, title: 'Document', text: 'Sample generated content.', atsScore: null }
+  }
+  const res = await fetch(`${env.apiBaseUrl}/documents/generated/${id}`, {
+    headers: { Authorization: `Bearer ${tokenStore.get() ?? ''}` },
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('Failed to load document')
+  return (await res.json()) as GeneratedDocFull
+}
+
+/** Generated documents library (optimized CVs + cover letters). */
+export async function getLibrary(): Promise<DocumentLibrary> {
+  if (env.useMocks) {
+    await delay(150)
+    return { cvs: [], letters: [] }
+  }
+  const res = await fetch(`${env.apiBaseUrl}/documents/library`, {
+    headers: { Authorization: `Bearer ${tokenStore.get() ?? ''}` },
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('Failed to load library')
+  return (await res.json()) as DocumentLibrary
+}
+
 /** Parse a pasted CV (plain text) into the profile — the alternative to upload. */
 export async function parseText(text: string): Promise<ParseProgressEvent['profile']> {
   if (env.useMocks) {

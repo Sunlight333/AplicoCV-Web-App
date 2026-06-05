@@ -6,6 +6,43 @@ import { delay, store } from './mock/store'
 
 export type CoverLetterTone = 'professional' | 'warm' | 'direct'
 
+export interface SuperCvResult {
+  cvText: string
+  atsScore: number
+  gaps: string[]
+  documentId: string
+}
+
+/** Super-CV: X-Y-Z rewrite optimized for ATS (credit-priced). */
+export async function generateSuperCv(input: {
+  targetRole: string
+  jobDescription?: string
+  cvText?: string
+}): Promise<SuperCvResult> {
+  if (env.useMocks) {
+    await delay(1200)
+    return { cvText: `# Optimized CV\n**${input.targetRole}**\n\n- Accomplished X, measured by Y, by doing Z.`, atsScore: 88, gaps: ['Kubernetes', 'Terraform'], documentId: 'mock' }
+  }
+  return api.post<SuperCvResult>('/ai/super-cv', input)
+}
+
+export async function getPersonalAnalysis(): Promise<{ strengths: string[]; weaknesses: string; motivation: string }> {
+  if (env.useMocks) {
+    await delay(800)
+    return { strengths: ['Ownership', 'Clear communication', 'Fast learner'], weaknesses: 'Delegation.', motivation: 'Greater impact.' }
+  }
+  return api.post('/ai/personal-analysis')
+}
+
+export async function getSkillSuggestions(): Promise<string[]> {
+  if (env.useMocks) {
+    await delay(700)
+    return ['TypeScript', 'Docker', 'GraphQL']
+  }
+  const res = await api.post<{ skills: string[] }>('/ai/skill-suggestions')
+  return res.skills
+}
+
 /** Generate a cover letter for a job description (POST /cover-letters/generate). */
 export async function generateCoverLetter(
   jobDescription: string,

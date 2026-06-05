@@ -19,6 +19,8 @@ const navIcons = {
   aiTools: 'M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4zM5 17l.8 2 .8-2 2-.8-2-.8L5.8 14l-.8 2-2 .8z',
   rewards: 'M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 21l-4.9-2.8.9-5.5-4-3.9 5.5-.8z',
   faq: 'M12 18h.01M9.1 9a3 3 0 015.8 1c0 2-3 2-3 4M4 5h16v12H7l-3 3z',
+  optimize: 'M5 19l7-7 3 3 6-6M14 6h5v5',
+  documents: 'M7 3h7l5 5v13H7zM14 3v5h5',
   extension: 'M4 4h16v16H4zM9 9h6v6H9z',
 }
 
@@ -48,6 +50,8 @@ export function AppLayout() {
     { to: '/profile', label: t.app.nav.profile, icon: navIcons.profile },
     { to: '/applications', label: t.app.nav.applications, icon: navIcons.applications },
     { to: '/ai-tools', label: t.app.nav.aiTools, icon: navIcons.aiTools },
+    { to: '/optimize', label: 'Optimize CV', icon: navIcons.optimize },
+    { to: '/documents', label: 'Documents', icon: navIcons.documents },
     { to: '/rewards', label: 'Rewards', icon: navIcons.rewards },
     { to: '/faq', label: 'Questions', icon: navIcons.faq },
     { to: '/extension', label: t.app.nav.extension, icon: navIcons.extension },
