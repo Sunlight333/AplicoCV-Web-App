@@ -199,6 +199,15 @@ async function init() {
   $('main-view').classList.remove('hidden')
   setupFooter()
 
+  // First-run onboarding tip — shown once, then remembered in extension storage.
+  chrome.storage?.local.get('aplico_onboarded', (res) => {
+    if (!res?.aplico_onboarded) $('onboarding').classList.remove('hidden')
+  })
+  $('onboarding-dismiss').onclick = () => {
+    $('onboarding').classList.add('hidden')
+    chrome.storage?.local.set({ aplico_onboarded: true })
+  }
+
   // Credit balance + profile completeness (links to the rewards page).
   send({ type: 'GET_CREDITS' }).then((cr) => {
     if (!cr?.credits) return

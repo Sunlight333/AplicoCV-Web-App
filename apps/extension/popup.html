@@ -109,6 +109,17 @@
 
       <!-- Logged-in -->
       <div id="main-view" class="hidden">
+        <!-- First-run onboarding (shown once) -->
+        <div id="onboarding" class="card hidden" style="background:#f1f5fb;border-color:#dbe4f3">
+          <h3>👋 Welcome to AplicoCV</h3>
+          <ol style="margin:6px 0 0;padding-left:18px;font-size:12px;line-height:1.7;color:var(--navy-500)">
+            <li>Open a job application on a supported portal.</li>
+            <li>Click <strong>Autofill this form</strong> — we fill every field.</li>
+            <li>Toggle a tailored CV or generate a cover letter, then apply.</li>
+          </ol>
+          <button class="mini" id="onboarding-dismiss" style="margin-top:10px;width:100%">Got it</button>
+        </div>
+
         <div class="site" id="site-domain">—</div>
         <span class="badge no" id="compat">Checking…</span>
 
