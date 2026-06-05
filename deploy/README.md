@@ -1,6 +1,19 @@
 # AplicoCV — Deployment
 
-Production runs on a single VPS (Ubuntu 24.04, ≥4 vCPU / 8 GB RAM):
+> [!IMPORTANT]
+> **Production reality vs. this doc.** The live VPS does **not** run the Docker
+> Compose / Postgres / Celery stack described below, and the GitHub Actions deploy
+> job is **not** wired to it. Production currently runs the FastAPI app directly
+> under a **systemd** unit (`aplicocv-api.service`) in a **venv**, backed by
+> **SQLite**, with **Nginx on the host** serving the built SPA and proxying `/api`.
+> Deploys are done by uploading the changed files (tarball/`pscp`) and
+> `systemctl restart aplicocv-api`. New SQLAlchemy **tables** are created
+> automatically on restart (`create_all`); new **columns** on existing tables are
+> not — model those as new tables or add a migration. The Compose/Celery/Postgres
+> setup below is the intended target architecture, kept for when the stack is
+> migrated; treat it as aspirational until the systemd unit is replaced.
+
+Intended target architecture (single VPS, Ubuntu 24.04, ≥4 vCPU / 8 GB RAM):
 
 - **Docker Compose** runs the backend stack — FastAPI (`api`), Celery `worker`,
   Celery `beat`, `redis`, `postgres` (see [`docker-compose.yml`](../docker-compose.yml)).
