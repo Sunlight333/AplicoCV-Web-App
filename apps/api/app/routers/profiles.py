@@ -12,6 +12,7 @@ from app.deps import get_current_user, require_premium
 from app.models import Document, Operation, Profile as ProfileModel, User
 from app.schemas import JobDescriptionInput, OperationOut, Profile
 from app.services import llm_service
+from app.services.llm_service import normalize_profile
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
 
@@ -32,7 +33,13 @@ async def get_my_profile(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ) -> Profile:
     profile = await _get_or_create(db, user.id)
-    return Profile(**(profile.data or {}))
+    data = profile.data or {}
+    try:
+        return Profile(**data)
+    except Exception:
+        # Tolerate loosely-shaped legacy data (e.g. raw LLM output stored before
+        # normalization) so the profile still loads instead of 500-ing.
+        return Profile(**normalize_profile(data))
 
 
 @router.put("/me", response_model=Profile)

@@ -36,6 +36,14 @@ class UserOut(BaseModel):
     plan: Literal["free", "premium"]
     onboarded: bool
     preferences: JobPreferences
+    # False for accounts created via Google that have not set a password yet.
+    hasPassword: bool = False
+    # Premium unlocked (paid OR within the free trial window).
+    premiumActive: bool = False
+    # On the free trial right now (premium unlocked but not paying).
+    onTrial: bool = False
+    # ISO timestamp the trial ends; null for paying members.
+    trialEndsAt: str | None = None
 
 
 class AuthResponse(BaseModel):
@@ -45,6 +53,21 @@ class AuthResponse(BaseModel):
 
 class RefreshResponse(BaseModel):
     accessToken: str
+
+
+class SetPasswordInput(BaseModel):
+    # Omitted/None when the account has no password yet (e.g. Google sign-up).
+    currentPassword: str | None = None
+    newPassword: str = Field(min_length=8)
+
+
+class ForgotPasswordInput(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordInput(BaseModel):
+    token: str
+    newPassword: str = Field(min_length=8)
 
 
 # --- Profile ------------------------------------------------------------------

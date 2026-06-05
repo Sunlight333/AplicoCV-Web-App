@@ -1,15 +1,33 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db import get_db
 from app.models import User
 from app.security import decode_token
 
 bearer = HTTPBearer(auto_error=False)
+
+
+def trial_ends_at(user: User) -> datetime:
+    """When this account's free trial expires (signup + TRIAL_DAYS)."""
+    created = user.created_at
+    if created.tzinfo is None:  # SQLite may return naive datetimes
+        created = created.replace(tzinfo=timezone.utc)
+    return created + timedelta(days=settings.trial_days)
+
+
+def premium_active(user: User) -> bool:
+    """Premium features are unlocked for paying users and during the free trial."""
+    if user.plan == "premium":
+        return True
+    return datetime.now(timezone.utc) < trial_ends_at(user)
 
 
 async def get_current_user(
@@ -28,7 +46,7 @@ async def get_current_user(
 
 
 async def require_premium(user: User = Depends(get_current_user)) -> User:
-    if user.plan != "premium":
+    if not premium_active(user):
         raise HTTPException(status.HTTP_402_PAYMENT_REQUIRED, detail="Premium plan required")
     return user
 

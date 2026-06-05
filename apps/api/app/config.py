@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     agent_scan_interval_hours: int = 6
     agent_match_threshold: int = 65
 
+    # ---- Free trial -------------------------------------------------------
+    # Every new account gets full Premium access for this many days from signup.
+    trial_days: int = 7
+
     # ---- Error monitoring (Sentry) ----------------------------------------
     sentry_dsn: str = ""
 

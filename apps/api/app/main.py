@@ -15,7 +15,9 @@ from app.routers import (
     auth,
     billing,
     credentials,
+    credits,
     documents,
+    faq,
     operations,
     portals,
     profiles,
@@ -86,6 +88,8 @@ for r in (
     recommendations.router,
     operations.router,
     agent.router,
+    credits.router,
+    faq.router,
 ):
     app.include_router(r, prefix="/api")
 

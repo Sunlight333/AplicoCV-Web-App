@@ -6,11 +6,13 @@ import os
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
 from app.deps import get_current_user
-from app.models import Document, User
+from app.models import Document, Profile, User
 from app.services import llm_service, storage_service
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -120,6 +122,18 @@ async def parse(
             text = _extract_text(local)
         profile = await llm_service.extract_profile(text)
         doc.parsed = profile
+        # Also persist into the user's Profile so the imported CV surfaces across
+        # the app immediately — even if the review/confirm step is skipped or the
+        # final PUT /profiles/me never runs. The review step still overrides this
+        # with any user edits.
+        result = await db.execute(select(Profile).where(Profile.user_id == user.id))
+        prof = result.scalar_one_or_none()
+        if prof is None:
+            prof = Profile(user_id=user.id, data=profile, version=int(profile.get("version", 1)))
+            db.add(prof)
+        else:
+            prof.data = profile
+            prof.version = int(profile.get("version", 1))
         await db.commit()
         payload = {"stage": "complete", "message": "Done", "done": True, "profile": profile}
         yield f"data: {json.dumps(payload)}\n\n"
@@ -129,3 +143,32 @@ async def parse(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+class ParseTextInput(BaseModel):
+    text: str
+
+
+async def _persist_profile(db: AsyncSession, user_id: str, profile: dict) -> None:
+    result = await db.execute(select(Profile).where(Profile.user_id == user_id))
+    prof = result.scalar_one_or_none()
+    if prof is None:
+        prof = Profile(user_id=user_id, data=profile, version=int(profile.get("version", 1)))
+        db.add(prof)
+    else:
+        prof.data = profile
+        prof.version = int(profile.get("version", 1))
+    await db.commit()
+
+
+@router.post("/parse-text")
+async def parse_text(
+    body: ParseTextInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """Parse a pasted CV (plain text) into the profile — the alternative AI source
+    to file upload. Persists straight into Profile.data."""
+    profile = await llm_service.extract_profile(body.text or "")
+    await _persist_profile(db, user.id, profile)
+    return {"profile": profile}

@@ -148,3 +148,38 @@ class Operation(Base):
     status: Mapped[str] = mapped_column(String, default="pending")  # pending|completed|error
     result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class CreditAccount(Base):
+    """Per-user credit balance + gamification state (separate table so it is
+    created cleanly by create_all without altering the users table)."""
+
+    __tablename__ = "credit_accounts"
+
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), primary_key=True)
+    balance: Mapped[int] = mapped_column(default=0)
+    streak: Mapped[int] = mapped_column(default=0)
+    last_checkin: Mapped[str | None] = mapped_column(String, nullable=True)  # ISO date
+    grants: Mapped[dict] = mapped_column(JSON, default=dict)  # one-time earn keys claimed
+
+
+class CreditTransaction(Base):
+    __tablename__ = "credit_transactions"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    amount: Mapped[int] = mapped_column()  # positive = earned, negative = spent
+    reason: Mapped[str] = mapped_column(String)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class FaqAnswer(Base):
+    """Reusable answers to common application questions (feeds extension autofill)."""
+
+    __tablename__ = "faq_answers"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    question: Mapped[str] = mapped_column(Text)
+    answer: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

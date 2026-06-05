@@ -11,20 +11,23 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.db import get_db
 from app.ratelimit import limiter
-from app.deps import get_current_user, get_user_by_email
+from app.deps import get_current_user, get_user_by_email, premium_active, trial_ends_at
 from app.models import Profile, User
 from app.services import email_service
 from app.schemas import (
     AuthResponse,
+    ForgotPasswordInput,
     JobPreferences,
     LoginInput,
     RefreshResponse,
     RegisterInput,
+    ResetPasswordInput,
     UserOut,
 )
 from app.security import (
     create_access_token,
     create_refresh_token,
+    create_reset_token,
     hash_password,
     decode_token,
     verify_password,
@@ -36,6 +39,7 @@ REFRESH_COOKIE = "aplico_refresh"
 
 
 def _user_out(user: User) -> UserOut:
+    active = premium_active(user)
     return UserOut(
         id=user.id,
         email=user.email,
@@ -44,6 +48,10 @@ def _user_out(user: User) -> UserOut:
         plan=user.plan,  # type: ignore[arg-type]
         onboarded=user.onboarded,
         preferences=JobPreferences(**(user.preferences or {})),
+        hasPassword=bool(user.hashed_password),
+        premiumActive=active,
+        onTrial=active and user.plan != "premium",
+        trialEndsAt=trial_ends_at(user).isoformat() if user.plan != "premium" else None,
     )
 
 
@@ -122,6 +130,44 @@ async def logout(response: Response) -> dict[str, bool]:
 @router.get("/me", response_model=UserOut)
 async def me(user: User = Depends(get_current_user)) -> UserOut:
     return _user_out(user)
+
+
+@router.post("/forgot-password")
+@limiter.limit("5/hour")
+async def forgot_password(
+    request: Request,
+    body: ForgotPasswordInput,
+    background: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Email a password-reset link. Always returns ok so we never reveal whether
+    an email is registered."""
+    user = await get_user_by_email(db, body.email)
+    if user:
+        link = f"{settings.frontend_url}/reset-password?token={create_reset_token(user.id)}"
+        subject, html = email_service.reset_password_email(link)
+        background.add_task(email_service.send, user.email, subject, html)
+    return {"ok": True}
+
+
+@router.post("/reset-password", response_model=AuthResponse)
+@limiter.limit("10/hour")
+async def reset_password(
+    request: Request,
+    body: ResetPasswordInput,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+) -> AuthResponse:
+    """Consume a reset token, set the new password, and sign the user in."""
+    user_id = decode_token(body.token, "reset")
+    user = await db.get(User, user_id) if user_id else None
+    if user is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="This reset link is invalid or has expired")
+    user.hashed_password = hash_password(body.newPassword)
+    await db.commit()
+    await db.refresh(user)
+    _set_refresh_cookie(response, user.id)
+    return AuthResponse(accessToken=create_access_token(user.id), user=_user_out(user))
 
 
 # --- Google OAuth 2.0 (Authlib-style code flow, implemented with httpx) --------

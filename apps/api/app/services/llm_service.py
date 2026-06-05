@@ -36,10 +36,97 @@ def _tokens(text: str) -> set[str]:
 
 
 async def extract_profile(text: str) -> dict[str, Any]:
-    """Extract a structured profile from raw CV text."""
+    """Extract a structured profile from raw CV text.
+
+    The result is normalized to the Profile schema so it persists/reads cleanly
+    regardless of how loosely the LLM (or stub) shaped its JSON.
+    """
     if settings.resolved_llm_provider == "stub":
-        return _stub_extract_profile(text)
-    return await _real_extract_profile(text)
+        raw = _stub_extract_profile(text)
+    else:
+        raw = await _real_extract_profile(text)
+    return normalize_profile(raw)
+
+
+def _s(v: Any, default: str = "") -> str:
+    """Coerce any value to a non-null string."""
+    if v is None:
+        return default
+    return v if isinstance(v, str) else str(v)
+
+
+def _opt_s(v: Any) -> str | None:
+    return None if v is None else (v if isinstance(v, str) else str(v))
+
+
+def normalize_profile(raw: dict[str, Any] | None) -> dict[str, Any]:  # noqa: F811 (public)
+    """Coerce arbitrary LLM/stub output into a strictly Profile-schema-valid dict
+    (required strings never null, ids stringified, language levels constrained)."""
+    raw = raw or {}
+    p = raw.get("personal") or {}
+    _LEVELS = {"basic", "conversational", "professional", "native"}
+
+    experience = []
+    for i, e in enumerate(raw.get("experience") or []):
+        e = e or {}
+        experience.append({
+            "id": _s(e.get("id"), f"exp_{i + 1}"),
+            "employer": _s(e.get("employer")),
+            "title": _s(e.get("title")),
+            "startDate": _s(e.get("startDate")),
+            "endDate": _opt_s(e.get("endDate")),
+            "location": _opt_s(e.get("location")),
+            "bullets": [_s(b) for b in (e.get("bullets") or []) if b is not None],
+        })
+
+    education = []
+    for i, ed in enumerate(raw.get("education") or []):
+        ed = ed or {}
+        education.append({
+            "id": _s(ed.get("id"), f"edu_{i + 1}"),
+            "institution": _s(ed.get("institution")),
+            "degree": _s(ed.get("degree")),
+            "field": _opt_s(ed.get("field")),
+            "startDate": _s(ed.get("startDate")),
+            "endDate": _opt_s(ed.get("endDate")),
+        })
+
+    languages = []
+    for i, lang in enumerate(raw.get("languages") or []):
+        lang = lang or {}
+        level = lang.get("level")
+        languages.append({
+            "id": _s(lang.get("id"), f"lang_{i + 1}"),
+            "language": _s(lang.get("language")),
+            "level": level if level in _LEVELS else "professional",
+        })
+
+    links = []
+    for i, ln in enumerate(raw.get("links") or []):
+        ln = ln or {}
+        links.append({
+            "id": _s(ln.get("id"), f"link_{i + 1}"),
+            "label": _s(ln.get("label")),
+            "url": _s(ln.get("url")),
+        })
+
+    return {
+        "personal": {
+            "fullName": _s(p.get("fullName")),
+            "headline": _s(p.get("headline")),
+            "email": _s(p.get("email")),
+            "phone": _opt_s(p.get("phone")),
+            "location": _opt_s(p.get("location")),
+            "summary": _s(p.get("summary")),
+        },
+        "experience": experience,
+        "education": education,
+        "skills": [_s(s) for s in (raw.get("skills") or []) if s],
+        "languages": languages,
+        "links": links,
+        "complementary": raw.get("complementary") or {},
+        "version": int(raw.get("version") or 1),
+    }
 
 
 async def score_ats_match(job_description: str, profile: dict[str, Any]) -> dict[str, Any]:

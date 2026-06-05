@@ -80,3 +80,21 @@ def welcome_email(name: str) -> tuple[str, str]:
         f"<p style='color:#4f6bb7;font-size:13px'>— The AplicoCV team</p></div>"
     )
     return subject, html
+
+
+def reset_password_email(link: str) -> tuple[str, str]:
+    """(subject, html) for the forgot-password reset link."""
+    subject = "Reset your AplicoCV password"
+    html = (
+        f"<div style='font-family:Inter,Arial,sans-serif;color:#0b1426'>"
+        f"<h2>Reset your password</h2>"
+        f"<p>We received a request to reset your AplicoCV password. Click below to "
+        f"choose a new one. This link expires in 30 minutes.</p>"
+        f"<p><a href='{link}' "
+        f"style='background:#0a74f0;color:#fff;padding:10px 18px;border-radius:8px;"
+        f"text-decoration:none'>Reset password</a></p>"
+        f"<p style='color:#4f6bb7;font-size:13px'>If you didn't request this, you can "
+        f"safely ignore this email — your password won't change.</p>"
+        f"<p style='color:#4f6bb7;font-size:13px'>— The AplicoCV team</p></div>"
+    )
+    return subject, html

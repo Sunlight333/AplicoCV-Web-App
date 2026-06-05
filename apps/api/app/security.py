@@ -69,6 +69,11 @@ def create_refresh_token(user_id: str) -> str:
     return _create_token(user_id, "refresh", timedelta(days=settings.refresh_token_days))
 
 
+def create_reset_token(user_id: str) -> str:
+    """Short-lived token emailed for the forgot-password flow."""
+    return _create_token(user_id, "reset", timedelta(minutes=30))
+
+
 def decode_token(token: str, expected_type: str) -> str | None:
     """Return the subject (user id) if valid and of the expected type, else None."""
     try:
