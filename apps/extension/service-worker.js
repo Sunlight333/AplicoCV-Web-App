@@ -116,6 +116,23 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           sendResponse({ profile })
           break
         }
+        case 'GET_FAQ': {
+          // Saved answers to common application questions → open-text autofill.
+          try {
+            sendResponse({ faq: await apiFetch('/faq') })
+          } catch {
+            sendResponse({ faq: [] })
+          }
+          break
+        }
+        case 'GET_CREDITS': {
+          try {
+            sendResponse({ credits: await apiFetch('/credits') })
+          } catch {
+            sendResponse({ credits: null })
+          }
+          break
+        }
         case 'DETECT_PORTAL': {
           const portal = detectPortal(msg.url)
           if (!portal) {

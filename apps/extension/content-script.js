@@ -102,9 +102,33 @@
     setTimeout(() => (el.style.boxShadow = prev), 900)
   }
 
+  // Fuzzy-match a field's question text against the user's saved FAQ answers.
+  function matchFaqAnswer(questionText, faq) {
+    const q = norm(questionText)
+    if (!q || !faq || !faq.length) return null
+    const qWords = new Set(q.split(/\s+/).filter((w) => w.length > 3))
+    let best = null
+    let bestScore = 0
+    for (const item of faq) {
+      const fq = norm(item.question)
+      let score = 0
+      if (fq && (q.includes(fq) || fq.includes(q))) score = 0.9
+      else {
+        const fWords = fq.split(/\s+/).filter((w) => w.length > 3)
+        const overlap = fWords.filter((w) => qWords.has(w)).length
+        score = fWords.length ? overlap / fWords.length : 0
+      }
+      if (score > bestScore) {
+        bestScore = score
+        best = item
+      }
+    }
+    return bestScore >= 0.5 ? best.answer : null
+  }
+
   // Multi-strategy autofill: (1) portal selector map (most reliable), then
-  // (2) generic label/attribute matching for anything still empty.
-  function autofill(profile, selectors = {}) {
+  // (2) generic label/attribute matching, then (3) FAQ answers for open-text fields.
+  function autofill(profile, selectors = {}, faq = []) {
     let filled = 0
     const done = new Set()
 
@@ -140,6 +164,21 @@
         flash(el)
         done.add(el)
         filled++
+      }
+    }
+
+    // (3) FAQ answers for open-text questions still empty (the long free-text
+    // fields the structured passes can't handle).
+    if (faq && faq.length) {
+      const openText = document.querySelectorAll('textarea, input[type="text"], input:not([type])')
+      for (const el of openText) {
+        if (done.has(el) || el.value) continue
+        const answer = matchFaqAnswer(labelFor(el), faq)
+        if (answer && fillAny(el, answer)) {
+          flash(el)
+          done.add(el)
+          filled++
+        }
       }
     }
     return filled
@@ -200,16 +239,18 @@
   // after load, so keep filling within a window after the autofill click.
   let pendingProfile = null
   let pendingSelectors = {}
+  let pendingFaq = []
   const observer = new MutationObserver(() => {
-    if (pendingProfile) autofill(pendingProfile, pendingSelectors)
+    if (pendingProfile) autofill(pendingProfile, pendingSelectors, pendingFaq)
   })
   observer.observe(document.documentElement, { childList: true, subtree: true })
 
   chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
     if (msg.type === 'RUN_AUTOFILL') {
-      const filled = autofill(msg.profile, msg.selectors || {})
+      const filled = autofill(msg.profile, msg.selectors || {}, msg.faq || [])
       pendingProfile = msg.profile
       pendingSelectors = msg.selectors || {}
+      pendingFaq = msg.faq || []
       // Workday paginates the form across steps — keep the fill window open
       // longer so later steps get populated as the user advances.
       const window = msg.multiStep || IS_WORKDAY ? 15000 : 4000

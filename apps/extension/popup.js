@@ -76,10 +76,13 @@ async function runAutofill() {
     profile = res.profile
   }
   $('status').textContent = state.tailored ? 'Filling form with tailored CV…' : 'Filling form…'
+  // Pull saved FAQ answers so open-text questions get filled too.
+  const faqRes = await send({ type: 'GET_FAQ' })
   const resp = await tabSend(state.tab.id, {
     type: 'RUN_AUTOFILL',
     profile,
     selectors: state.detect?.selectors || {},
+    faq: faqRes?.faq || [],
     multiStep: state.detect?.quirks === 'multi-step',
   })
   if (!resp) {
@@ -89,13 +92,17 @@ async function runAutofill() {
   const n = resp.filled ?? 0
   $('status').textContent = n ? `Filled ${n} field${n === 1 ? '' : 's'} ✓` : 'No matching fields found.'
   if (n && state.detect?.supported) {
+    // Best-effort parse of "Job Title - Company | Portal" so the tracked
+    // application records a real employer rather than the portal name.
+    const parts = (state.tab.title || '').split(/\s[-|·–]\s/).map((p) => p.trim()).filter(Boolean)
     send({
       type: 'TRACK_APPLICATION',
       payload: {
         jobUrl: state.url,
         portal: state.detect.portal,
-        jobTitle: state.tab.title?.split(' - ')[0] || 'Application',
-        company: state.detect.portal,
+        jobTitle: parts[0] || 'Application',
+        company: parts[1] || state.detect.portal,
+        jobDescription: state.jd || undefined,
       },
     })
   }
@@ -127,7 +134,12 @@ function setupCover() {
     })
     $('cover-generate').textContent = 'Regenerate'
     $('cover-generate').disabled = false
-    if (error || !text) return
+    if (error || !text) {
+      // Surface insufficient-credits / errors instead of failing silently.
+      $('status').textContent =
+        typeof error === 'string' && error ? error : 'Could not generate — check your credits.'
+      return
+    }
     state.coverText = text
     $('cover-text').textContent = text
     $('cover-text').classList.remove('hidden')
@@ -186,6 +198,16 @@ async function init() {
 
   $('main-view').classList.remove('hidden')
   setupFooter()
+
+  // Credit balance + profile completeness (links to the rewards page).
+  send({ type: 'GET_CREDITS' }).then((cr) => {
+    if (!cr?.credits) return
+    const c = cr.credits
+    const row = $('credits-row')
+    row.innerHTML = `<span>✦ ${c.balance} credits</span><span>${c.completion?.percent ?? 0}% profile</span>`
+    row.href = `${WEB_APP_URL}/rewards`
+    row.classList.remove('hidden')
+  })
 
   state.tab = await activeTab()
   state.url = state.tab?.url || ''
