@@ -69,3 +69,42 @@ export function MarketingSection({ title, children }: { title: string; children:
     </section>
   )
 }
+
+/** Turn any email addresses inside a localized string into mailto links. */
+export function linkifyEmails(text: string): ReactNode[] {
+  return text.split(/([\w.+-]+@[\w-]+\.[\w.-]+)/g).map((part, i) =>
+    /@/.test(part) ? (
+      <a key={i} href={`mailto:${part}`} className="text-electric-600 hover:underline">
+        {part}
+      </a>
+    ) : (
+      part
+    ),
+  )
+}
+
+interface LegalSection {
+  title: string
+  paras?: string[]
+  bullets?: string[]
+}
+
+/** Renders a localized list of legal sections (paragraphs + bullet lists). */
+export function LegalSections({ sections }: { sections: LegalSection[] }) {
+  return (
+    <>
+      {sections.map((s) => (
+        <MarketingSection key={s.title} title={s.title}>
+          {s.paras?.map((p, i) => <p key={i}>{linkifyEmails(p)}</p>)}
+          {s.bullets && (
+            <ul className="list-disc space-y-2 pl-6">
+              {s.bullets.map((b, i) => (
+                <li key={i}>{linkifyEmails(b)}</li>
+              ))}
+            </ul>
+          )}
+        </MarketingSection>
+      ))}
+    </>
+  )
+}
