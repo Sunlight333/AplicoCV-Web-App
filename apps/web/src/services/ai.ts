@@ -1,5 +1,6 @@
 import { api } from '@/lib/apiClient'
 import { env } from '@/lib/env'
+import { currentLocale } from '@/lib/locale'
 import type { Profile, Recommendation } from '@/types'
 import { mockRecommendations } from './mock/data'
 import { delay, store } from './mock/store'
@@ -23,7 +24,7 @@ export async function generateSuperCv(input: {
     await delay(1200)
     return { cvText: `# Optimized CV\n**${input.targetRole}**\n\n- Accomplished X, measured by Y, by doing Z.`, atsScore: 88, gaps: ['Kubernetes', 'Terraform'], documentId: 'mock' }
   }
-  return api.post<SuperCvResult>('/ai/super-cv', input)
+  return api.post<SuperCvResult>('/ai/super-cv', { ...input, language: currentLocale() })
 }
 
 export async function getPersonalAnalysis(): Promise<{ strengths: string[]; weaknesses: string; motivation: string }> {
@@ -31,7 +32,7 @@ export async function getPersonalAnalysis(): Promise<{ strengths: string[]; weak
     await delay(800)
     return { strengths: ['Ownership', 'Clear communication', 'Fast learner'], weaknesses: 'Delegation.', motivation: 'Greater impact.' }
   }
-  return api.post('/ai/personal-analysis')
+  return api.post(`/ai/personal-analysis?language=${encodeURIComponent(currentLocale())}`)
 }
 
 export async function getSkillSuggestions(): Promise<string[]> {
@@ -39,7 +40,9 @@ export async function getSkillSuggestions(): Promise<string[]> {
     await delay(700)
     return ['TypeScript', 'Docker', 'GraphQL']
   }
-  const res = await api.post<{ skills: string[] }>('/ai/skill-suggestions')
+  const res = await api.post<{ skills: string[] }>(
+    `/ai/skill-suggestions?language=${encodeURIComponent(currentLocale())}`,
+  )
   return res.skills
 }
 
@@ -55,7 +58,10 @@ export async function generatePersonalizedLetter(input: {
     await delay(1100)
     return `Dear Hiring Team at ${input.company || 'your company'},\n\nI am writing to apply for the ${input.role || 'role'}…`
   }
-  const res = await api.post<{ text: string }>('/ai/cover-letter-pro', input)
+  const res = await api.post<{ text: string }>('/ai/cover-letter-pro', {
+    ...input,
+    language: currentLocale(),
+  })
   return res.text
 }
 
@@ -110,7 +116,7 @@ export async function startInterview(input: {
       ],
     }
   }
-  return api.post<InterviewStart>('/ai/interview/start', input)
+  return api.post<InterviewStart>('/ai/interview/start', { ...input, language: currentLocale() })
 }
 
 /** Submit answers and get per-question + overall feedback. */
@@ -131,7 +137,11 @@ export async function submitInterview(
       })),
     }
   }
-  return api.post<InterviewFeedback>('/ai/interview/feedback', { sessionId, answers })
+  return api.post<InterviewFeedback>('/ai/interview/feedback', {
+    sessionId,
+    answers,
+    language: currentLocale(),
+  })
 }
 
 export async function getInterviewHistory(): Promise<InterviewSessionSummary[]> {
@@ -167,6 +177,7 @@ export async function generateCoverLetter(
   const res = await api.post<{ text: string }>('/cover-letters/generate', {
     jobDescription,
     tone,
+    language: currentLocale(),
   })
   return res.text
 }
@@ -181,7 +192,7 @@ export async function tailorProfile(jobDescription: string): Promise<Profile> {
     )
     return { ...store.profile, skills, version: store.profile.version + 1 }
   }
-  return api.post<Profile>('/profiles/tailor', { jobDescription })
+  return api.post<Profile>('/profiles/tailor', { jobDescription, language: currentLocale() })
 }
 
 /** Localize the profile to another language (POST /profiles/localize). */
@@ -205,4 +216,121 @@ export async function runAgentScan(): Promise<Recommendation[]> {
     return mockRecommendations
   }
   return api.post<Recommendation[]>('/agent/scan')
+}
+
+// --- Phase 2/3 — per-posting intelligence ------------------------------------
+
+export interface PredictiveScore {
+  successProbability: number
+  fitBreakdown: { skills: number; seniority: number; location: number }
+  missingSkills: string[]
+  keywordsToAdd: string[]
+  overqualified: boolean
+  atsPass: boolean
+  advice: string
+}
+
+/** Phase 2.4 — predicted chance of success for a posting (15 credits). */
+export async function getPredictiveScore(input: {
+  jobDescription?: string
+  jobUrl?: string
+}): Promise<PredictiveScore> {
+  if (env.useMocks) {
+    await delay(900)
+    return {
+      successProbability: 72,
+      fitBreakdown: { skills: 78, seniority: 70, location: 70 },
+      missingSkills: ['Kubernetes', 'Terraform'],
+      keywordsToAdd: ['Kubernetes', 'Terraform'],
+      overqualified: false,
+      atsPass: true,
+      advice: 'Add the missing keywords where they truthfully apply, then re-score.',
+    }
+  }
+  return api.post<PredictiveScore>('/ai/predictive-score', { ...input, language: currentLocale() })
+}
+
+export interface AtsSimulation {
+  parseScore: number
+  sectionsDetected: string[]
+  likelyDropped: string[]
+  formattingIssues: string[]
+  invisibleErrors: string[]
+  summary: string
+}
+
+/** Phase 2.3 — simulate how an ATS parses the CV (15 credits). */
+export async function simulateAts(): Promise<AtsSimulation> {
+  if (env.useMocks) {
+    await delay(900)
+    return {
+      parseScore: 84,
+      sectionsDetected: ['Contact', 'Summary', 'Experience', 'Skills'],
+      likelyDropped: ['Education'],
+      formattingIssues: ['Multi-column layouts and tables are often mis-parsed — use a single column.'],
+      invisibleErrors: ['No quantified achievements found — add numbers/percentages.'],
+      summary: 'An ATS would cleanly read 4 of 5 core sections.',
+    }
+  }
+  return api.post<AtsSimulation>(`/ai/ats-simulate?language=${encodeURIComponent(currentLocale())}`)
+}
+
+export interface GhostRecruiter {
+  verdict: 'apply' | 'caution' | 'skip'
+  reasons: string[]
+  betterFitNote?: string | null
+}
+
+/** Phase 3.1 — should you apply here? (10 credits). */
+export async function getGhostRecruiter(input: {
+  jobDescription?: string
+  jobUrl?: string
+}): Promise<GhostRecruiter> {
+  if (env.useMocks) {
+    await delay(800)
+    return { verdict: 'apply', reasons: ['Strong keyword and seniority match.'], betterFitNote: null }
+  }
+  return api.post<GhostRecruiter>('/ai/ghost-recruiter', { ...input, language: currentLocale() })
+}
+
+export interface SalaryInsights {
+  role: string
+  estimatedRange: string
+  currency: string
+  negotiationPoints: string[]
+  marketNote: string
+}
+
+/** Phase 3.3 — Job Copilot: salary + negotiation guidance (15 credits). */
+export async function getSalaryInsights(input: {
+  role: string
+  region?: string
+}): Promise<SalaryInsights> {
+  if (env.useMocks) {
+    await delay(800)
+    return {
+      role: input.role,
+      estimatedRange: '$110k–$150k',
+      currency: 'USD',
+      negotiationPoints: ['Anchor to the top of the range with measurable wins.', 'Negotiate total comp, not just base.'],
+      marketNote: 'Estimate from seniority and role; verify against a live benchmark.',
+    }
+  }
+  return api.post<SalaryInsights>('/ai/salary-insights', { ...input, language: currentLocale() })
+}
+
+/** Phase 1.4 — generate a smart answer to one open application field (5 credits). */
+export async function getFieldAnswer(input: {
+  fieldLabel: string
+  jobDescription?: string
+}): Promise<string> {
+  if (env.useMocks) {
+    await delay(700)
+    return `Draft answer for: ${input.fieldLabel} — review and edit before submitting.`
+  }
+  const res = await api.post<{ answer: string }>('/ai/field-answer', {
+    ...input,
+    language: currentLocale(),
+  })
+  return res.answer
 }

@@ -26,17 +26,17 @@ _PLANS: list[dict] = [
     {
         "id": "free", "name": "Free", "price": 0.0, "interval": "month",
         "credits": None, "kind": "subscription", "highlighted": False,
-        "features": ["100 welcome credits", "Daily check-in rewards", "Browser extension", "Basic ATS score"],
+        "features": ["15 automatic applications / month", "100 welcome credits", "Daily check-in rewards", "Browser extension", "Basic ATS score"],
     },
     {
-        "id": "pro_monthly", "name": "Pro", "price": 9.99, "interval": "month",
+        "id": "pro_monthly", "name": "Pro", "price": 7.0, "interval": "month",
         "credits": 1000, "kind": "subscription", "highlighted": True,
-        "features": ["Everything in Free", "1,000 credits / month", "Unlimited Super-CV & cover letters", "AI mock interviews", "Priority AI"],
+        "features": ["Everything in Free", "Unlimited job applications", "1,000 credits / month", "Unlimited Super-CV & cover letters", "AI mock interviews", "Priority AI"],
     },
     {
-        "id": "pro_annual", "name": "Pro Annual", "price": 89.0, "interval": "year",
+        "id": "pro_annual", "name": "Pro Annual", "price": 70.0, "interval": "year",
         "credits": 12000, "kind": "subscription", "highlighted": False,
-        "features": ["Everything in Pro", "12,000 credits / year", "2 months free", "Early access to new features"],
+        "features": ["Everything in Pro", "Unlimited job applications", "12,000 credits / year", "2 months free", "Early access to new features"],
     },
     {
         "id": "pack_500", "name": "500 credits", "price": 4.99, "interval": "once",

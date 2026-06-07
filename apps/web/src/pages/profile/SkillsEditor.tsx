@@ -1,6 +1,7 @@
 import { useState, type KeyboardEvent } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { useT } from '@/i18n/I18nProvider'
+import { suggestSkill } from '@/lib/skills'
 
 export function SkillsEditor({
   skills,
@@ -11,10 +12,11 @@ export function SkillsEditor({
 }) {
   const tp = useT().app.profile
   const [input, setInput] = useState('')
+  const suggestion = suggestSkill(input)
 
-  const add = () => {
-    const value = input.trim()
-    if (value && !skills.includes(value)) onChange([...skills, value])
+  const add = (value?: string) => {
+    const v = (value ?? input).trim()
+    if (v && !skills.includes(v)) onChange([...skills, v])
     setInput('')
   }
 
@@ -47,11 +49,21 @@ export function SkillsEditor({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          onBlur={add}
+          onBlur={() => add()}
           placeholder={tp.skillsPlaceholder}
           className="min-w-[180px] flex-1 bg-transparent text-sm outline-none placeholder:text-navy-300"
         />
       </div>
+      {suggestion && suggestion.toLowerCase() !== input.trim().toLowerCase() && (
+        <button
+          type="button"
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => add(suggestion)}
+          className="mt-2 inline-flex items-center gap-1 rounded-full border border-electric-300 bg-electric-50 px-3 py-1 text-xs font-medium text-electric-700 hover:bg-electric-100"
+        >
+          {tp.didYouMean ?? 'Did you mean'} “{suggestion}”?
+        </button>
+      )}
       <p className="mt-2 text-xs text-navy-400">{tp.skillsHint}</p>
     </div>
   )

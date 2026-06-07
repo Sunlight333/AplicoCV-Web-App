@@ -73,6 +73,54 @@ async def _live_jobs(role: str, skills: list[str]) -> list[dict]:
     return out
 
 
+async def autonomous_apply_for_user(db: AsyncSession, user: User) -> int:
+    """ALPHA agent (Phase 4.4) — for opted-in premium users, QUEUE high-confidence
+    matches as 'prepared' apply tasks for review. It never submits without the user;
+    a human confirms each queued task. Returns the number of tasks queued.
+
+    Gated three ways: a global config flag, per-user preferences.autoApply, and a high
+    match-score threshold. Disabled by default.
+    """
+    from app.config import settings
+    from app.routers.apply import enqueue_apply  # lazy import avoids a router<->service cycle
+    from app.schemas import ApplyRequestInput
+
+    if not settings.alpha_agent_enabled:
+        return 0
+    if not (user.preferences or {}).get("autoApply"):
+        return 0
+
+    recs = (
+        await db.execute(
+            select(Recommendation)
+            .where(
+                Recommendation.user_id == user.id,
+                Recommendation.match_score >= settings.alpha_apply_threshold,
+            )
+            .order_by(Recommendation.match_score.desc())
+            .limit(5)
+        )
+    ).scalars().all()
+
+    queued = 0
+    for rec in recs:
+        await enqueue_apply(
+            db,
+            user.id,
+            ApplyRequestInput(
+                recommendationId=rec.id,
+                jobUrl=rec.job_url,
+                portal=rec.portal,
+                jobTitle=rec.job_title,
+                company=rec.company,
+                autoTailor=True,
+            ),
+            autonomous=True,
+        )
+        queued += 1
+    return queued
+
+
 async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
     """Replace this user's recommendations with a fresh, preference-tailored scan."""
     existing = (

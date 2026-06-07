@@ -9,21 +9,29 @@ from app.deps import get_current_user
 from app.models import CoverLetter, Document, InterviewSession, Profile as ProfileModel, User
 from app.schemas import (
     AtsAnalysis,
+    AtsSimulationOut,
     CoverLetterInput,
     CoverLetterOut,
+    FieldAnswerInput,
+    FieldAnswerOut,
+    GhostRecruiterOut,
     InterviewAnswerInput,
     InterviewFeedbackOut,
     InterviewSessionOut,
     InterviewStartInput,
     InterviewStartOut,
     JobDescriptionInput,
+    JobRefInput,
     PersonalAnalysisOut,
     PersonalizedLetterInput,
+    PredictiveScoreOut,
+    SalaryInput,
+    SalaryInsightsOut,
     SkillSuggestionsOut,
     SuperCvInput,
     SuperCvOut,
 )
-from app.services import credit_service, llm_service
+from app.services import credit_service, job_fetch_service, llm_service
 
 # In-memory ATS cache keyed by (job hash + profile version) per the plan's MVP note.
 _ats_cache: dict[str, dict] = {}
@@ -57,10 +65,10 @@ async def ats_score(
     db: AsyncSession = Depends(get_db),
 ) -> AtsAnalysis:
     profile = await _profile_data(db, user.id)
-    key = f"{hash(body.jobDescription)}:{profile.get('version', 1)}"
+    key = f"{hash(body.jobDescription)}:{profile.get('version', 1)}:{body.language or ''}"
     if key in _ats_cache:
         return AtsAnalysis(**_ats_cache[key])
-    result = await llm_service.score_ats_match(body.jobDescription, profile)
+    result = await llm_service.score_ats_match(body.jobDescription, profile, body.language)
     _ats_cache[key] = result
     return AtsAnalysis(**result)
 
@@ -73,7 +81,9 @@ async def generate_cover_letter(
 ) -> CoverLetterOut:
     await _charge(db, user.id, "cover_letter")
     profile = await _profile_data(db, user.id)
-    text = await llm_service.generate_cover_letter(body.jobDescription, profile, body.tone)
+    text = await llm_service.generate_cover_letter(
+        body.jobDescription, profile, body.tone, body.language
+    )
     db.add(CoverLetter(user_id=user.id, tone=body.tone, text=text))
     await db.commit()
     return CoverLetterOut(text=text)
@@ -87,7 +97,9 @@ async def super_cv(
 ) -> SuperCvOut:
     await _charge(db, user.id, "super_cv")
     profile = await _profile_data(db, user.id)
-    result = await llm_service.super_cv(profile, body.targetRole, body.jobDescription, body.cvText)
+    result = await llm_service.super_cv(
+        profile, body.targetRole, body.jobDescription, body.cvText, body.language
+    )
     doc = Document(
         user_id=user.id,
         filename=f"Super CV — {body.targetRole}",
@@ -105,11 +117,13 @@ async def super_cv(
 
 @router.post("/ai/personal-analysis", response_model=PersonalAnalysisOut)
 async def personal_analysis(
-    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    language: str | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> PersonalAnalysisOut:
     await _charge(db, user.id, "personal_analysis")
     profile = await _profile_data(db, user.id)
-    res = await llm_service.personal_analysis(profile)
+    res = await llm_service.personal_analysis(profile, language)
     # persist into the profile so it shows on the profile page
     row = (await db.execute(select(ProfileModel).where(ProfileModel.user_id == user.id))).scalar_one_or_none()
     if row is not None:
@@ -122,11 +136,13 @@ async def personal_analysis(
 
 @router.post("/ai/skill-suggestions", response_model=SkillSuggestionsOut)
 async def skill_suggestions(
-    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    language: str | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> SkillSuggestionsOut:
     await _charge(db, user.id, "skill_suggestions")
     profile = await _profile_data(db, user.id)
-    skills = await llm_service.skill_suggestions(profile)
+    skills = await llm_service.skill_suggestions(profile, language)
     return SkillSuggestionsOut(skills=skills)
 
 
@@ -140,11 +156,84 @@ async def cover_letter_pro(
     await _charge(db, user.id, "cover_letter_pro")
     profile = await _profile_data(db, user.id)
     text = await llm_service.personalized_cover_letter(
-        profile, body.jobDescription, body.company, body.role, body.highlights, body.tone
+        profile, body.jobDescription, body.company, body.role, body.highlights, body.tone,
+        body.language,
     )
     db.add(CoverLetter(user_id=user.id, tone=body.tone, text=text))
     await db.commit()
     return CoverLetterOut(text=text)
+
+
+# --- Phase 2/3 — per-posting intelligence -------------------------------------
+
+
+@router.post("/ai/predictive-score", response_model=PredictiveScoreOut)
+async def predictive_score(
+    body: JobRefInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> PredictiveScoreOut:
+    """Phase 2.4 — predicted chance of success for a posting, with fix-it guidance."""
+    await _charge(db, user.id, "predictive_score")
+    profile = await _profile_data(db, user.id)
+    jd = await job_fetch_service.job_text_or_fallback(body.jobUrl, body.jobDescription)
+    result = await llm_service.predictive_apply_score(jd, profile, body.language)
+    return PredictiveScoreOut(**result)
+
+
+@router.post("/ai/ats-simulate", response_model=AtsSimulationOut)
+async def ats_simulate(
+    language: str | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AtsSimulationOut:
+    """Phase 2.3 — simulate how an ATS parses the CV: parse score + invisible errors."""
+    await _charge(db, user.id, "ats_simulate")
+    profile = await _profile_data(db, user.id)
+    result = await llm_service.ats_simulate(profile, None, language)
+    return AtsSimulationOut(**result)
+
+
+@router.post("/ai/ghost-recruiter", response_model=GhostRecruiterOut)
+async def ghost_recruiter(
+    body: JobRefInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> GhostRecruiterOut:
+    """Phase 3.1 — should you apply here? apply / caution / skip with honest reasons."""
+    await _charge(db, user.id, "ghost_recruiter")
+    profile = await _profile_data(db, user.id)
+    jd = await job_fetch_service.job_text_or_fallback(body.jobUrl, body.jobDescription)
+    result = await llm_service.ghost_recruiter(jd, profile, body.language)
+    return GhostRecruiterOut(**result)
+
+
+@router.post("/ai/salary-insights", response_model=SalaryInsightsOut)
+async def salary_insights(
+    body: SalaryInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> SalaryInsightsOut:
+    """Phase 3.3 — Job Copilot: salary range + negotiation guidance."""
+    await _charge(db, user.id, "salary_insights")
+    profile = await _profile_data(db, user.id)
+    result = await llm_service.salary_insights(profile, body.role, body.region, body.language)
+    return SalaryInsightsOut(**result)
+
+
+@router.post("/ai/field-answer", response_model=FieldAnswerOut)
+async def field_answer(
+    body: FieldAnswerInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> FieldAnswerOut:
+    """Phase 1.4 — generate a smart, human-toned answer to one open application field."""
+    await _charge(db, user.id, "field_answer")
+    profile = await _profile_data(db, user.id)
+    answer = await llm_service.smart_field_answer(
+        profile, body.fieldLabel, body.jobDescription, body.language
+    )
+    return FieldAnswerOut(answer=answer)
 
 
 # --- AI Interview -------------------------------------------------------------
@@ -158,8 +247,26 @@ async def interview_start(
 ) -> InterviewStartOut:
     await _charge(db, user.id, "interview")
     profile = await _profile_data(db, user.id)
+    # Phase 2.6 interview memory: pull weak-area notes from recent completed sessions
+    # so the new question set reinforces where the user previously struggled.
+    past = (
+        await db.execute(
+            select(InterviewSession)
+            .where(InterviewSession.user_id == user.id, InterviewSession.feedback.isnot(None))
+            .order_by(InterviewSession.created_at.desc())
+            .limit(3)
+        )
+    ).scalars().all()
+    history: list[str] = []
+    for s in past:
+        fb = s.feedback or {}
+        if fb.get("summary"):
+            history.append(str(fb["summary"]))
+        for item in fb.get("perQuestion") or []:
+            if isinstance(item, dict) and item.get("rating", 5) <= 2 and item.get("feedback"):
+                history.append(str(item["feedback"]))
     questions = await llm_service.interview_questions(
-        profile, body.role, body.jobDescription, body.kind
+        profile, body.role, body.jobDescription, body.kind, history or None, body.language
     )
     session = InterviewSession(
         user_id=user.id, role=body.role, kind=body.kind, questions=questions
@@ -182,7 +289,7 @@ async def interview_feedback(
     profile = await _profile_data(db, user.id)
     questions = list(session.questions or [])
     qa = list(zip(questions, body.answers + [""] * (len(questions) - len(body.answers))))
-    result = await llm_service.interview_feedback(profile, session.role, qa)
+    result = await llm_service.interview_feedback(profile, session.role, qa, body.language)
     session.answers = body.answers
     session.feedback = result
     session.overall_score = result["overallScore"]

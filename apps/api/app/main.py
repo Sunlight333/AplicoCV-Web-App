@@ -12,12 +12,14 @@ from app.routers import (
     agent,
     ai,
     applications,
+    apply,
     auth,
     billing,
     credentials,
     credits,
     documents,
     faq,
+    insights,
     operations,
     portals,
     profiles,
@@ -92,6 +94,8 @@ for r in (
     credits.router,
     faq.router,
     referrals.router,
+    insights.router,
+    apply.router,
 ):
     app.include_router(r, prefix="/api")
 

@@ -82,6 +82,39 @@ def welcome_email(name: str) -> tuple[str, str]:
     return subject, html
 
 
+def job_digest_email(name: str, jobs: list[dict]) -> tuple[str, str]:
+    """(subject, html) for the autonomous assistant's new-matches digest (Phase 8).
+
+    Each job dict: {title, company, portal, score, url}.
+    """
+    first = (name or "there").split(" ")[0]
+    subject = f"{len(jobs)} new job match{'es' if len(jobs) != 1 else ''} for you"
+    rows = "".join(
+        f"<tr>"
+        f"<td style='padding:10px 0;border-bottom:1px solid #eef2fb'>"
+        f"<div style='font-weight:600;color:#0b1426'>{j.get('title','')}</div>"
+        f"<div style='color:#4f6bb7;font-size:13px'>{j.get('company','')} · {j.get('portal','')}</div>"
+        f"</td>"
+        f"<td style='padding:10px 0;border-bottom:1px solid #eef2fb;text-align:right'>"
+        f"<span style='font-weight:700;color:#16a34a'>{int(j.get('score',0))}%</span><br>"
+        f"<a href='{j.get('url','#')}' style='color:#0a74f0;font-size:13px'>Apply →</a>"
+        f"</td></tr>"
+        for j in jobs
+    )
+    html = (
+        f"<div style='font-family:Inter,Arial,sans-serif;color:#0b1426'>"
+        f"<h2>New matches while you were away, {first}</h2>"
+        f"<p>Your AplicoCV assistant found these high-match roles based on your preferences.</p>"
+        f"<table style='width:100%;border-collapse:collapse'>{rows}</table>"
+        f"<p style='margin-top:18px'><a href='https://aplicocv.com/dashboard' "
+        f"style='background:#0a74f0;color:#fff;padding:10px 18px;border-radius:8px;"
+        f"text-decoration:none'>Open your dashboard</a></p>"
+        f"<p style='color:#4f6bb7;font-size:13px'>You can turn this digest off anytime in "
+        f"Preferences.</p></div>"
+    )
+    return subject, html
+
+
 def reset_password_email(link: str) -> tuple[str, str]:
     """(subject, html) for the forgot-password reset link."""
     subject = "Reset your AplicoCV password"

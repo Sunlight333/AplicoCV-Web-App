@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
 import { Logo } from '@/components/Logo'
@@ -143,6 +143,116 @@ function Nav() {
   )
 }
 
+/**
+ * Hero media: shows ONLY the vertical product video, in a portrait 9:16 frame.
+ * It autoplays muted (the only way browsers allow autoplay), with an unmute button
+ * so audio is available. It never loops — when it ends it holds on the final frame,
+ * and a replay button appears. Clicking the video toggles play/pause.
+ */
+function HeroMedia() {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(true)
+
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    v.muted = true
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
+    const onEnded = () => setPlaying(false) // holds the last frame; no loop
+    v.addEventListener('playing', onPlay)
+    v.addEventListener('pause', onPause)
+    v.addEventListener('ended', onEnded)
+    v.play().catch(() => {}) // muted autoplay
+    return () => {
+      v.removeEventListener('playing', onPlay)
+      v.removeEventListener('pause', onPause)
+      v.removeEventListener('ended', onEnded)
+    }
+  }, [])
+
+  const togglePlay = () => {
+    const v = videoRef.current
+    if (!v) return
+    if (v.ended) {
+      v.currentTime = 0 // replay from the start
+      v.play().catch(() => {})
+    } else if (v.paused) {
+      v.play().catch(() => {})
+    } else {
+      v.pause()
+    }
+  }
+
+  const toggleMute = () => {
+    const v = videoRef.current
+    if (!v) return
+    const next = !v.muted
+    v.muted = next
+    setMuted(next)
+    if (!next && v.paused && !v.ended) v.play().catch(() => {}) // unmuting resumes
+  }
+
+  return (
+    <motion.div
+      className="relative mx-auto w-full max-w-[300px] sm:max-w-[340px]"
+      animate={{ y: [0, -14, 0] }}
+      transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+    >
+      {/* Portrait 9:16 frame sized to the vertical video so nothing is cropped. */}
+      <div
+        className="relative w-full overflow-hidden rounded-[1.75rem] bg-black shadow-2xl ring-1 ring-navy-900/5"
+        style={{ aspectRatio: '720 / 1280' }}
+      >
+        <video
+          ref={videoRef}
+          src="/hero/hero-app.mp4"
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          onClick={togglePlay}
+          className="absolute inset-0 h-full w-full cursor-pointer object-cover"
+        />
+
+        {/* Sound toggle (audio is included; starts muted to allow autoplay) */}
+        <button
+          type="button"
+          onClick={toggleMute}
+          aria-label={muted ? 'Unmute' : 'Mute'}
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur transition-colors hover:bg-black/65"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+            <path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor" />
+            {muted ? (
+              <path d="m16 9 5 5m0-5-5 5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+            ) : (
+              <path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a9 9 0 0 1 0 12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+            )}
+          </svg>
+        </button>
+
+        {/* Center play / replay button — shown only while the video is paused or ended */}
+        {!playing && (
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label="Play video"
+            className="group absolute inset-0 flex items-center justify-center"
+          >
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/85 text-electric-600 shadow-elev-4 backdrop-blur transition-transform group-hover:scale-110">
+              <svg viewBox="0 0 24 24" className="ml-1 h-7 w-7" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </span>
+          </button>
+        )}
+      </div>
+    </motion.div>
+  )
+}
+
 function Hero() {
   const t = useT()
   const { scrollY } = useScroll()
@@ -253,14 +363,7 @@ function Hero() {
           {/* rotating ring accent */}
           <RingAccent className="pointer-events-none absolute -right-12 -top-10 -z-10 h-72 w-72 opacity-70" />
 
-          <motion.img
-            src="/hero/hero-app.png"
-            alt="AplicoCV rellenando una solicitud de empleo automáticamente"
-            className="relative w-full drop-shadow-2xl"
-            animate={{ y: [0, -14, 0] }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
-            loading="eager"
-          />
+          <HeroMedia />
 
           {/* floating portal chips (brand names are language-neutral) */}
           <FloatingChip className="absolute left-0 top-10" delay={0.9}>
@@ -539,7 +642,9 @@ function StatNumber({ value, suffix }: { value: number; suffix?: string }) {
 function Pricing() {
   const t = useT()
   const [annual, setAnnual] = useState(true)
-  const premium = annual ? 7 : 9
+  // Keep these in sync with the backend plan catalogue (GET /billing/plans):
+  // Pro is 7/month, and the annual plan works out to ~6/month (2 months free).
+  const premium = annual ? 6 : 7
   return (
     <section id="pricing" className="mx-auto max-w-5xl px-6 py-28">
       <Reveal className="mx-auto max-w-2xl text-center">

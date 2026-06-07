@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AplicoCV — One-click job applications",
-  "version": "1.2.0",
+  "version": "1.4.3",
   "description": "Autofill job application forms across major portals with your AplicoCV profile.",
   "action": {
     "default_popup": "popup.html",
@@ -11,10 +11,8 @@
     "service_worker": "service-worker.js",
     "type": "module"
   },
-  "permissions": ["storage", "activeTab", "scripting", "tabs"],
+  "permissions": ["storage", "tabs"],
   "host_permissions": [
-    "http://localhost:8000/*",
-    "http://localhost:5173/*",
     "https://aplicocv.com/*",
     "https://*.aplicocv.com/*",
     "https://*.linkedin.com/*",
@@ -22,6 +20,11 @@
     "https://*.indeed.com/*",
     "https://*.getonbrd.com/*",
     "https://*.glassdoor.com/*",
+    "https://boards.greenhouse.io/*",
+    "https://*.greenhouse.io/*",
+    "https://job-boards.greenhouse.io/*",
+    "https://jobs.lever.co/*",
+    "https://*.lever.co/*",
     "https://remoteok.com/*",
     "https://weworkremotely.com/*",
     "https://weremoto.com/*",
@@ -52,6 +55,11 @@
         "https://*.indeed.com/*",
         "https://*.getonbrd.com/*",
         "https://*.glassdoor.com/*",
+        "https://boards.greenhouse.io/*",
+        "https://*.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://*.lever.co/*",
         "https://remoteok.com/*",
         "https://weworkremotely.com/*",
         "https://weremoto.com/*",
@@ -79,7 +87,6 @@
     },
     {
       "matches": [
-        "http://localhost:5173/*",
         "https://aplicocv.com/*",
         "https://*.aplicocv.com/*"
       ],

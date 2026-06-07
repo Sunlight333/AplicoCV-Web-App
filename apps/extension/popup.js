@@ -21,6 +21,7 @@ const state = {
   tailored: false,
   tailoredProfile: null,
   coverText: '',
+  applyTask: null, // a prepared "apply on your behalf" task matching this page
 }
 
 async function activeTab() {
@@ -84,6 +85,8 @@ async function runAutofill() {
     selectors: state.detect?.selectors || {},
     faq: faqRes?.faq || [],
     multiStep: state.detect?.quirks === 'multi-step',
+    smartAnswers: $('smart-toggle')?.checked || false,
+    jobDescription: state.jd || '',
   })
   if (!resp) {
     $('status').textContent = 'Open a job application page, then try again.'
@@ -91,11 +94,26 @@ async function runAutofill() {
   }
   const n = resp.filled ?? 0
   $('status').textContent = n ? `Filled ${n} field${n === 1 ? '' : 's'} ✓` : 'No matching fields found.'
+  // If this fill fulfilled a prepared "apply on your behalf" task, record it.
+  if (n && state.applyTask) {
+    send({ type: 'APPLY_SUBMITTED', taskId: state.applyTask.id })
+    state.applyTask = null
+    $('apply-banner').classList.add('hidden')
+  }
+  if (n) {
+    // Report measured time-saved telemetry (Phase 2.5).
+    send({
+      type: 'AUTOFILL_EVENT',
+      fieldsFilled: n,
+      portal: state.detect?.portal || null,
+      jobUrl: state.url || null,
+    })
+  }
   if (n && state.detect?.supported) {
     // Best-effort parse of "Job Title - Company | Portal" so the tracked
     // application records a real employer rather than the portal name.
     const parts = (state.tab.title || '').split(/\s[-|·–]\s/).map((p) => p.trim()).filter(Boolean)
-    send({
+    const track = await send({
       type: 'TRACK_APPLICATION',
       payload: {
         jobUrl: state.url,
@@ -105,6 +123,10 @@ async function runAutofill() {
         jobDescription: state.jd || undefined,
       },
     })
+    // Surface the free-plan monthly cap instead of silently not tracking it.
+    if (track?.error && /402/.test(String(track.error))) {
+      $('status').textContent = `Filled ${n} field${n === 1 ? '' : 's'} ✓ — free monthly limit reached; upgrade to keep tracking.`
+    }
   }
 }
 
@@ -228,12 +250,40 @@ async function init() {
 
   if (state.detect?.supported) {
     setupTailorToggle()
+    $('smart-row').classList.remove('hidden')
     state.jd = await extractJD()
     if (state.jd) {
       scoreAts()
       setupCover()
     }
+    setupApplyQueue()
   }
+}
+
+// Phase 1.3 — if the web app queued an "apply on your behalf" task for this page,
+// surface a banner and pre-load its cover letter; autofill then marks it submitted.
+async function setupApplyQueue() {
+  const { tasks } = await send({ type: 'APPLY_QUEUE' })
+  if (!tasks || !tasks.length) return
+  const sameHost = (a, b) => {
+    try {
+      return new URL(a).hostname === new URL(b).hostname
+    } catch {
+      return false
+    }
+  }
+  const task = tasks.find((t) => sameHost(t.jobUrl, state.url)) || null
+  if (!task) return
+  state.applyTask = task
+  if (task.coverLetter) state.coverText = task.coverLetter
+  const banner = $('apply-banner')
+  banner.textContent = `✦ Prepared application ready — autofill & apply${task.matchScore ? ` (${task.matchScore}% match)` : ''}`
+  banner.href = task.jobUrl
+  banner.onclick = (e) => {
+    e.preventDefault()
+    runAutofill()
+  }
+  banner.classList.remove('hidden')
 }
 
 init()

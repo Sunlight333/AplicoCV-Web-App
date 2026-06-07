@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { PageTransition } from '@/components/PageTransition'
@@ -11,12 +12,14 @@ import { useToast } from '@/components/Toast'
 import { scoreAts } from '@/services/dashboard'
 import { addSkills } from '@/services/profile'
 import { generateCoverLetter, type CoverLetterTone } from '@/services/ai'
-import { useT } from '@/i18n/I18nProvider'
+import { useT, useI18n } from '@/i18n/I18nProvider'
+import { costLabel } from '@/lib/aiCosts'
 import type { AtsAnalysis } from '@/types'
 
 export default function AiToolsPage() {
   const t = useT()
   const ta = t.app.aiTools
+  const { locale } = useI18n()
   const qc = useQueryClient()
   const { toast } = useToast()
 
@@ -62,9 +65,9 @@ export default function AiToolsPage() {
           value={jd}
           onChange={(e) => setJd(e.target.value)}
         />
-        <div className="mt-4 flex flex-wrap gap-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button loading={ats.isPending} disabled={!jd.trim()} onClick={() => ats.mutate()}>
-            {ta.runAts}
+            {ta.runAts} · {costLabel(0, locale)}
           </Button>
           <Button
             variant="secondary"
@@ -72,9 +75,13 @@ export default function AiToolsPage() {
             disabled={!jd.trim()}
             onClick={() => cover.mutate()}
           >
-            {ta.genCover}
+            {ta.genCover} · {costLabel('cover_letter', locale)}
           </Button>
         </div>
+        <p className="mt-3 text-xs text-navy-400">
+          {ta.atsHint}{' '}
+          <Link to="/ats" className="font-medium text-electric-600 hover:underline">{ta.openSimulator}</Link>
+        </p>
       </Card>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">

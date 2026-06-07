@@ -88,6 +88,14 @@ class Settings(BaseSettings):
     agent_scan_interval_hours: int = 6
     agent_match_threshold: int = 65
 
+    # ---- ALPHA autonomous-apply agent (Phase 4.4) -------------------------
+    # OFF by default. Even when enabled it only QUEUES high-confidence matches as
+    # 'prepared' apply tasks for the user to review/confirm — it never submits an
+    # application without a human in the loop (legal/ToS guardrail). Per-user opt-in
+    # is still required via preferences.autoApply.
+    alpha_agent_enabled: bool = False
+    alpha_apply_threshold: int = 85  # min match score to auto-queue
+
     # ---- Free trial -------------------------------------------------------
     # Every new account gets full Premium access for this many days from signup.
     trial_days: int = 7

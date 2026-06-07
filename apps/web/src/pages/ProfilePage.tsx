@@ -14,8 +14,8 @@ import { useToast } from '@/components/Toast'
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback'
 import { getProfile, patchProfile } from '@/services/profile'
 import { parseText } from '@/services/documents'
-import { getPersonalAnalysis, getSkillSuggestions } from '@/services/ai'
-import type { Profile, Certification, ProjectItem } from '@/types'
+import { getPersonalAnalysis, getSkillSuggestions, localizeProfile } from '@/services/ai'
+import type { Profile, Certification, ProjectItem, Education, LanguageLevel } from '@/types'
 import { SkillsEditor } from './profile/SkillsEditor'
 import { UploadStep } from './onboarding/UploadStep'
 import { cn } from '@/lib/cn'
@@ -94,12 +94,48 @@ const PROFILE_COPY: Record<Locale, ProfileExtraCopy> = {
 const newId = (p: string) =>
   `${p}_${typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID().slice(0, 8) : Date.now()}`
 
+const DEGREE_LEVELS = ['secondary', 'certificate', 'associate', 'bachelor', 'master', 'doctorate', 'other'] as const
+const LANG_LEVELS = ['basic', 'conversational', 'professional', 'advanced', 'native', 'bilingual'] as const
+
+interface EduLangCopy {
+  institution: string; degreeTitle: string; degreeTitlePh: string; degreeLevel: string; selectLevel: string
+  fieldOfStudy: string; addEducation: string
+  degreeLevels: Record<(typeof DEGREE_LEVELS)[number], string>
+  language: string; generalLevel: string; oral: string; written: string; reading: string; isNative: string; addLanguage: string
+  langLevels: Record<(typeof LANG_LEVELS)[number], string>
+}
+
+const EDU_LANG: Record<Locale, EduLangCopy> = {
+  en: {
+    institution: 'Institution', degreeTitle: 'Degree title', degreeTitlePh: 'e.g. BSc Computer Science', degreeLevel: 'Degree level', selectLevel: 'Select level',
+    fieldOfStudy: 'Field of study', addEducation: 'Add education',
+    degreeLevels: { secondary: 'Secondary / High school', certificate: 'Certificate', associate: 'Associate', bachelor: 'Bachelor / Licenciatura', master: 'Master', doctorate: 'Doctorate / PhD', other: 'Other' },
+    language: 'Language', generalLevel: 'Overall level', oral: 'Oral', written: 'Written', reading: 'Reading', isNative: 'Native language', addLanguage: 'Add language',
+    langLevels: { basic: 'Basic', conversational: 'Conversational', professional: 'Professional', advanced: 'Advanced', native: 'Native', bilingual: 'Bilingual' },
+  },
+  es: {
+    institution: 'Institución', degreeTitle: 'Título', degreeTitlePh: 'ej. Licenciatura en Informática', degreeLevel: 'Nivel del título', selectLevel: 'Selecciona el nivel',
+    fieldOfStudy: 'Área de estudio', addEducation: 'Agregar formación',
+    degreeLevels: { secondary: 'Secundaria / Bachillerato', certificate: 'Certificado', associate: 'Técnico', bachelor: 'Licenciatura / Grado', master: 'Máster', doctorate: 'Doctorado', other: 'Otro' },
+    language: 'Idioma', generalLevel: 'Nivel general', oral: 'Oral', written: 'Escrito', reading: 'Lectura', isNative: 'Lengua materna', addLanguage: 'Agregar idioma',
+    langLevels: { basic: 'Básico', conversational: 'Conversacional', professional: 'Profesional', advanced: 'Avanzado', native: 'Nativo', bilingual: 'Bilingüe' },
+  },
+  'pt-BR': {
+    institution: 'Instituição', degreeTitle: 'Título', degreeTitlePh: 'ex. Bacharelado em Computação', degreeLevel: 'Nível do título', selectLevel: 'Selecione o nível',
+    fieldOfStudy: 'Área de estudo', addEducation: 'Adicionar formação',
+    degreeLevels: { secondary: 'Ensino médio', certificate: 'Certificado', associate: 'Tecnólogo', bachelor: 'Bacharelado / Licenciatura', master: 'Mestrado', doctorate: 'Doutorado', other: 'Outro' },
+    language: 'Idioma', generalLevel: 'Nível geral', oral: 'Oral', written: 'Escrito', reading: 'Leitura', isNative: 'Língua materna', addLanguage: 'Adicionar idioma',
+    langLevels: { basic: 'Básico', conversational: 'Conversacional', professional: 'Profissional', advanced: 'Avançado', native: 'Nativo', bilingual: 'Bilíngue' },
+  },
+}
+
 export default function ProfilePage() {
   const qc = useQueryClient()
   const { toast } = useToast()
   const t = useT()
   const tp = t.app.profile
   const pc = useCopy(PROFILE_COPY)
+  const elc = useCopy(EDU_LANG)
   const [tab, setTab] = useState<Tab>('personal')
   const [draft, setDraft] = useState<Profile | null>(null)
   const [reimportOpen, setReimportOpen] = useState(false)
@@ -172,6 +208,29 @@ export default function ProfilePage() {
   const addSuggested = (skill: string) => {
     if (draft && !draft.skills.includes(skill)) update({ skills: [...draft.skills, skill] })
     setSuggested((s) => s.filter((x) => x !== skill))
+  }
+
+  // Phase 2.2 — multilingual CV adaptation (more than translation: tone + seniority).
+  const [localeLang, setLocaleLang] = useState('es')
+  const [localeRegion, setLocaleRegion] = useState('')
+  const [localized, setLocalized] = useState<Profile | null>(null)
+  const localizeM = useMutation({
+    mutationFn: () => localizeProfile(localeLang, localeRegion || undefined),
+    onSuccess: (res) => {
+      setLocalized(res)
+      qc.invalidateQueries({ queryKey: ['credits'] })
+    },
+    onError: (e) => toast(e instanceof ApiError ? e.message : 'Could not adapt your CV', 'error'),
+  })
+  const applyLocalized = () => {
+    if (!localized) return
+    update({
+      personal: localized.personal,
+      experience: localized.experience,
+      skills: localized.skills,
+    })
+    setLocalized(null)
+    toast(pc.imported)
   }
 
   if (isLoading || !draft) {
@@ -281,14 +340,40 @@ export default function ProfilePage() {
         )}
 
         {tab === 'education' && (
-          <div className="space-y-3">
-            {draft.education.map((edu) => (
-              <div key={edu.id} className="rounded-lg border border-navy-100 p-4">
-                <p className="font-medium text-navy-900">{edu.degree}</p>
-                <p className="text-sm text-navy-500">{edu.institution}</p>
-                <p className="mt-1 text-xs text-navy-400">{edu.startDate} – {edu.endDate ?? tp.present}</p>
-              </div>
-            ))}
+          <div className="space-y-4">
+            {draft.education.map((edu, i) => {
+              const setEdu = (patch: Partial<(typeof draft.education)[number]>) => {
+                const next = [...draft.education]
+                next[i] = { ...edu, ...patch }
+                update({ education: next })
+              }
+              return (
+                <div key={edu.id} className="rounded-lg border border-navy-100 p-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input label={elc.institution} value={edu.institution} onChange={(e) => setEdu({ institution: e.target.value })} />
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-navy-700">{elc.degreeLevel}</label>
+                      <select
+                        value={edu.degreeLevel ?? ''}
+                        onChange={(e) => setEdu({ degreeLevel: (e.target.value || null) as Education['degreeLevel'] })}
+                        className="h-11 w-full rounded-xl border border-navy-200 bg-white px-3 text-sm text-navy-900 focus:border-electric-400 focus:outline-none focus:ring-2 focus:ring-electric-400/40"
+                      >
+                        <option value="">{elc.selectLevel}</option>
+                        {DEGREE_LEVELS.map((d) => (
+                          <option key={d} value={d}>{elc.degreeLevels[d]}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <Input label={elc.degreeTitle} placeholder={elc.degreeTitlePh} value={edu.degree} onChange={(e) => setEdu({ degree: e.target.value })} />
+                    <Input label={elc.fieldOfStudy} value={edu.field ?? ''} onChange={(e) => setEdu({ field: e.target.value })} />
+                    <Input label={pc.start} placeholder="2018-03" value={edu.startDate} onChange={(e) => setEdu({ startDate: e.target.value })} />
+                    <Input label={`${pc.end} (${tp.present})`} placeholder={pc.endPh} value={edu.endDate ?? ''} onChange={(e) => setEdu({ endDate: e.target.value || null })} />
+                  </div>
+                  <button onClick={() => update({ education: draft.education.filter((x) => x.id !== edu.id) })} className="mt-3 text-sm font-medium text-red-500 hover:text-red-600">{pc.removeRole}</button>
+                </div>
+              )
+            })}
+            <Button variant="secondary" className="rounded-full" onClick={() => update({ education: [...draft.education, { id: newId('edu'), institution: '', degree: '', degreeLevel: null, field: '', startDate: '', endDate: null }] })}>+ {elc.addEducation}</Button>
           </div>
         )}
 
@@ -307,10 +392,50 @@ export default function ProfilePage() {
         )}
 
         {tab === 'languages' && (
-          <div className="flex flex-wrap gap-2">
-            {draft.languages.map((l) => (
-              <Badge key={l.id} tone="neutral" className="capitalize">{l.language} · {l.level}</Badge>
-            ))}
+          <div className="space-y-4">
+            {draft.languages.map((l, i) => {
+              const setLang = (patch: Partial<(typeof draft.languages)[number]>) => {
+                const next = [...draft.languages]
+                next[i] = { ...l, ...patch }
+                update({ languages: next })
+              }
+              const LevelSelect = ({ label, value, onPick, allowEmpty }: { label: string; value?: string | null; onPick: (v: string) => void; allowEmpty?: boolean }) => (
+                <div>
+                  <label className="mb-1 block text-xs font-medium text-navy-600">{label}</label>
+                  <select
+                    value={value ?? ''}
+                    onChange={(e) => onPick(e.target.value)}
+                    className="h-10 w-full rounded-lg border border-navy-200 bg-white px-2 text-sm text-navy-900 focus:border-electric-400 focus:outline-none"
+                  >
+                    {allowEmpty && <option value="">—</option>}
+                    {LANG_LEVELS.map((lv) => (
+                      <option key={lv} value={lv}>{elc.langLevels[lv]}</option>
+                    ))}
+                  </select>
+                </div>
+              )
+              return (
+                <div key={l.id} className="rounded-lg border border-navy-100 p-4">
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Input label={elc.language} value={l.language} onChange={(e) => setLang({ language: e.target.value })} />
+                    <LevelSelect label={elc.generalLevel} value={l.level} onPick={(v) => setLang({ level: v as LanguageLevel })} />
+                  </div>
+                  <div className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <LevelSelect label={elc.oral} value={l.oral} onPick={(v) => setLang({ oral: (v || null) as LanguageLevel | null })} allowEmpty />
+                    <LevelSelect label={elc.written} value={l.written} onPick={(v) => setLang({ written: (v || null) as LanguageLevel | null })} allowEmpty />
+                    <LevelSelect label={elc.reading} value={l.reading} onPick={(v) => setLang({ reading: (v || null) as LanguageLevel | null })} allowEmpty />
+                  </div>
+                  <div className="mt-3 flex items-center justify-between">
+                    <label className="flex items-center gap-2 text-sm font-medium text-navy-700">
+                      <input type="checkbox" checked={l.native ?? false} onChange={(e) => setLang({ native: e.target.checked })} className="h-4 w-4 rounded border-navy-300 text-electric-500 focus:ring-electric-400" />
+                      {elc.isNative}
+                    </label>
+                    <button onClick={() => update({ languages: draft.languages.filter((x) => x.id !== l.id) })} className="text-sm font-medium text-red-500 hover:text-red-600">{pc.remove}</button>
+                  </div>
+                </div>
+              )
+            })}
+            <Button variant="secondary" className="rounded-full" onClick={() => update({ languages: [...draft.languages, { id: newId('lang'), language: '', level: 'professional' }] })}>+ {elc.addLanguage}</Button>
           </div>
         )}
 
@@ -416,6 +541,50 @@ export default function ProfilePage() {
                   {suggested.map((s) => (
                     <button key={s} onClick={() => addSuggested(s)} className="inline-flex items-center gap-1 rounded-full border border-electric-300 bg-electric-50 px-3 py-1 text-sm font-medium text-electric-700 hover:bg-electric-100">+ {s}</button>
                   ))}
+                </div>
+              )}
+            </div>
+
+            {/* Phase 2.2 — multilingual CV adaptation (tone + seniority, not just translation) */}
+            <div className="border-t border-navy-100 pt-6">
+              <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-navy-900">Adapt my CV to another language</h3>
+                  <p className="text-sm text-navy-500">Translates and adapts tone, formality and seniority to the target market — more than a translation.</p>
+                </div>
+                <div className="flex items-end gap-2">
+                  <label className="text-sm">
+                    <span className="mb-1 block text-navy-500">Language</span>
+                    <select value={localeLang} onChange={(e) => setLocaleLang(e.target.value)} className="h-10 rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-900">
+                      <option value="es">Spanish</option>
+                      <option value="pt-BR">Portuguese (BR)</option>
+                      <option value="en">English</option>
+                      <option value="fr">French</option>
+                      <option value="de">German</option>
+                    </select>
+                  </label>
+                  <div className="w-28">
+                    <Input label="Region" placeholder="optional" value={localeRegion} onChange={(e) => setLocaleRegion(e.target.value)} />
+                  </div>
+                  <Button className="rounded-full" loading={localizeM.isPending} onClick={() => localizeM.mutate()}>✦ Adapt</Button>
+                </div>
+              </div>
+              {localized && (
+                <div className="mt-4 space-y-3 rounded-xl border border-navy-100 bg-navy-50/40 p-4">
+                  <div>
+                    <p className="text-sm font-semibold text-navy-700">Adapted headline</p>
+                    <p className="mt-0.5 text-sm text-navy-600">{localized.personal.headline}</p>
+                  </div>
+                  {localized.personal.summary && (
+                    <div>
+                      <p className="text-sm font-semibold text-navy-700">Adapted summary</p>
+                      <p className="mt-0.5 text-sm text-navy-600">{localized.personal.summary}</p>
+                    </div>
+                  )}
+                  <div className="flex gap-2 pt-1">
+                    <Button className="rounded-full" onClick={applyLocalized}>Apply as my profile</Button>
+                    <Button variant="secondary" className="rounded-full" onClick={() => setLocalized(null)}>Discard</Button>
+                  </div>
                 </div>
               )}
             </div>

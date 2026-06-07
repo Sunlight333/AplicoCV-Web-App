@@ -19,8 +19,18 @@ class LoginInput(BaseModel):
     password: str
 
 
+class OnsiteLocation(BaseModel):
+    """A preferred on-site city plus the candidate's work-authorization status there."""
+
+    city: str
+    citizenship: Literal[
+        "citizen", "permanent_resident", "work_visa", "open_work_permit", "not_authorized"
+    ] | None = None
+
+
 class JobPreferences(BaseModel):
-    targetRoles: list[str] = []
+    # --- existing fields ---
+    targetRoles: list[str] = []  # up to 5 desired roles
     seniority: Literal["intern", "junior", "mid", "senior", "lead", "principal"] = "mid"
     locations: list[str] = []
     remote: Literal["onsite", "hybrid", "remote", "any"] = "any"
@@ -29,9 +39,41 @@ class JobPreferences(BaseModel):
     salaryCurrency: str | None = "USD"
     salaryPeriod: Literal["year", "month", "hour"] = "year"
     salaryType: Literal["gross", "net"] = "gross"
-    availability: str | None = None  # "immediate" | "2 weeks" | "1 month" | ...
+    availability: str | None = None  # "asap" | "next_week" | a date | ...
     workAuthorization: str | None = None  # visa / legal-status note
     industries: list[str] = []
+
+    # --- Phase 2: expanded mandatory questionnaire ---
+    employmentStatus: Literal[
+        "unemployed", "unemployed_relaxed", "employed_seeking", "employed_open"
+    ] | None = None
+    # Salary in both local currency and USD (a local amount and a USD amount differ a lot).
+    salaryLocalCurrency: str | None = None
+    salaryLocalAmount: int | None = None
+    salaryUsdAmount: int | None = None
+    # Work modality (multi-select): part_time, full_time, remote.
+    workModalities: list[str] = []
+    # full_remote = anywhere in the world; onsite_hybrid = office near a city.
+    remoteScope: Literal["full_remote", "onsite_hybrid"] | None = None
+    remoteRegions: list[str] = []  # Europe, North America, ... , Worldwide
+    onsiteLocations: list[OnsiteLocation] = []
+    relocation: bool | None = None
+    driverLicense: bool | None = None
+    gender: str | None = None
+    disability: bool | None = None
+    disabilityAccommodation: str | None = None
+    veteran: bool | None = None
+    howDidYouHear: str | None = None  # default answer for "how did you hear" fields
+    # Default acceptances applied during autofill (reduce empty fields / errors).
+    workedHereBefore: bool = False
+    knowsSomeoneHere: bool = False
+    acceptDataPolicy: bool = True
+    # Autonomous assistant (Phase 8): email a digest of new high-match jobs while
+    # offline; autoApply lets the ALPHA agent queue strong matches for review.
+    emailDigest: bool = False
+    autoApply: bool = False
+    # The generated CV the user marks as their default to apply with (Phase 4).
+    defaultCvId: str | None = None
 
 
 class UserOut(BaseModel):
@@ -98,19 +140,37 @@ class WorkExperience(BaseModel):
     bullets: list[str] = []
 
 
+# Standardized degree levels so the autofill can map to a job site's dropdown
+# (e.g. "Master" vs "Master's Degree") instead of relying on free-text.
+DegreeLevel = Literal[
+    "secondary", "certificate", "associate", "bachelor", "master", "doctorate", "other"
+]
+
+
 class Education(BaseModel):
     id: str
     institution: str
-    degree: str
+    degree: str  # free-text title, e.g. "BSc Computer Science"
+    degreeLevel: DegreeLevel | None = None  # standardized level for autofill
     field: str | None = None
     startDate: str
     endDate: str | None = None
 
 
+LanguageLevel = Literal[
+    "basic", "conversational", "professional", "advanced", "native", "bilingual"
+]
+
+
 class LanguageSkill(BaseModel):
     id: str
     language: str
-    level: Literal["basic", "conversational", "professional", "native"]
+    level: LanguageLevel
+    # Optional per-skill levels — many forms ask oral/written/reading separately.
+    oral: LanguageLevel | None = None
+    written: LanguageLevel | None = None
+    reading: LanguageLevel | None = None
+    native: bool | None = None
 
 
 class ProfileLink(BaseModel):
@@ -199,6 +259,8 @@ class DashboardStats(BaseModel):
     responseRate: float
     interviews: int
     minutesSaved: int
+    applicationsThisMonth: int = 0
+    monthlyLimit: int | None = None  # None = unlimited (premium/trial)
 
 
 # --- AI -----------------------------------------------------------------------
@@ -214,11 +276,13 @@ class AtsAnalysis(BaseModel):
 
 class JobDescriptionInput(BaseModel):
     jobDescription: str
+    language: str | None = None  # UI locale so the AI replies in the user's language
 
 
 class CoverLetterInput(BaseModel):
     jobDescription: str
     tone: Literal["professional", "warm", "direct"] = "professional"
+    language: str | None = None
 
 
 class CoverLetterOut(BaseModel):
@@ -229,6 +293,7 @@ class SuperCvInput(BaseModel):
     targetRole: str
     jobDescription: str | None = None
     cvText: str | None = None  # paste an alternative CV; else use the system profile
+    language: str | None = None
 
 
 class SuperCvOut(BaseModel):
@@ -254,6 +319,7 @@ class PersonalizedLetterInput(BaseModel):
     role: str | None = None
     highlights: str | None = None  # what the candidate wants to emphasize
     tone: Literal["professional", "warm", "direct"] = "professional"
+    language: str | None = None
 
 
 # --- AI Interview -------------------------------------------------------------
@@ -263,6 +329,7 @@ class InterviewStartInput(BaseModel):
     role: str
     jobDescription: str | None = None
     kind: Literal["behavioral", "technical", "mixed"] = "mixed"
+    language: str | None = None
 
 
 class InterviewStartOut(BaseModel):
@@ -273,6 +340,7 @@ class InterviewStartOut(BaseModel):
 class InterviewAnswerInput(BaseModel):
     sessionId: str
     answers: list[str]
+    language: str | None = None
 
 
 class InterviewQuestionFeedback(BaseModel):
@@ -314,6 +382,138 @@ class DocumentLibrary(BaseModel):
 class LocalizeInput(BaseModel):
     language: str
     region: str | None = None
+
+
+# --- Phase 2/3 — predictive score, ATS simulator, copilot, ghost recruiter ----
+
+
+class JobRefInput(BaseModel):
+    """A posting referenced by pasted text and/or a URL the server can fetch."""
+
+    jobDescription: str | None = None
+    jobUrl: str | None = None
+    language: str | None = None
+
+
+class FitBreakdown(BaseModel):
+    skills: int
+    seniority: int
+    location: int
+
+
+class PredictiveScoreOut(BaseModel):
+    successProbability: int
+    fitBreakdown: FitBreakdown
+    missingSkills: list[str]
+    keywordsToAdd: list[str]
+    overqualified: bool
+    atsPass: bool
+    advice: str
+
+
+class AtsSimulationOut(BaseModel):
+    parseScore: int
+    sectionsDetected: list[str]
+    likelyDropped: list[str]
+    formattingIssues: list[str]
+    invisibleErrors: list[str]
+    summary: str
+
+
+class GhostRecruiterOut(BaseModel):
+    verdict: Literal["apply", "caution", "skip"]
+    reasons: list[str]
+    betterFitNote: str | None = None
+
+
+class SalaryInput(BaseModel):
+    role: str
+    region: str | None = None
+    language: str | None = None
+
+
+class SalaryInsightsOut(BaseModel):
+    role: str
+    estimatedRange: str
+    currency: str = "USD"
+    negotiationPoints: list[str]
+    marketNote: str
+
+
+class FieldAnswerInput(BaseModel):
+    fieldLabel: str
+    jobDescription: str | None = None
+    language: str | None = None
+
+
+class FieldAnswerOut(BaseModel):
+    answer: str
+
+
+# --- Phase 3/4 — insights: scam detection, burnout, market heatmap ------------
+
+
+class ScamCheckInput(BaseModel):
+    jobTitle: str | None = None
+    company: str | None = None
+    jobDescription: str | None = None
+    jobUrl: str | None = None
+
+
+class ScamCheckOut(BaseModel):
+    riskLevel: Literal["low", "medium", "high"]
+    riskScore: int  # 0-100
+    signals: list[str]
+    advice: str
+
+
+class BurnoutOut(BaseModel):
+    level: Literal["healthy", "elevated", "high"]
+    score: int  # 0-100, higher = more strain
+    applicationsLast7Days: int
+    responseRate: float
+    signals: list[str]
+    suggestions: list[str]
+
+
+class MarketStat(BaseModel):
+    label: str
+    value: int
+
+
+class MarketHeatmapOut(BaseModel):
+    topSkills: list[MarketStat]
+    topCompanies: list[MarketStat]
+    topPortals: list[MarketStat]
+    remoteShare: int  # percent
+    sampleSize: int
+    insight: str
+
+
+# --- Phase 1.3 — assisted apply queue -----------------------------------------
+
+
+class ApplyRequestInput(BaseModel):
+    recommendationId: str | None = None
+    jobUrl: str
+    portal: str
+    jobTitle: str
+    company: str
+    jobDescription: str | None = None
+    autoTailor: bool = True
+
+
+class ApplyTaskOut(BaseModel):
+    id: str
+    jobUrl: str
+    portal: str
+    jobTitle: str
+    company: str
+    status: Literal["queued", "prepared", "submitted", "dismissed", "error"]
+    cvVersionLabel: str | None = None
+    coverLetter: str | None = None
+    matchScore: int | None = None
+    createdAt: datetime
 
 
 # --- Credentials --------------------------------------------------------------

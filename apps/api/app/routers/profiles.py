@@ -11,7 +11,7 @@ from app.db import SessionLocal, get_db
 from app.deps import get_current_user, require_premium
 from app.models import Document, Operation, Profile as ProfileModel, User
 from app.schemas import JobDescriptionInput, OperationOut, Profile
-from app.services import llm_service
+from app.services import job_fetch_service, llm_service
 from app.services.llm_service import normalize_profile
 
 router = APIRouter(prefix="/profiles", tags=["profiles"])
@@ -99,7 +99,7 @@ async def tailor(
     db: AsyncSession = Depends(get_db),
 ) -> Profile:
     profile = await _get_or_create(db, user.id)
-    tailored = await llm_service.tailor_profile(body.jobDescription, profile.data or {})
+    tailored = await llm_service.tailor_profile(body.jobDescription, profile.data or {}, body.language)
     db.add(
         Document(
             user_id=user.id,
@@ -125,9 +125,11 @@ async def _run_tailor_for_url(op_id: str, user_id: str, job_url: str, profile_da
         if op is None:
             return
         try:
-            # The stub LLM derives the tailored profile deterministically; a real
-            # implementation would fetch the posting text from job_url first.
-            tailored = await llm_service.tailor_profile(job_url, profile_data)
+            # Phase 2.1 — fetch the real posting text so tailoring works off the
+            # actual job description, not just the URL string. Falls back to the URL
+            # if the fetch fails (private/JS-rendered postings).
+            jd_text = await job_fetch_service.fetch_job_text(job_url) or job_url
+            tailored = await llm_service.tailor_profile(jd_text, profile_data)
             db.add(
                 Document(
                     user_id=user_id,

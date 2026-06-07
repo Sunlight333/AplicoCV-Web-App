@@ -20,3 +20,11 @@ npm-debug.log*
 *.swp
 .vscode/
 .idea/
+
+# Extension build packages (regenerated from source; not committed)
+apps/extension/*.zip
+
+# Scratch screenshots
+/SCREENSHOT/
+/Screenshot_*.png
+apps/extension.zip

@@ -1,5 +1,6 @@
 import { api } from '@/lib/apiClient'
 import { env } from '@/lib/env'
+import { currentLocale } from '@/lib/locale'
 import type { AtsAnalysis, DashboardStats, Recommendation } from '@/types'
 import { mockRecommendations, mockStats } from './mock/data'
 import { delay } from './mock/store'
@@ -40,5 +41,5 @@ export async function scoreAts(jobDescription: string): Promise<AtsAnalysis> {
       ],
     }
   }
-  return api.post<AtsAnalysis>('/ats/score', { jobDescription })
+  return api.post<AtsAnalysis>('/ats/score', { jobDescription, language: currentLocale() })
 }

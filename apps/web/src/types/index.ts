@@ -26,6 +26,18 @@ export interface User {
   trialEndsAt?: string | null
 }
 
+export type Citizenship =
+  | 'citizen'
+  | 'permanent_resident'
+  | 'work_visa'
+  | 'open_work_permit'
+  | 'not_authorized'
+
+export interface OnsiteLocation {
+  city: string
+  citizenship?: Citizenship | null
+}
+
 export interface JobPreferences {
   targetRoles: string[]
   seniority: 'intern' | 'junior' | 'mid' | 'senior' | 'lead' | 'principal'
@@ -39,6 +51,30 @@ export interface JobPreferences {
   availability?: string
   workAuthorization?: string
   industries?: string[]
+  // Phase 2: expanded mandatory questionnaire
+  employmentStatus?: 'unemployed' | 'unemployed_relaxed' | 'employed_seeking' | 'employed_open'
+  salaryLocalCurrency?: string
+  salaryLocalAmount?: number
+  salaryUsdAmount?: number
+  workModalities?: string[] // part_time | full_time | remote
+  remoteScope?: 'full_remote' | 'onsite_hybrid'
+  remoteRegions?: string[]
+  onsiteLocations?: OnsiteLocation[]
+  relocation?: boolean
+  driverLicense?: boolean
+  gender?: string
+  disability?: boolean
+  disabilityAccommodation?: string
+  veteran?: boolean
+  howDidYouHear?: string
+  workedHereBefore?: boolean
+  knowsSomeoneHere?: boolean
+  acceptDataPolicy?: boolean
+  // Autonomous assistant (Phase 8)
+  emailDigest?: boolean
+  autoApply?: boolean
+  // Default generated CV to apply with (Phase 4)
+  defaultCvId?: string | null
 }
 
 export interface WorkExperience {
@@ -51,19 +87,41 @@ export interface WorkExperience {
   bullets: string[]
 }
 
+export type DegreeLevel =
+  | 'secondary'
+  | 'certificate'
+  | 'associate'
+  | 'bachelor'
+  | 'master'
+  | 'doctorate'
+  | 'other'
+
 export interface Education {
   id: string
   institution: string
   degree: string
+  degreeLevel?: DegreeLevel | null
   field?: string
   startDate: string
   endDate: string | null
 }
 
+export type LanguageLevel =
+  | 'basic'
+  | 'conversational'
+  | 'professional'
+  | 'advanced'
+  | 'native'
+  | 'bilingual'
+
 export interface LanguageSkill {
   id: string
   language: string
-  level: 'basic' | 'conversational' | 'professional' | 'native'
+  level: LanguageLevel
+  oral?: LanguageLevel | null
+  written?: LanguageLevel | null
+  reading?: LanguageLevel | null
+  native?: boolean | null
 }
 
 export interface ProfileLink {
@@ -153,6 +211,8 @@ export interface DashboardStats {
   responseRate: number // 0..1
   interviews: number
   minutesSaved: number
+  applicationsThisMonth?: number
+  monthlyLimit?: number | null // null/undefined = unlimited
 }
 
 export interface Recommendation {

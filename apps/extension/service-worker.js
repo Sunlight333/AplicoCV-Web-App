@@ -10,6 +10,8 @@ const SUPPORTED = [
   { name: 'Workday', match: /myworkdayjobs\.com/ },
   { name: 'Indeed', match: /indeed\.com/ },
   { name: 'Get on Board', match: /getonbrd\.com/ },
+  { name: 'Greenhouse', match: /greenhouse\.io/ },
+  { name: 'Lever', match: /lever\.co/ },
   { name: 'Computrabajo', match: /computrabajo\./ },
   { name: 'Glassdoor', match: /glassdoor\./ },
   { name: 'Bumeran', match: /bumeran\./ },
@@ -111,9 +113,74 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
         case 'GET_PROFILE': {
           const profile = await apiFetch('/profiles/me')
-          // Short-lived session cache the content script can read.
-          await chrome.storage.session.set({ profile })
+          // Attach the user's job preferences (gender, veteran, licence, default
+          // acceptances, how-did-you-hear, etc.) so the content script can fill the
+          // tricky application fields the CV alone does not cover (Phase 2).
+          try {
+            const me = await apiFetch('/auth/me')
+            if (me && me.preferences) profile.preferences = me.preferences
+          } catch {
+            /* preferences are best-effort */
+          }
+          // Short-lived session cache, encrypted at rest (Phase 1.5) — the cached
+          // profile is no longer stored in plaintext.
+          try {
+            await chrome.storage.session.set({ profileEnc: await encrypt(JSON.stringify(profile)) })
+          } catch {
+            /* caching is best-effort; the response below is the source of truth */
+          }
           sendResponse({ profile })
+          break
+        }
+        case 'AUTOFILL_EVENT': {
+          // Telemetry for measured time-saved (Phase 2.5).
+          try {
+            await apiFetch('/applications/autofill-event', {
+              method: 'POST',
+              body: JSON.stringify({
+                fieldsFilled: msg.fieldsFilled || 0,
+                portal: msg.portal || null,
+                jobUrl: msg.jobUrl || null,
+              }),
+            })
+          } catch {
+            /* non-critical */
+          }
+          sendResponse({ ok: true })
+          break
+        }
+        case 'FIELD_ANSWER': {
+          // Phase 1.4 — AI-generated answer for one open-text application field.
+          try {
+            const res = await apiFetch('/ai/field-answer', {
+              method: 'POST',
+              body: JSON.stringify({
+                fieldLabel: msg.fieldLabel || '',
+                jobDescription: msg.jobDescription || null,
+              }),
+            })
+            sendResponse({ answer: res.answer })
+          } catch (err) {
+            sendResponse({ error: String(err) })
+          }
+          break
+        }
+        case 'APPLY_QUEUE': {
+          // Prepared "apply on your behalf" tasks the extension can autofill.
+          try {
+            sendResponse({ tasks: await apiFetch('/apply/queue') })
+          } catch {
+            sendResponse({ tasks: [] })
+          }
+          break
+        }
+        case 'APPLY_SUBMITTED': {
+          try {
+            await apiFetch(`/apply/${encodeURIComponent(msg.taskId)}/submitted`, { method: 'POST' })
+            sendResponse({ ok: true })
+          } catch (err) {
+            sendResponse({ error: String(err) })
+          }
           break
         }
         case 'GET_FAQ': {
@@ -208,7 +275,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
         }
         case 'LOGOUT':
           await chrome.storage.local.remove('authToken')
-          await chrome.storage.session.remove('profile')
+          await chrome.storage.session.remove('profileEnc')
           sendResponse({ ok: true })
           break
         default:

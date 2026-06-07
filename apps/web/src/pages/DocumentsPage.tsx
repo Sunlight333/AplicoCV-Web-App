@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import type { Locale } from '@/i18n/dictionaries'
 import { useCopy } from '@/i18n/useCopy'
@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
+import { useAuth } from '@/auth/AuthContext'
+import { updatePreferences } from '@/services/auth'
 import { getLibrary, getGeneratedDoc, type GeneratedDoc } from '@/services/documents'
 import { downloadTextPdf } from '@/lib/pdf'
 import { cn } from '@/lib/cn'
@@ -18,6 +20,7 @@ interface DocsCopy {
   title: string; subtitle: string; cvs: string; letters: string; open: string
   emptyCvs: string; emptyLetters: string; createCv: string; createLetter: string
   document: string; copy: string; download: string; copied: string
+  setDefault: string; defaultBadge: string; defaultSet: string
 }
 
 const COPY: Record<Locale, DocsCopy> = {
@@ -27,6 +30,7 @@ const COPY: Record<Locale, DocsCopy> = {
     emptyCvs: 'You haven’t generated any CVs yet.', emptyLetters: 'You haven’t generated any cover letters yet.',
     createCv: 'Create my first optimized CV', createLetter: 'Generate a cover letter',
     document: 'Document', copy: 'Copy', download: 'Download', copied: 'Copied to clipboard',
+    setDefault: 'Set as default', defaultBadge: 'Default', defaultSet: 'Default CV updated',
   },
   es: {
     title: 'CVs y cartas generados', subtitle: 'Todo lo que has creado con IA.',
@@ -34,6 +38,7 @@ const COPY: Record<Locale, DocsCopy> = {
     emptyCvs: 'Aún no has generado ningún CV.', emptyLetters: 'Aún no has generado ninguna carta.',
     createCv: 'Crear mi primer CV optimizado', createLetter: 'Generar una carta',
     document: 'Documento', copy: 'Copiar', download: 'Descargar', copied: 'Copiado al portapapeles',
+    setDefault: 'Marcar como predeterminado', defaultBadge: 'Predeterminado', defaultSet: 'CV predeterminado actualizado',
   },
   'pt-BR': {
     title: 'Currículos e cartas gerados', subtitle: 'Tudo o que você criou com IA.',
@@ -41,6 +46,7 @@ const COPY: Record<Locale, DocsCopy> = {
     emptyCvs: 'Você ainda não gerou nenhum currículo.', emptyLetters: 'Você ainda não gerou nenhuma carta.',
     createCv: 'Criar meu primeiro currículo otimizado', createLetter: 'Gerar uma carta',
     document: 'Documento', copy: 'Copiar', download: 'Baixar', copied: 'Copiado para a área de transferência',
+    setDefault: 'Definir como padrão', defaultBadge: 'Padrão', defaultSet: 'Currículo padrão atualizado',
   },
 }
 
@@ -65,7 +71,17 @@ export default function DocumentsPage() {
   const [tab, setTab] = useState<'cvs' | 'letters'>('cvs')
   const [openId, setOpenId] = useState<string | null>(null)
   const { toast } = useToast()
+  const { user, setUser } = useAuth()
+  const defaultCvId = user?.preferences?.defaultCvId
   const { data, isLoading } = useQuery({ queryKey: ['library'], queryFn: getLibrary })
+
+  const setDefault = useMutation({
+    mutationFn: (id: string) => updatePreferences({ ...(user!.preferences), defaultCvId: id }),
+    onSuccess: (u) => {
+      setUser(u)
+      toast(c.defaultSet)
+    },
+  })
   const detail = useQuery({
     queryKey: ['document', openId],
     queryFn: () => getGeneratedDoc(openId as string),
@@ -113,7 +129,24 @@ export default function DocumentsPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {items.map((d) => (
-              <DocCard key={d.id} doc={d} onOpen={() => setOpenId(d.id)} openLabel={c.open} />
+              <div key={d.id}>
+                <DocCard doc={d} onOpen={() => setOpenId(d.id)} openLabel={c.open} />
+                {tab === 'cvs' && (
+                  <div className="mt-1.5 px-1">
+                    {defaultCvId === d.id ? (
+                      <Badge tone="success">★ {c.defaultBadge}</Badge>
+                    ) : (
+                      <button
+                        onClick={() => setDefault.mutate(d.id)}
+                        disabled={setDefault.isPending}
+                        className="text-xs font-medium text-navy-400 hover:text-electric-600"
+                      >
+                        {c.setDefault}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             ))}
           </div>
         )}

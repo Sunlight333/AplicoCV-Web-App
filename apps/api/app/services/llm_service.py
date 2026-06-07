@@ -32,6 +32,29 @@ def _tokens(text: str) -> set[str]:
     return set(re.findall(r"[a-z0-9/+#.]+", text.lower()))
 
 
+# Map a UI locale code to a language name and build an instruction so the model
+# replies in the user's language (fixes English output on a Spanish/Portuguese UI).
+_LANG_NAMES = {
+    "es": "Spanish",
+    "pt-br": "Brazilian Portuguese",
+    "pt": "Portuguese",
+    "en": "English",
+    "fr": "French",
+    "de": "German",
+}
+
+
+def _lang_instruction(language: str | None) -> str:
+    if not language:
+        return ""
+    key = language.lower()
+    name = _LANG_NAMES.get(key) or _LANG_NAMES.get(key[:2]) or language
+    return (
+        f" Write ALL output strictly in {name}, including every field value, list item "
+        "and sentence. Do not mix languages."
+    )
+
+
 # --- Public task functions ----------------------------------------------------
 
 
@@ -64,7 +87,8 @@ def normalize_profile(raw: dict[str, Any] | None) -> dict[str, Any]:  # noqa: F8
     (required strings never null, ids stringified, language levels constrained)."""
     raw = raw or {}
     p = raw.get("personal") or {}
-    _LEVELS = {"basic", "conversational", "professional", "native"}
+    _LEVELS = {"basic", "conversational", "professional", "advanced", "native", "bilingual"}
+    _DEGREES = {"secondary", "certificate", "associate", "bachelor", "master", "doctorate", "other"}
 
     experience = []
     for i, e in enumerate(raw.get("experience") or []):
@@ -82,10 +106,12 @@ def normalize_profile(raw: dict[str, Any] | None) -> dict[str, Any]:  # noqa: F8
     education = []
     for i, ed in enumerate(raw.get("education") or []):
         ed = ed or {}
+        deg_level = ed.get("degreeLevel")
         education.append({
             "id": _s(ed.get("id"), f"edu_{i + 1}"),
             "institution": _s(ed.get("institution")),
             "degree": _s(ed.get("degree")),
+            "degreeLevel": deg_level if deg_level in _DEGREES else None,
             "field": _opt_s(ed.get("field")),
             "startDate": _s(ed.get("startDate")),
             "endDate": _opt_s(ed.get("endDate")),
@@ -94,11 +120,19 @@ def normalize_profile(raw: dict[str, Any] | None) -> dict[str, Any]:  # noqa: F8
     languages = []
     for i, lang in enumerate(raw.get("languages") or []):
         lang = lang or {}
+
+        def _lvl(v: Any) -> str | None:
+            return v if v in _LEVELS else None
+
         level = lang.get("level")
         languages.append({
             "id": _s(lang.get("id"), f"lang_{i + 1}"),
             "language": _s(lang.get("language")),
             "level": level if level in _LEVELS else "professional",
+            "oral": _lvl(lang.get("oral")),
+            "written": _lvl(lang.get("written")),
+            "reading": _lvl(lang.get("reading")),
+            "native": bool(lang.get("native")) if lang.get("native") is not None else None,
         })
 
     links = []
@@ -136,24 +170,28 @@ def normalize_profile(raw: dict[str, Any] | None) -> dict[str, Any]:  # noqa: F8
     }
 
 
-async def score_ats_match(job_description: str, profile: dict[str, Any]) -> dict[str, Any]:
+async def score_ats_match(
+    job_description: str, profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
     if settings.resolved_llm_provider == "stub":
         return _stub_ats(job_description, profile)
-    return await _real_ats(job_description, profile)
+    return await _real_ats(job_description, profile, language)
 
 
 async def generate_cover_letter(
-    job_description: str, profile: dict[str, Any], tone: str
+    job_description: str, profile: dict[str, Any], tone: str, language: str | None = None
 ) -> str:
     if settings.resolved_llm_provider == "stub":
         return _stub_cover_letter(job_description, profile, tone)
-    return await _real_cover_letter(job_description, profile, tone)
+    return await _real_cover_letter(job_description, profile, tone, language)
 
 
-async def tailor_profile(job_description: str, profile: dict[str, Any]) -> dict[str, Any]:
+async def tailor_profile(
+    job_description: str, profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
     if settings.resolved_llm_provider == "stub":
         return _stub_tailor(job_description, profile)
-    return await _real_tailor(job_description, profile)
+    return await _real_tailor(job_description, profile, language)
 
 
 async def localize_profile(
@@ -165,39 +203,57 @@ async def localize_profile(
 
 
 async def super_cv(
-    profile: dict[str, Any], target_role: str, jd: str | None, cv_text: str | None
+    profile: dict[str, Any],
+    target_role: str,
+    jd: str | None,
+    cv_text: str | None,
+    language: str | None = None,
 ) -> dict[str, Any]:
     if settings.resolved_llm_provider == "stub":
         return _stub_super_cv(profile, target_role, jd, cv_text)
-    return await _real_super_cv(profile, target_role, jd, cv_text)
+    return await _real_super_cv(profile, target_role, jd, cv_text, language)
 
 
-async def personal_analysis(profile: dict[str, Any]) -> dict[str, Any]:
+async def personal_analysis(
+    profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
     if settings.resolved_llm_provider == "stub":
         return _stub_personal_analysis(profile)
-    return await _real_personal_analysis(profile)
+    return await _real_personal_analysis(profile, language)
 
 
-async def skill_suggestions(profile: dict[str, Any]) -> list[str]:
+async def skill_suggestions(
+    profile: dict[str, Any], language: str | None = None
+) -> list[str]:
     if settings.resolved_llm_provider == "stub":
         return _stub_skill_suggestions(profile)
-    return await _real_skill_suggestions(profile)
+    return await _real_skill_suggestions(profile, language)
 
 
 async def interview_questions(
-    profile: dict[str, Any], role: str, jd: str | None, kind: str
+    profile: dict[str, Any],
+    role: str,
+    jd: str | None,
+    kind: str,
+    history: list[str] | None = None,
+    language: str | None = None,
 ) -> list[str]:
+    """`history` is a list of weak-area notes from the user's past interviews
+    (Phase 2.6 interview memory) so new questions reinforce where they struggled."""
     if settings.resolved_llm_provider == "stub":
-        return _stub_interview_questions(role, kind)
-    return await _real_interview_questions(profile, role, jd, kind)
+        return _stub_interview_questions(role, kind, history)
+    return await _real_interview_questions(profile, role, jd, kind, history, language)
 
 
 async def interview_feedback(
-    profile: dict[str, Any], role: str, qa: list[tuple[str, str]]
+    profile: dict[str, Any],
+    role: str,
+    qa: list[tuple[str, str]],
+    language: str | None = None,
 ) -> dict[str, Any]:
     if settings.resolved_llm_provider == "stub":
         return _stub_interview_feedback(qa)
-    return await _real_interview_feedback(profile, role, qa)
+    return await _real_interview_feedback(profile, role, qa, language)
 
 
 async def personalized_cover_letter(
@@ -207,10 +263,13 @@ async def personalized_cover_letter(
     role: str | None,
     highlights: str | None,
     tone: str,
+    language: str | None = None,
 ) -> str:
     if settings.resolved_llm_provider == "stub":
         return _stub_personalized_cover_letter(profile, company, role, tone)
-    return await _real_personalized_cover_letter(profile, jd, company, role, highlights, tone)
+    return await _real_personalized_cover_letter(
+        profile, jd, company, role, highlights, tone, language
+    )
 
 
 def _cv_to_text(profile: dict[str, Any]) -> str:
@@ -373,8 +432,11 @@ async def _log_usage(provider: str, model: str, task: str, usage: dict, latency_
         pass
 
 
-async def _chat_json(system: str, user: str, task: str = "chat") -> dict[str, Any]:
+async def _chat_json(
+    system: str, user: str, task: str = "chat", language: str | None = None
+) -> dict[str, Any]:
     """Call the configured provider and return a parsed JSON object."""
+    system = system + _lang_instruction(language)
     provider = settings.resolved_llm_provider
     start = time.monotonic()
     if provider == "openai":
@@ -424,7 +486,10 @@ async def _chat_json(system: str, user: str, task: str = "chat") -> dict[str, An
         return json.loads(text[start_i : end_i + 1])
 
 
-async def _chat_text(system: str, user: str, task: str = "chat") -> str:
+async def _chat_text(
+    system: str, user: str, task: str = "chat", language: str | None = None
+) -> str:
+    system = system + _lang_instruction(language)
     provider = settings.resolved_llm_provider
     start = time.monotonic()
     if provider == "openai":
@@ -485,32 +550,77 @@ async def _real_extract_profile(text: str) -> dict[str, Any]:
         return _stub_extract_profile(text)
 
 
-async def _real_ats(job_description: str, profile: dict[str, Any]) -> dict[str, Any]:
+# --- coercion helpers: keep real-provider output schema-valid -----------------
+# Real models occasionally omit/rename keys or return values outside a Literal.
+# These coerce raw LLM JSON to the strict response schemas so a stray response
+# degrades gracefully instead of raising a 500 ValidationError in the router.
+
+
+def _as_list(v: Any) -> list[str]:
+    return [_s(x) for x in v if x is not None] if isinstance(v, list) else []
+
+
+def _as_int(v: Any, default: int = 0, lo: int | None = None, hi: int | None = None) -> int:
     try:
-        return await _chat_json(
+        n = int(v)
+    except (TypeError, ValueError):
+        n = default
+    if lo is not None:
+        n = max(lo, n)
+    if hi is not None:
+        n = min(hi, n)
+    return n
+
+
+def _one_of(v: Any, allowed: set[str], default: str) -> str:
+    return v if isinstance(v, str) and v in allowed else default
+
+
+async def _real_ats(
+    job_description: str, profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
+    try:
+        res = await _chat_json(
             "You are an ATS scorer. Return JSON: {matchScore:int 0-100, matchedKeywords[],"
             " missingKeywords[], qualification:'underqualified'|'strong match'|'overqualified',"
             " recommendations[3]}.",
             f"Job description:\n{job_description[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
             task="ats_score",
+            language=language,
         )
+        return {
+            "matchScore": _as_int(res.get("matchScore"), 50, 0, 100),
+            "matchedKeywords": _as_list(res.get("matchedKeywords")),
+            "missingKeywords": _as_list(res.get("missingKeywords")),
+            "qualification": _one_of(
+                res.get("qualification"),
+                {"underqualified", "strong match", "overqualified"},
+                "strong match",
+            ),
+            "recommendations": _as_list(res.get("recommendations")),
+        }
     except Exception:
         return _stub_ats(job_description, profile)
 
 
-async def _real_cover_letter(jd: str, profile: dict[str, Any], tone: str) -> str:
+async def _real_cover_letter(
+    jd: str, profile: dict[str, Any], tone: str, language: str | None = None
+) -> str:
     try:
         return await _chat_text(
             f"Write a focused 250-350 word cover letter in a {tone} tone. Avoid generic "
             "openers. Use only facts from the profile.",
             f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
             task="cover_letter",
+            language=language,
         )
     except Exception:
         return _stub_cover_letter(jd, profile, tone)
 
 
-async def _real_tailor(jd: str, profile: dict[str, Any]) -> dict[str, Any]:
+async def _real_tailor(
+    jd: str, profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
     try:
         result = await _chat_json(
             "Tailor this profile to the job: reorder experience bullets to surface the most "
@@ -518,6 +628,7 @@ async def _real_tailor(jd: str, profile: dict[str, Any]) -> dict[str, Any]:
             "increment 'version'. Never invent experience.",
             f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
             task="tailor",
+            language=language,
         )
         result.setdefault("version", profile.get("version", 1) + 1)
         return result
@@ -577,7 +688,7 @@ def _stub_skill_suggestions(profile):  # type: ignore[no-untyped-def]
     return [s for s in _SKILL_POOL if s.lower() not in have][:8]
 
 
-def _stub_interview_questions(role, kind):  # type: ignore[no-untyped-def]
+def _stub_interview_questions(role, kind, history=None):  # type: ignore[no-untyped-def]
     behavioral = [
         f"Tell me about yourself and why you're a strong fit for the {role} role.",
         "Describe a time you disagreed with a teammate. How did you resolve it?",
@@ -597,7 +708,16 @@ def _stub_interview_questions(role, kind):  # type: ignore[no-untyped-def]
         pool = technical
     else:
         pool = [behavioral[0], technical[0], behavioral[1], technical[1]]
-    return (pool + closing)[:5]
+    questions = (pool + closing)[:5]
+    # Interview memory: if past sessions flagged a weak area, lead with a follow-up
+    # on it so the user practices where they previously struggled.
+    if history:
+        focus = history[0]
+        questions[1] = (
+            f"Last time, feedback noted: \"{focus[:120]}\". Walk me through a specific "
+            "example that addresses that."
+        )
+    return questions
 
 
 def _stub_interview_feedback(qa):  # type: ignore[no-untyped-def]
@@ -646,7 +766,7 @@ def _stub_personalized_cover_letter(profile, company, role, tone):  # type: igno
     )
 
 
-async def _real_super_cv(profile, target_role, jd, cv_text):  # type: ignore[no-untyped-def]
+async def _real_super_cv(profile, target_role, jd, cv_text, language=None):  # type: ignore[no-untyped-def]
     source = cv_text or _cv_to_text(profile)
     try:
         res = await _chat_json(
@@ -656,6 +776,7 @@ async def _real_super_cv(profile, target_role, jd, cv_text):  # type: ignore[no-
             "{cvText: markdown string, atsScore: integer 0-100, gaps: array of missing-keyword strings}.",
             f"TARGET ROLE: {target_role}\nJOB DESCRIPTION: {jd or '(none provided)'}\n\nCV SOURCE:\n{source[:7000]}",
             task="super_cv",
+            language=language,
         )
         return {
             "cvText": _s(res.get("cvText")) or source,
@@ -666,13 +787,14 @@ async def _real_super_cv(profile, target_role, jd, cv_text):  # type: ignore[no-
         return _stub_super_cv(profile, target_role, jd, cv_text)
 
 
-async def _real_personal_analysis(profile):  # type: ignore[no-untyped-def]
+async def _real_personal_analysis(profile, language=None):  # type: ignore[no-untyped-def]
     try:
         res = await _chat_json(
             "Analyze this candidate constructively. Return JSON {strengths: array of 3-5 short "
             "strings, weaknesses: string, motivation: string}.",
             _cv_to_text(profile)[:5000],
             task="personal_analysis",
+            language=language,
         )
         return {
             "strengths": [_s(s) for s in (res.get("strengths") or [])][:5],
@@ -683,7 +805,7 @@ async def _real_personal_analysis(profile):  # type: ignore[no-untyped-def]
         return _stub_personal_analysis(profile)
 
 
-async def _real_skill_suggestions(profile):  # type: ignore[no-untyped-def]
+async def _real_skill_suggestions(profile, language=None):  # type: ignore[no-untyped-def]
     try:
         res = await _chat_json(
             "Suggest up to 8 relevant technical skills/technologies this candidate likely has or "
@@ -691,28 +813,37 @@ async def _real_skill_suggestions(profile):  # type: ignore[no-untyped-def]
             "{skills: array of strings}.",
             _cv_to_text(profile)[:5000],
             task="skill_suggestions",
+            language=language,
         )
         return [_s(s) for s in (res.get("skills") or [])][:8]
     except Exception:
         return _stub_skill_suggestions(profile)
 
 
-async def _real_interview_questions(profile, role, jd, kind):  # type: ignore[no-untyped-def]
+async def _real_interview_questions(profile, role, jd, kind, history=None, language=None):  # type: ignore[no-untyped-def]
+    memory = ""
+    if history:
+        memory = (
+            "\n\nThe candidate's PAST interview feedback flagged these weak areas — make at "
+            "least one question target them so they improve:\n- " + "\n- ".join(history[:4])
+        )
     try:
         res = await _chat_json(
             f"You are a senior interviewer for a {role} role. Generate exactly 5 {kind} interview "
             "questions tailored to the role and the candidate's background. Return JSON "
             "{questions: array of 5 strings}.",
-            f"ROLE: {role}\nJOB DESCRIPTION: {jd or '(none)'}\n\nCANDIDATE:\n{_cv_to_text(profile)[:3000]}",
+            f"ROLE: {role}\nJOB DESCRIPTION: {jd or '(none)'}\n\n"
+            f"CANDIDATE:\n{_cv_to_text(profile)[:3000]}{memory}",
             task="interview_questions",
+            language=language,
         )
         qs = [_s(q) for q in (res.get("questions") or []) if q][:5]
-        return qs or _stub_interview_questions(role, kind)
+        return qs or _stub_interview_questions(role, kind, history)
     except Exception:
-        return _stub_interview_questions(role, kind)
+        return _stub_interview_questions(role, kind, history)
 
 
-async def _real_interview_feedback(profile, role, qa):  # type: ignore[no-untyped-def]
+async def _real_interview_feedback(profile, role, qa, language=None):  # type: ignore[no-untyped-def]
     transcript = "\n\n".join(f"Q: {q}\nA: {a or '(no answer)'}" for q, a in qa)
     try:
         res = await _chat_json(
@@ -722,6 +853,7 @@ async def _real_interview_feedback(profile, role, qa):  # type: ignore[no-untype
             "summary:string, perQuestion:[{question, answer, rating:int, feedback}]}.",
             transcript[:7000],
             task="interview_feedback",
+            language=language,
         )
         per = []
         for i, item in enumerate(res.get("perQuestion") or []):
@@ -744,7 +876,7 @@ async def _real_interview_feedback(profile, role, qa):  # type: ignore[no-untype
         return _stub_interview_feedback(qa)
 
 
-async def _real_personalized_cover_letter(profile, jd, company, role, highlights, tone):  # type: ignore[no-untyped-def]
+async def _real_personalized_cover_letter(profile, jd, company, role, highlights, tone, language=None):  # type: ignore[no-untyped-def]
     try:
         return await _chat_text(
             f"Write a fully personalized 250-380 word cover letter in a {tone} tone, addressed to "
@@ -754,6 +886,7 @@ async def _real_personalized_cover_letter(profile, jd, company, role, highlights
             f"JOB DESCRIPTION:\n{jd[:3500]}\n\nEMPHASIZE: {highlights or '(candidate did not specify)'}"
             f"\n\nCANDIDATE PROFILE:\n{json.dumps(profile)[:3500]}",
             task="cover_letter_pro",
+            language=language,
         )
     except Exception:
         return _stub_personalized_cover_letter(profile, company, role, tone)
@@ -761,3 +894,325 @@ async def _real_personalized_cover_letter(profile, jd, company, role, highlights
 
 def _cache_key(*parts: str) -> str:
     return hashlib.sha256("|".join(parts).encode()).hexdigest()
+
+
+# === Phase 2 & 3 — additional AI tasks =======================================
+# Each follows the established pattern: a public async dispatcher that picks the
+# stub or real provider, a deterministic stub (works offline), and a real path
+# that falls back to the stub on any error.
+
+
+async def predictive_apply_score(
+    job_description: str, profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
+    """Phase 2.4 — predicted chance of success, with gaps and fix-it guidance."""
+    if settings.resolved_llm_provider == "stub":
+        return _stub_predictive(job_description, profile)
+    return await _real_predictive(job_description, profile, language)
+
+
+async def ats_simulate(
+    profile: dict[str, Any], cv_text: str | None, language: str | None = None
+) -> dict[str, Any]:
+    """Phase 2.3 — how an ATS 'sees' the CV: parse score, dropped sections, errors."""
+    if settings.resolved_llm_provider == "stub":
+        return _stub_ats_simulate(profile, cv_text)
+    return await _real_ats_simulate(profile, cv_text, language)
+
+
+async def ghost_recruiter(
+    job_description: str, profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
+    """Phase 3.1 — should you apply here at all? apply / caution / skip + reasons."""
+    if settings.resolved_llm_provider == "stub":
+        return _stub_ghost_recruiter(job_description, profile)
+    return await _real_ghost_recruiter(job_description, profile, language)
+
+
+async def salary_insights(
+    profile: dict[str, Any], role: str, region: str | None, language: str | None = None
+) -> dict[str, Any]:
+    """Phase 3.3 — Job Copilot salary + negotiation guidance."""
+    if settings.resolved_llm_provider == "stub":
+        return _stub_salary(profile, role, region)
+    return await _real_salary(profile, role, region, language)
+
+
+async def smart_field_answer(
+    profile: dict[str, Any],
+    field_label: str,
+    job_description: str | None,
+    language: str | None = None,
+) -> str:
+    """Phase 1.4 — a short, human-toned answer to an open application question."""
+    if settings.resolved_llm_provider == "stub":
+        return _stub_field_answer(profile, field_label)
+    return await _real_field_answer(profile, field_label, job_description, language)
+
+
+# --- stubs --------------------------------------------------------------------
+
+
+def _seniority_rank(text: str) -> int:
+    order = ["intern", "junior", "mid", "senior", "lead", "principal", "director"]
+    t = text.lower()
+    for i, level in reversed(list(enumerate(order))):
+        if level in t:
+            return i
+    return 2  # default mid
+
+
+def _stub_predictive(jd: str, profile: dict[str, Any]) -> dict[str, Any]:
+    ats = _stub_ats(jd, profile)
+    skills = {s.lower() for s in profile.get("skills", [])}
+    jd_tokens = _tokens(jd)
+    pool_in_jd = [s for s in _SKILL_POOL if s in jd_tokens]
+    missing = [s for s in pool_in_jd if s not in skills][:5]
+    # Sub-scores out of 100.
+    skill_fit = ats["matchScore"]
+    prof_rank = _seniority_rank(json.dumps(profile.get("experience") or []))
+    jd_rank = _seniority_rank(jd)
+    seniority_fit = max(20, 100 - abs(prof_rank - jd_rank) * 20)
+    overqualified = prof_rank - jd_rank >= 2
+    location_fit = 70  # neutral without geo data
+    success = round(skill_fit * 0.55 + seniority_fit * 0.3 + location_fit * 0.15)
+    success = max(5, min(96, success))
+    return {
+        "successProbability": success,
+        "fitBreakdown": {
+            "skills": skill_fit,
+            "seniority": seniority_fit,
+            "location": location_fit,
+        },
+        "missingSkills": missing,
+        "keywordsToAdd": missing,
+        "overqualified": overqualified,
+        "atsPass": skill_fit >= 55,
+        "advice": (
+            "Add the missing keywords where they truthfully apply, then re-score."
+            if missing
+            else "Strong alignment — apply with a tailored summary."
+        ),
+    }
+
+
+_PARSE_HINTS = [
+    ("tables or columns", "Multi-column layouts and tables are often mis-parsed — use a single column."),
+    ("images or icons", "Text inside images/icons is invisible to ATS — keep key info as real text."),
+    ("headers/footers", "Contact details in the header/footer are frequently dropped — put them in the body."),
+    ("non-standard section titles", "Use standard titles (Experience, Education, Skills) so sections are detected."),
+]
+
+
+def _stub_ats_simulate(profile: dict[str, Any], cv_text: str | None) -> dict[str, Any]:
+    p = profile or {}
+    has = {
+        "Contact": bool((p.get("personal") or {}).get("email")),
+        "Summary": bool((p.get("personal") or {}).get("summary")),
+        "Experience": len(p.get("experience") or []) > 0,
+        "Education": len(p.get("education") or []) > 0,
+        "Skills": len(p.get("skills") or []) > 0,
+    }
+    detected = [k for k, v in has.items() if v]
+    likely_dropped = [k for k, v in has.items() if not v]
+    # A crude parse score: detected sections + presence of quantified bullets.
+    bullets = [b for e in (p.get("experience") or []) for b in (e.get("bullets") or [])]
+    quantified = sum(1 for b in bullets if re.search(r"\d", b or ""))
+    parse_score = min(98, 40 + len(detected) * 9 + min(quantified, 5) * 3)
+    issues = []
+    if not has["Summary"]:
+        issues.append("No professional summary detected — add 2-3 lines up top.")
+    if bullets and quantified == 0:
+        issues.append("No quantified achievements found — add numbers/percentages.")
+    if len(p.get("skills") or []) < 5:
+        issues.append("Thin skills section — list more relevant, truthful skills.")
+    return {
+        "parseScore": parse_score,
+        "sectionsDetected": detected,
+        "likelyDropped": likely_dropped,
+        "formattingIssues": [h for _, h in _PARSE_HINTS[:2]],
+        "invisibleErrors": issues or ["No critical parsing issues detected."],
+        "summary": (
+            f"An ATS would cleanly read {len(detected)} of {len(has)} core sections."
+        ),
+    }
+
+
+def _stub_ghost_recruiter(jd: str, profile: dict[str, Any]) -> dict[str, Any]:
+    score = _stub_ats(jd, profile)["matchScore"]
+    if score >= 72:
+        verdict = "apply"
+        reasons = ["Your profile is a strong keyword and seniority match.",
+                   "Worth a tailored application."]
+    elif score >= 50:
+        verdict = "caution"
+        reasons = ["Partial match — close some keyword gaps before applying.",
+                   "Competitive posting; tailor heavily or find a closer fit."]
+    else:
+        verdict = "skip"
+        reasons = ["Low alignment with your current profile.",
+                   "Your time is better spent on closer-fit roles."]
+    return {
+        "verdict": verdict,
+        "reasons": reasons,
+        "betterFitNote": (
+            None if verdict == "apply"
+            else "Look for roles that emphasize the skills you already lead with."
+        ),
+    }
+
+
+def _stub_salary(profile: dict[str, Any], role: str, region: str | None) -> dict[str, Any]:
+    rank = _seniority_rank((role or "") + " " + json.dumps(profile.get("experience") or []))
+    base = [45, 60, 80, 110, 140, 175, 210][min(rank, 6)]  # $k, rough US-centric anchor
+    low, high = int(base * 0.85), int(base * 1.2)
+    where = f" in {region}" if region else ""
+    return {
+        "role": role,
+        "estimatedRange": f"${low}k–${high}k{where}",
+        "currency": "USD",
+        "negotiationPoints": [
+            "Anchor to the top of the range, justified by your strongest measurable wins.",
+            "Negotiate total comp (equity, bonus, sign-on), not just base.",
+            "Get the offer in writing before naming your number where possible.",
+        ],
+        "marketNote": (
+            "Estimate from seniority and role; verify against a live benchmark "
+            "for your exact market before negotiating."
+        ),
+    }
+
+
+def _stub_field_answer(profile: dict[str, Any], field_label: str) -> str:
+    per = profile.get("personal") or {}
+    skills = ", ".join((profile.get("skills") or [])[:3]) or "execution and ownership"
+    label = (field_label or "this question").strip()
+    return (
+        f"With a background in {per.get('headline') or 'my field'} and strengths in "
+        f"{skills}, I bring directly relevant experience. I'm drawn to this opportunity "
+        f"because it aligns with where I do my best work and where I want to grow. "
+        f"(Draft answer for: {label} — review and edit before submitting.)"
+    )
+
+
+# --- real providers -----------------------------------------------------------
+
+
+async def _real_predictive(
+    jd: str, profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
+    try:
+        res = await _chat_json(
+            "You are a hiring-odds analyst. Estimate the candidate's realistic chance for "
+            "this posting. Return JSON {successProbability:int 0-100, fitBreakdown:{skills:int,"
+            "seniority:int,location:int}, missingSkills:[], keywordsToAdd:[], overqualified:bool,"
+            " atsPass:bool, advice:string}. Be honest, not flattering.",
+            f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
+            task="predictive_apply",
+            language=language,
+        )
+        fb = res.get("fitBreakdown") or {}
+        return {
+            "successProbability": _as_int(res.get("successProbability"), 50, 0, 100),
+            "fitBreakdown": {
+                "skills": _as_int(fb.get("skills"), 50, 0, 100),
+                "seniority": _as_int(fb.get("seniority"), 50, 0, 100),
+                "location": _as_int(fb.get("location"), 50, 0, 100),
+            },
+            "missingSkills": _as_list(res.get("missingSkills")),
+            "keywordsToAdd": _as_list(res.get("keywordsToAdd")),
+            "overqualified": bool(res.get("overqualified")),
+            "atsPass": bool(res.get("atsPass", True)),
+            "advice": _s(res.get("advice")),
+        }
+    except Exception:
+        return _stub_predictive(jd, profile)
+
+
+async def _real_ats_simulate(
+    profile: dict[str, Any], cv_text: str | None, language: str | None = None
+) -> dict[str, Any]:
+    source = cv_text or _cv_to_text(profile)
+    try:
+        res = await _chat_json(
+            "Simulate how an applicant tracking system parses this CV. Return JSON "
+            "{parseScore:int 0-100, sectionsDetected:[], likelyDropped:[], formattingIssues:[],"
+            " invisibleErrors:[], summary:string}. invisibleErrors = problems a human reader "
+            "would miss but an ATS penalizes (missing dates, unparseable layout, no keywords).",
+            source[:7000],
+            task="ats_simulate",
+            language=language,
+        )
+        return {
+            "parseScore": _as_int(res.get("parseScore"), 60, 0, 100),
+            "sectionsDetected": _as_list(res.get("sectionsDetected")),
+            "likelyDropped": _as_list(res.get("likelyDropped")),
+            "formattingIssues": _as_list(res.get("formattingIssues")),
+            "invisibleErrors": _as_list(res.get("invisibleErrors")),
+            "summary": _s(res.get("summary")),
+        }
+    except Exception:
+        return _stub_ats_simulate(profile, cv_text)
+
+
+async def _real_ghost_recruiter(
+    jd: str, profile: dict[str, Any], language: str | None = None
+) -> dict[str, Any]:
+    try:
+        res = await _chat_json(
+            "You are a blunt career strategist. Decide whether the candidate should apply to "
+            "this posting. Return JSON {verdict:'apply'|'caution'|'skip', reasons:[2-3 strings], "
+            "betterFitNote: string or null}. Tell them honestly where NOT to waste time.",
+            f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:3500]}",
+            task="ghost_recruiter",
+            language=language,
+        )
+        note = res.get("betterFitNote")
+        return {
+            "verdict": _one_of(res.get("verdict"), {"apply", "caution", "skip"}, "caution"),
+            "reasons": _as_list(res.get("reasons")) or ["No specific signals returned."],
+            "betterFitNote": _s(note) if note else None,
+        }
+    except Exception:
+        return _stub_ghost_recruiter(jd, profile)
+
+
+async def _real_salary(
+    profile: dict[str, Any], role: str, region: str | None, language: str | None = None
+) -> dict[str, Any]:
+    try:
+        res = await _chat_json(
+            f"You advise on compensation for a {role} role{(' in ' + region) if region else ''}. "
+            "Return JSON {role:string, estimatedRange:string, currency:string, "
+            "negotiationPoints:[3 strings], marketNote:string}. Base the range on the candidate's "
+            "seniority and the role/region.",
+            _cv_to_text(profile)[:3500],
+            task="salary_insights",
+            language=language,
+        )
+        return {
+            "role": _s(res.get("role")) or role,
+            "estimatedRange": _s(res.get("estimatedRange")),
+            "currency": _s(res.get("currency")) or "USD",
+            "negotiationPoints": _as_list(res.get("negotiationPoints")),
+            "marketNote": _s(res.get("marketNote")),
+        }
+    except Exception:
+        return _stub_salary(profile, role, region)
+
+
+async def _real_field_answer(
+    profile: dict[str, Any], field_label: str, jd: str | None, language: str | None = None
+) -> str:
+    try:
+        return await _chat_text(
+            "Answer this open application question in the candidate's voice: concise (2-4 "
+            "sentences), specific, human, never generic. Use only facts from the profile. Do "
+            "not fabricate experience.",
+            f"QUESTION: {field_label}\n\nJOB DESCRIPTION: {jd or '(none)'}\n\n"
+            f"CANDIDATE PROFILE:\n{json.dumps(profile)[:3500]}",
+            task="field_answer",
+            language=language,
+        )
+    except Exception:
+        return _stub_field_answer(profile, field_label)

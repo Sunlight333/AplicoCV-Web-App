@@ -68,11 +68,14 @@ export function AppLayout() {
   const navItems: NavItem[] = [
     { to: '/dashboard', label: t.app.nav.dashboard, icon: 'dashboard' },
     { to: '/profile', label: t.app.nav.profile, icon: 'user' },
+    { to: '/preferences', label: t.app.nav.preferences, icon: 'target' },
     { to: '/applications', label: t.app.nav.applications, icon: 'applications' },
     { to: '/ai-tools', label: t.app.nav.aiTools, icon: 'sparkles' },
     { to: '/optimize', label: tm.optimize, icon: 'optimize' },
     { to: '/interview', label: tm.interview, icon: 'interview' },
     { to: '/ats', label: tm.ats, icon: 'ats' },
+    { to: '/analyze', label: 'Job analyzer', icon: 'target' },
+    { to: '/market', label: 'Market', icon: 'trending' },
     { to: '/documents', label: tm.documents, icon: 'document' },
     { to: '/rewards', label: tm.rewards, icon: 'gift' },
     { to: '/referrals', label: tm.referrals, icon: 'referrals' },
@@ -159,6 +162,14 @@ export function AppLayout() {
             >
               <Icon name="star" className="h-4 w-4" strokeWidth={2} />
               <span className="tabular-nums">{credits.data?.balance ?? '–'}</span>
+            </NavLink>
+            <NavLink
+              to="/"
+              title={t.app.nav.backToSite ?? 'Back to site'}
+              className="hidden h-9 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-navy-500 transition-colors hover:bg-navy-100 hover:text-navy-800 sm:flex"
+            >
+              <Icon name="globe" className="h-4 w-4" />
+              {t.app.nav.backToSite ?? 'Back to site'}
             </NavLink>
             <LanguageSwitcher />
             <span className="hidden h-6 w-px bg-navy-100 sm:block" />

@@ -1,6 +1,5 @@
 import { Suspense, lazy } from 'react'
-import { Route, Routes, useLocation } from 'react-router-dom'
-import { AnimatePresence } from 'framer-motion'
+import { Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from '@/auth/ProtectedRoute'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { FullPageLoader } from '@/components/FullPageLoader'
@@ -17,12 +16,15 @@ const OptimizePage = lazy(() => import('@/pages/OptimizePage'))
 const DocumentsPage = lazy(() => import('@/pages/DocumentsPage'))
 const InterviewPage = lazy(() => import('@/pages/InterviewPage'))
 const AtsSimulatorPage = lazy(() => import('@/pages/AtsSimulatorPage'))
+const JobAnalyzerPage = lazy(() => import('@/pages/JobAnalyzerPage'))
+const MarketPage = lazy(() => import('@/pages/MarketPage'))
 const ReferralPage = lazy(() => import('@/pages/ReferralPage'))
 const GuidePage = lazy(() => import('@/pages/GuidePage'))
 const SupportedPortalsPage = lazy(() => import('@/pages/SupportedPortalsPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
+const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'))
 const TrackingPage = lazy(() => import('@/pages/TrackingPage'))
 const AiToolsPage = lazy(() => import('@/pages/AiToolsPage'))
 const CredentialsPage = lazy(() => import('@/pages/CredentialsPage'))
@@ -43,11 +45,14 @@ const ChromeExtensionPage = lazy(() => import('@/pages/marketing/ChromeExtension
 const NotFoundPage = lazy(() => import('@/pages/NotFoundPage'))
 
 export function App() {
-  const location = useLocation()
+  // Note: routes are intentionally NOT wrapped in an AnimatePresence keyed on the
+  // pathname. That pattern, combined with lazy-loaded routes and the Suspense
+  // boundary, caused navigation to hang until a manual refresh (the exiting page
+  // unmounted mid-transition while the next chunk was suspending). Each page still
+  // animates in on its own via <PageTransition>, so navigation is now instant.
   return (
     <Suspense fallback={<FullPageLoader />}>
-      <AnimatePresence mode="wait">
-        <Routes location={location} key={location.pathname}>
+      <Routes>
           {/* Public */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
@@ -77,6 +82,7 @@ export function App() {
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/preferences" element={<PreferencesPage />} />
               <Route path="/applications" element={<TrackingPage />} />
               <Route path="/ai-tools" element={<AiToolsPage />} />
               <Route path="/rewards" element={<RewardsPage />} />
@@ -85,6 +91,8 @@ export function App() {
               <Route path="/documents" element={<DocumentsPage />} />
               <Route path="/interview" element={<InterviewPage />} />
               <Route path="/ats" element={<AtsSimulatorPage />} />
+              <Route path="/analyze" element={<JobAnalyzerPage />} />
+              <Route path="/market" element={<MarketPage />} />
               <Route path="/referrals" element={<ReferralPage />} />
               <Route path="/guide" element={<GuidePage />} />
               <Route path="/portals" element={<SupportedPortalsPage />} />
@@ -97,7 +105,6 @@ export function App() {
 
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
-      </AnimatePresence>
     </Suspense>
   )
 }

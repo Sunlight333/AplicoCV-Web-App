@@ -13,15 +13,40 @@ import { useT } from '@/i18n/I18nProvider'
 import {
   generateSuperCv,
   generatePersonalizedLetter,
+  getSalaryInsights,
   type SuperCvResult,
   type CoverLetterTone,
+  type SalaryInsights,
 } from '@/services/ai'
 import { downloadTextPdf } from '@/lib/pdf'
 import { ApiError } from '@/lib/apiClient'
 
 const SUPER_CV_COST = 50
 const LETTER_COST = 40
+const SALARY_COST = 15
 const TONES: CoverLetterTone[] = ['professional', 'warm', 'direct']
+
+interface SalaryCopy {
+  title: string; desc: string; role: string; rolePh: string; region: string; regionPh: string
+  run: (n: number) => string; range: string; negotiation: string
+}
+const SAL: Record<Locale, SalaryCopy> = {
+  en: {
+    title: 'Salary & negotiation copilot', desc: 'A market-aware estimate for your target role plus negotiation talking points.',
+    role: 'Target role *', rolePh: 'e.g. Senior Product Manager', region: 'Region (optional)', regionPh: 'e.g. Remote US, Berlin…',
+    run: (n) => `✦ Get salary insights (${n} credits)`, range: 'Estimated range', negotiation: 'Negotiation points',
+  },
+  es: {
+    title: 'Copiloto de salario y negociación', desc: 'Una estimación de mercado para tu puesto objetivo y puntos clave de negociación.',
+    role: 'Puesto objetivo *', rolePh: 'ej. Gerente de Producto Senior', region: 'Región (opcional)', regionPh: 'ej. Remoto US, Berlín…',
+    run: (n) => `✦ Ver salario (${n} créditos)`, range: 'Rango estimado', negotiation: 'Puntos de negociación',
+  },
+  'pt-BR': {
+    title: 'Copiloto de salário e negociação', desc: 'Uma estimativa de mercado para o cargo desejado e pontos de negociação.',
+    role: 'Cargo desejado *', rolePh: 'ex. Gerente de Produto Sênior', region: 'Região (opcional)', regionPh: 'ex. Remoto US, Berlim…',
+    run: (n) => `✦ Ver salário (${n} créditos)`, range: 'Faixa estimada', negotiation: 'Pontos de negociação',
+  },
+}
 
 interface OptCopy {
   title: string; subtitle: string; viewDocs: string
@@ -81,6 +106,7 @@ export default function OptimizePage() {
   const { toast } = useToast()
   const t = useT()
   const c = useCopy(COPY)
+  const sc = useCopy(SAL)
   const [targetRole, setTargetRole] = useState('')
   const [jobDescription, setJobDescription] = useState('')
   const [source, setSource] = useState<'system' | 'paste'>('system')
@@ -93,6 +119,18 @@ export default function OptimizePage() {
   const [letterJd, setLetterJd] = useState('')
   const [tone, setTone] = useState<CoverLetterTone>('professional')
   const [letter, setLetter] = useState('')
+
+  const [salaryRole, setSalaryRole] = useState('')
+  const [salaryRegion, setSalaryRegion] = useState('')
+  const [salary, setSalary] = useState<SalaryInsights | null>(null)
+  const salaryM = useMutation({
+    mutationFn: () => getSalaryInsights({ role: salaryRole.trim(), region: salaryRegion.trim() || undefined }),
+    onSuccess: (r) => {
+      setSalary(r)
+      qc.invalidateQueries({ queryKey: ['credits'] })
+    },
+    onError: (e) => toast(e instanceof ApiError ? e.message : c.genError, 'error'),
+  })
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -198,7 +236,7 @@ export default function OptimizePage() {
           <pre className="mt-4 max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-lg border border-navy-100 bg-navy-50/40 p-4 text-sm text-navy-700">{result.cvText}</pre>
           <div className="mt-4 flex gap-2">
             <Button variant="secondary" className="rounded-full" onClick={() => { navigator.clipboard.writeText(result.cvText); toast(c.copied) }}>{c.copy}</Button>
-            <Button variant="secondary" className="rounded-full" onClick={() => downloadTextPdf(`Super CV — ${targetRole}`, result.cvText)}>{c.downloadPdf}</Button>
+            <Button variant="secondary" className="rounded-full" onClick={() => downloadTextPdf(targetRole || 'CV', result.cvText)}>{c.downloadPdf}</Button>
           </div>
         </Card>
       )}
@@ -245,6 +283,37 @@ export default function OptimizePage() {
               <Button variant="secondary" className="rounded-full" onClick={() => { navigator.clipboard.writeText(letter); toast(c.copied) }}>{c.copy}</Button>
               <Button variant="secondary" className="rounded-full" onClick={() => downloadTextPdf(`Cover letter — ${company || letterRole || 'role'}`, letter)}>{c.downloadPdf}</Button>
             </div>
+          </div>
+        )}
+      </Card>
+
+      {/* Salary & negotiation copilot (Phase 3.3) */}
+      <Card className="mt-6 p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-navy-900">{sc.title}</h2>
+            <p className="mt-1 text-sm text-navy-500">{sc.desc}</p>
+          </div>
+          <Badge tone="info">{c.credits(SALARY_COST)}</Badge>
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <Input label={sc.role} placeholder={sc.rolePh} value={salaryRole} onChange={(e) => setSalaryRole(e.target.value)} />
+          <Input label={sc.region} placeholder={sc.regionPh} value={salaryRegion} onChange={(e) => setSalaryRegion(e.target.value)} />
+        </div>
+        <Button className="mt-4 rounded-full" loading={salaryM.isPending} disabled={!salaryRole.trim()} onClick={() => salaryM.mutate()}>
+          {sc.run(SALARY_COST)}
+        </Button>
+        {salary && (
+          <div className="mt-5 rounded-xl border border-navy-100 bg-navy-50/40 p-4">
+            <p className="text-sm text-navy-400">{sc.range}</p>
+            <p className="text-2xl font-bold text-navy-900">{salary.estimatedRange}</p>
+            <p className="mt-3 text-sm font-semibold text-navy-700">{sc.negotiation}</p>
+            <ul className="mt-2 space-y-1.5">
+              {salary.negotiationPoints.map((p, i) => (
+                <li key={i} className="flex gap-2 text-sm text-navy-600"><span className="text-electric-500">→</span>{p}</li>
+              ))}
+            </ul>
+            <p className="mt-3 text-xs text-navy-400">{salary.marketNote}</p>
           </div>
         )}
       </Card>

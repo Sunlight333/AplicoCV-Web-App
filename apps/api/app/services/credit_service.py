@@ -25,6 +25,11 @@ AI_COSTS = {
     "personal_analysis": 10,
     "skill_suggestions": 10,
     "interview": 30,  # one mock-interview session (questions + feedback)
+    "predictive_score": 15,  # Phase 2.4 predicted apply odds
+    "ats_simulate": 15,  # Phase 2.3 ATS parsing simulation
+    "ghost_recruiter": 10,  # Phase 3.1 apply / skip advice
+    "salary_insights": 15,  # Phase 3.3 copilot salary + negotiation
+    "field_answer": 5,  # Phase 1.4 single smart open-text answer
 }
 
 # One-time credits for completing each profile section (the competitor's model).

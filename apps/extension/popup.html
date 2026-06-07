@@ -130,6 +130,14 @@
           style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:10px 0;padding:8px 12px;border-radius:10px;background:#f1f5fb;font-size:12px;font-weight:600;color:#0b1426;text-decoration:none"
         ></a>
 
+        <!-- Prepared "apply on your behalf" banner (set from /apply/queue) -->
+        <a
+          id="apply-banner"
+          class="hidden"
+          target="_blank"
+          style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin:0 0 10px;padding:8px 12px;border-radius:10px;background:#eef4ff;border:1px solid #cfe0ff;font-size:12px;font-weight:600;color:#0b1426;text-decoration:none"
+        ></a>
+
         <button class="primary" id="autofill" disabled>Autofill this form</button>
         <div class="status" id="status"></div>
 
@@ -138,6 +146,15 @@
           <span id="tailor-label">Use a CV tailored to this job</span>
           <label class="switch">
             <input type="checkbox" id="tailor-toggle" />
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- AI-answer open questions toggle (Phase 1.4) -->
+        <div id="smart-row" class="toggle-row hidden">
+          <span>AI-answer open questions (5 credits each)</span>
+          <label class="switch">
+            <input type="checkbox" id="smart-toggle" />
             <span class="slider"></span>
           </label>
         </div>

@@ -10,6 +10,8 @@ import { useAuth } from '@/auth/AuthContext'
 import { getStats, getRecommendations } from '@/services/dashboard'
 import { getProfile } from '@/services/profile'
 import { runAgentScan } from '@/services/ai'
+import { requestApply, listApplyTasks, dismissApplyTask } from '@/services/apply'
+import { getBurnout } from '@/services/insights'
 import { listApplications } from '@/services/applications'
 import { statusMeta } from './tracking/statusMeta'
 import { useToast } from '@/components/Toast'
@@ -43,6 +45,13 @@ export default function DashboardPage() {
   })
   const recs = useQuery({ queryKey: ['recommendations'], queryFn: getRecommendations })
   const profile = useQuery({ queryKey: ['profile'], queryFn: getProfile })
+  const burnout = useQuery({ queryKey: ['burnout'], queryFn: getBurnout })
+  const applyTasks = useQuery({ queryKey: ['apply-tasks'], queryFn: listApplyTasks })
+
+  const dismiss = useMutation({
+    mutationFn: dismissApplyTask,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['apply-tasks'] }),
+  })
 
   // The snapshot reflects the best ATS-scored match the agent has surfaced for
   // this user, rather than a hardcoded value. Null until any data exists.
@@ -56,6 +65,18 @@ export default function DashboardPage() {
       toast(td.scanDone(results.length))
     },
     onError: () => toast(td.scanError, 'error'),
+  })
+
+  // Phase 1.3 — "apply on my behalf": tailor a CV + cover letter and queue the
+  // application for the extension to autofill (user reviews before final submit).
+  const apply = useMutation({
+    mutationFn: requestApply,
+    onSuccess: () => {
+      toast('Tailored and queued — open the extension on the job page to finish applying.')
+      qc.invalidateQueries({ queryKey: ['credits'] })
+      qc.invalidateQueries({ queryKey: ['apply-tasks'] })
+    },
+    onError: () => toast('Could not queue this application (premium feature).', 'error'),
   })
 
   return (
@@ -137,6 +158,93 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+
+      {/* Free monthly application quota (Phase 5.2) */}
+      {stats.data?.monthlyLimit != null && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-navy-500">
+              {stats.data.applicationsThisMonth ?? 0}/{stats.data.monthlyLimit} {td.appsThisMonth}
+            </span>
+            {(stats.data.applicationsThisMonth ?? 0) >= stats.data.monthlyLimit && (
+              <Link to="/settings/billing" className="font-medium text-electric-600 hover:underline">
+                {td.freeLimitReached}
+              </Link>
+            )}
+          </div>
+          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-navy-100">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-electric-400 to-violet-500"
+              style={{ width: `${Math.min(100, ((stats.data.applicationsThisMonth ?? 0) / stats.data.monthlyLimit) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Burnout check (Phase 3.4) — only surfaced when strain is elevated */}
+      {burnout.data && burnout.data.level !== 'healthy' && (
+        <Card className="mt-6 p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-navy-900">Job-search burnout check</h2>
+                <Badge tone={burnout.data.level === 'high' ? 'warning' : 'neutral'}>
+                  {burnout.data.level === 'high' ? 'High strain' : 'Elevated'}
+                </Badge>
+              </div>
+              <p className="mt-1 text-sm text-navy-500">
+                {burnout.data.applicationsLast7Days} applications in the last 7 days ·{' '}
+                {Math.round(burnout.data.responseRate * 100)}% response rate
+              </p>
+            </div>
+          </div>
+          <ul className="mt-3 space-y-1.5">
+            {burnout.data.suggestions.map((s, i) => (
+              <li key={i} className="flex gap-2 text-sm text-navy-600"><span className="text-electric-500">→</span>{s}</li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Prepared "apply on your behalf" tasks (Phase 1.3) */}
+      {applyTasks.data && applyTasks.data.filter((tk) => tk.status === 'prepared').length > 0 && (
+        <Card className="mt-6 p-5">
+          <h2 className="font-semibold text-navy-900">Prepared applications</h2>
+          <p className="mt-1 text-sm text-navy-500">
+            Tailored and ready — open the AplicoCV extension on each job page to autofill and submit.
+          </p>
+          <div className="mt-4 divide-y divide-navy-100">
+            {applyTasks.data
+              .filter((tk) => tk.status === 'prepared')
+              .map((tk) => (
+                <div key={tk.id} className="flex items-center gap-3 py-3">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-navy-900">{tk.jobTitle}</p>
+                    <p className="truncate text-xs text-navy-400">
+                      {tk.company} · {tk.portal}
+                      {tk.matchScore != null ? ` · ${tk.matchScore}% match` : ''}
+                    </p>
+                  </div>
+                  <a
+                    href={tk.jobUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-8 items-center rounded-lg bg-electric-500 px-3 text-xs font-semibold text-white hover:bg-electric-600"
+                  >
+                    Open job
+                  </a>
+                  <button
+                    onClick={() => dismiss.mutate(tk.id)}
+                    disabled={dismiss.isPending}
+                    className="text-xs font-medium text-navy-400 hover:text-red-500"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ))}
+          </div>
+        </Card>
+      )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         {/* Recent applications */}
@@ -246,14 +354,35 @@ export default function DashboardPage() {
                       💡 {rec.strategicNote}
                     </p>
                   )}
-                  <a
-                    href={rec.jobUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-4 inline-flex h-9 items-center justify-center rounded-lg bg-electric-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-electric-600"
-                  >
-                    {td.goApply}
-                  </a>
+                  <div className="mt-4 flex items-center gap-2">
+                    <a
+                      href={rec.jobUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-9 flex-1 items-center justify-center rounded-lg bg-electric-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-electric-600"
+                    >
+                      {td.goApply}
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        apply.mutate({
+                          recommendationId: rec.id,
+                          jobUrl: rec.jobUrl,
+                          portal: rec.portal,
+                          jobTitle: rec.jobTitle,
+                          company: rec.company,
+                        })
+                      }
+                      disabled={apply.isPending}
+                      title="Tailor my CV + cover letter and queue this application"
+                      className="inline-flex h-9 items-center justify-center rounded-lg border border-electric-300 bg-electric-50 px-3 text-sm font-semibold text-electric-700 transition-colors hover:bg-electric-100 disabled:opacity-60"
+                    >
+                      {apply.isPending && apply.variables?.recommendationId === rec.id
+                        ? 'Preparing…'
+                        : 'Apply for me'}
+                    </button>
+                  </div>
                 </HoverCard>
               ))}
         </div>

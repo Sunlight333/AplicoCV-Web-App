@@ -74,6 +74,25 @@ class Application(Base):
     applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class AutofillEvent(Base):
+    """Telemetry the extension reports after each autofill (Phase 2.5).
+
+    Lets us derive *measured* time-saved from how many fields were actually filled
+    instead of a flat per-application constant. Its own table, so create_all adds it
+    cleanly without altering existing tables.
+    """
+
+    __tablename__ = "autofill_events"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    portal: Mapped[str | None] = mapped_column(String, nullable=True)
+    job_url: Mapped[str | None] = mapped_column(String, nullable=True)
+    fields_filled: Mapped[int] = mapped_column(default=0)
+    seconds_per_field: Mapped[int] = mapped_column(default=25)  # avg manual typing time
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class CoverLetter(Base):
     __tablename__ = "cover_letters"
 
@@ -198,6 +217,34 @@ class InterviewSession(Base):
     answers: Mapped[list | None] = mapped_column(JSON, nullable=True)
     feedback: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     overall_score: Mapped[int | None] = mapped_column(nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class ApplyTask(Base):
+    """Assisted-apply queue (Phase 1.3 / Phase 4.4 ALPHA agent).
+
+    A user confirms 'apply' on a recommendation; the backend prepares a tailored CV
+    and cover letter and queues the task. The extension picks up 'prepared' tasks,
+    autofills the posting, and reports back, flipping status to 'submitted'.
+    Statuses: queued | prepared | submitted | dismissed | error.
+    """
+
+    __tablename__ = "apply_tasks"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"), index=True)
+    recommendation_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    job_url: Mapped[str] = mapped_column(String)
+    portal: Mapped[str] = mapped_column(String)
+    job_title: Mapped[str] = mapped_column(String)
+    company: Mapped[str] = mapped_column(String)
+    job_description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String, default="queued")
+    cv_version_label: Mapped[str | None] = mapped_column(String, nullable=True)
+    tailored_profile: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    cover_letter: Mapped[str | None] = mapped_column(Text, nullable=True)
+    match_score: Mapped[int | None] = mapped_column(nullable=True)
+    autonomous: Mapped[bool] = mapped_column(default=False)  # queued by ALPHA agent
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
