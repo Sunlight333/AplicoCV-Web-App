@@ -75,7 +75,7 @@ const COPY: Record<Locale, CareersCopy> = {
 export default function CareersPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
+    <MarketingShell heroImage="/pages/careers-culture.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {c.perks.map((p) => (
           <Card key={p.title} className="p-5">

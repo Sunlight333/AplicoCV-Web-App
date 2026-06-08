@@ -76,7 +76,7 @@ export default function ContactPage() {
   }
 
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle} max="max-w-5xl">
+    <MarketingShell heroImage="/pages/contact-support.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle} max="max-w-5xl">
       <div className="grid gap-6 lg:grid-cols-[1.2fr_1fr]">
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-navy-900">{c.formTitle}</h2>

@@ -49,8 +49,9 @@ Open manifest.json and make sure the production origin appears in two places:
   - in "host_permissions", the entry "https://aplicocv.com/*"
   - in the bridge content script "matches", the entry "https://aplicocv.com/*"
 
-Set the "version" in manifest.json (for the first public release, use 1.0.0).
-Every later update must use a higher number than the previous one.
+Set the "version" in manifest.json. The current package is 1.4.4 (the
+ready-to-upload zip is apps/extension/AplicoCV-extension-1.4.4.zip). Every
+resubmission must use a higher number than the previously uploaded draft.
 
 Replace the placeholder toolbar icons in apps/extension/icons if you have not
 already. The store also needs a separate 128 by 128 listing icon, which is
@@ -105,34 +106,40 @@ Summary. A short single line, for example: Autofill job application forms across
 major portals with your AplicoCV profile.
 
 Description. The longer text that explains what the extension does and why
-someone should install it. Suggested copy:
+someone should install it.
+
+IMPORTANT — keyword-spam rejection. Google rejected an earlier draft under "Spam
+and placement" because the description listed every supported portal by name,
+which reads as keyword stuffing. Do NOT paste a long list of portal/brand names.
+Describe coverage in plain language instead. Use this cleaned copy:
 
     AplicoCV fills out job application forms for you, in one click.
 
-    Tired of retyping the same name, email, work history, and skills into every
-    job portal? Upload your CV once to AplicoCV and the AI structures your whole
-    professional profile. From then on, the extension completes application
-    forms across the job sites you already use.
+    Tired of retyping your name, email, work history and skills into every job
+    site? Upload your CV once to AplicoCV and our AI structures your professional
+    profile. After that, the extension completes application forms on the sites
+    you already use — so you spend your time applying, not copy-pasting.
 
     What it does
     - One-click autofill on job application forms
-    - Detects fields by label and attribute, even on dynamic sites such as
-      LinkedIn and Workday that load forms after the page
-    - Fills using native input events, so forms built with React or Vue register
-      your data correctly
-    - Shows whether the current site is supported, right in the popup
-    - Optional, always-confirmed login autofill for your saved portal credentials
+    - Recognizes fields by their labels, even on modern sites that load their
+      forms dynamically
+    - Fills using native input events, so forms built with frameworks like React
+      or Vue register your details correctly
+    - Shows whether the current page is supported, right in the popup
+    - Optional login autofill for saved portal credentials, always with your
+      confirmation
 
-    Supported portals
-    LinkedIn, Workday, Indeed, Glassdoor, Get on Board, Computrabajo, Bumeran,
-    Zonajobs, Laborum, Konzerta, Trabajando.com, WeRemoto, RemoteOK, and We Work
-    Remotely. Other sites fall back to smart field detection.
+    Where it works
+    It supports the major international and Latin American job portals, and falls
+    back to smart field detection on other sites, so it keeps working across the
+    places you actually apply.
 
     Privacy and security
-    Your sign-in token is stored encrypted on your device. Portal passwords are
-    encrypted and only ever decrypted on the server, on demand, and always after
-    you confirm. Your data is used solely to autofill your applications and is
-    never sold.
+    Your sign-in token is stored encrypted on your device. Saved portal passwords
+    are encrypted and only decrypted on the server, on demand, and always after
+    you confirm. Your data is used only to autofill your applications and is never
+    sold.
 
     A free AplicoCV account is required. Sign in once and the extension connects
     to your profile automatically.
@@ -169,15 +176,18 @@ This screen decides most approvals and rejections, so be accurate.
 Single purpose. State it in one sentence, for example: AplicoCV autofills job
 application forms using the data in the user's AplicoCV profile.
 
-Permission justifications. Explain why each permission is needed:
+Permission justifications. The extension requests only two API permissions plus
+host access. Justify each exactly as requested (do not list permissions you do
+not request — the earlier "scripting"/"activeTab" entries were removed):
 
   - storage: to cache the encrypted sign-in token and a short-lived copy of the
-    profile
-  - activeTab and scripting: to read and fill form fields on the page where the
-    user triggers autofill
-  - tabs: to detect which job portal is open and show whether it is supported
-  - host permissions: each portal domain is needed to fill that portal's
-    application form
+    profile used to fill forms
+  - tabs: to detect which job site the user is on and show whether it is
+    supported
+  - host permissions: each supported site's domain is needed so the extension
+    can read and fill that site's application form (the content script that does
+    the filling is declared statically in the manifest, so no "scripting"
+    permission is needed)
 
 Remote code. Answer that you are NOT using remote code. All JavaScript ships
 inside the package; the extension only fetches data from your API.

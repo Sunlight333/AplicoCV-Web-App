@@ -93,7 +93,7 @@ function FaqRow({ q, a }: { q: string; a: string }) {
 export default function HelpPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
+    <MarketingShell heroImage="/pages/help-center.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {c.categories.map((cat) => (
           <Card key={cat.title} className="p-5">

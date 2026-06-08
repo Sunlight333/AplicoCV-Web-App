@@ -84,7 +84,7 @@ const COPY: Record<Locale, AboutCopy> = {
 export default function AboutPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
+    <MarketingShell heroImage="/pages/about-team.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
       <div className="space-y-4 text-navy-600">
         <p>{c.p1}</p>
         <p>{c.p2}</p>

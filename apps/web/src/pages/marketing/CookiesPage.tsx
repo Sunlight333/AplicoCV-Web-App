@@ -62,7 +62,7 @@ const COPY: Record<Locale, CookiesCopy> = {
 export default function CookiesPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
+    <MarketingShell heroImage="/pages/cookies-abstract.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
       <LegalSections sections={c.sections} />
       <MarketingSection title={c.moreTitle}>
         <p>

@@ -127,7 +127,7 @@ const COPY: Record<Locale, PrivacyCopy> = {
 export default function PrivacyPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow="Legal" title={c.title} subtitle={c.updated}>
+    <MarketingShell heroImage="/pages/privacy-control.png" eyebrow="Legal" title={c.title} subtitle={c.updated}>
       <p className="text-navy-600">{c.lead}</p>
       <LegalSections sections={c.sections} />
     </MarketingShell>

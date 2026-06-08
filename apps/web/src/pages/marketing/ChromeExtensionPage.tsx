@@ -79,7 +79,7 @@ const COPY: Record<Locale, ExtCopy> = {
 export default function ChromeExtensionPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle} max="max-w-5xl">
+    <MarketingShell heroImage="/pages/extension-install.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle} max="max-w-5xl">
       <div className="flex flex-col items-center gap-3">
         {STORE_READY ? (
           <a href={CHROME_STORE_URL} target="_blank" rel="noreferrer">

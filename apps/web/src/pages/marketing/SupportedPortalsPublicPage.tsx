@@ -44,7 +44,7 @@ const COPY: Record<Locale, PortalsCopy> = {
 export default function SupportedPortalsPublicPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle} max="max-w-5xl">
+    <MarketingShell heroImage="/pages/portals-network.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle} max="max-w-5xl">
       <Card className="p-6">
         <div className="flex items-center gap-2">
           <Badge tone="success">{c.full}</Badge>

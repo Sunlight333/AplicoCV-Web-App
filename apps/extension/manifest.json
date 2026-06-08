@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AplicoCV — One-click job applications",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "description": "Autofill job application forms across major portals with your AplicoCV profile.",
   "action": {
     "default_popup": "popup.html",

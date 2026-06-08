@@ -87,7 +87,7 @@ const COPY: Record<Locale, SecurityCopy> = {
 export default function SecurityPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
+    <MarketingShell heroImage="/pages/security-abstract.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
       <LegalSections sections={c.sections} />
     </MarketingShell>
   )

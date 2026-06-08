@@ -127,7 +127,7 @@ function PostCard({ post, readMore, showLess }: { post: Post; readMore: string; 
 export default function BlogPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle} max="max-w-5xl">
+    <MarketingShell heroImage="/pages/blog-hero.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle} max="max-w-5xl">
       <div className="grid gap-5 md:grid-cols-2">
         {c.posts.map((p) => (
           <PostCard key={p.title} post={p} readMore={c.readMore} showLess={c.showLess} />

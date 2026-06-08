@@ -13,12 +13,15 @@ export function MarketingShell({
   subtitle,
   children,
   max = 'max-w-4xl',
+  heroImage,
 }: {
   eyebrow?: string
   title: string
   subtitle?: string
   children: ReactNode
   max?: string
+  /** Optional full-width hero background photo (rendered with a legibility scrim). */
+  heroImage?: string
 }) {
   const t = useT()
   return (
@@ -41,16 +44,59 @@ export function MarketingShell({
       </header>
 
       <main>
-        <section className="relative overflow-hidden border-b border-navy-100 bg-navy-50/40">
-          <div className="pointer-events-none absolute left-1/2 top-[-6rem] -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-electric-100/50 blur-[120px]" />
-          <div className="mx-auto max-w-4xl px-6 py-16 text-center">
-            {eyebrow && (
-              <p className="text-sm font-semibold uppercase tracking-widest text-electric-600">{eyebrow}</p>
-            )}
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-navy-900 sm:text-4xl">{title}</h1>
-            {subtitle && <p className="mx-auto mt-4 max-w-2xl text-lg text-navy-500">{subtitle}</p>}
-          </div>
-        </section>
+        {heroImage ? (
+          // Image hero: a contained, correctly-proportioned rounded photo so the
+          // whole image shows (no thin full-bleed crop), with a bottom gradient
+          // (inline style for reliable rendering) and the heading anchored low-left
+          // so it never covers the subject's face wherever they sit in the frame.
+          <section className="border-b border-navy-100 bg-white">
+            <div className="mx-auto max-w-6xl px-6 pt-6 sm:pt-8">
+              <div className="relative overflow-hidden rounded-3xl shadow-xl ring-1 ring-navy-900/5">
+                <div className="aspect-[16/10] w-full sm:aspect-[16/9]">
+                  <img
+                    src={heroImage}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-full w-full object-cover object-[center_35%]"
+                  />
+                </div>
+                <div
+                  className="pointer-events-none absolute inset-0"
+                  style={{
+                    background:
+                      'linear-gradient(to top, rgba(2,6,23,0.88) 0%, rgba(2,6,23,0.45) 38%, rgba(2,6,23,0.06) 70%, rgba(2,6,23,0) 100%)',
+                  }}
+                />
+                <div className="absolute inset-x-0 bottom-0 p-7 sm:p-10 lg:p-12">
+                  <div className="max-w-2xl">
+                    {eyebrow && (
+                      <p className="text-xs font-semibold uppercase tracking-widest text-electric-300 sm:text-sm">
+                        {eyebrow}
+                      </p>
+                    )}
+                    <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-white drop-shadow-md sm:text-4xl lg:text-5xl">
+                      {title}
+                    </h1>
+                    {subtitle && (
+                      <p className="mt-3 max-w-xl text-sm text-white/85 sm:text-base">{subtitle}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        ) : (
+          <section className="relative overflow-hidden border-b border-navy-100 bg-navy-50/40">
+            <div className="pointer-events-none absolute left-1/2 top-[-6rem] -z-10 h-72 w-72 -translate-x-1/2 rounded-full bg-electric-100/50 blur-[120px]" />
+            <div className="mx-auto max-w-4xl px-6 py-16 text-center">
+              {eyebrow && (
+                <p className="text-sm font-semibold uppercase tracking-widest text-electric-600">{eyebrow}</p>
+              )}
+              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-navy-900 sm:text-4xl">{title}</h1>
+              {subtitle && <p className="mx-auto mt-4 max-w-2xl text-lg text-navy-500">{subtitle}</p>}
+            </div>
+          </section>
+        )}
 
         <div className={`mx-auto ${max} px-6 py-14`}>{children}</div>
       </main>

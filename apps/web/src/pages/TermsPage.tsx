@@ -64,7 +64,7 @@ const COPY: Record<Locale, TermsCopy> = {
 export default function TermsPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow="Legal" title={c.title} subtitle={c.updated}>
+    <MarketingShell heroImage="/pages/terms-document.png" eyebrow="Legal" title={c.title} subtitle={c.updated}>
       <p className="text-navy-600">{c.lead}</p>
       <LegalSections sections={c.sections} />
     </MarketingShell>

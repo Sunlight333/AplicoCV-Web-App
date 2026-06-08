@@ -49,7 +49,7 @@ const COPY: Record<Locale, StatusCopy> = {
 export default function StatusPage() {
   const c = useCopy(COPY)
   return (
-    <MarketingShell eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
+    <MarketingShell heroImage="/pages/status-uptime.png" eyebrow={c.eyebrow} title={c.title} subtitle={c.subtitle}>
       <Card className="flex items-center gap-3 border-green-200 bg-green-50 p-5">
         <span className="flex h-3 w-3 flex-none rounded-full bg-green-500" />
         <p className="font-semibold text-green-700">{c.allOperational}</p>
