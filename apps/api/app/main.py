@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import asynccontextmanager, suppress
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.db import init_db
+from app.db import SessionLocal, init_db
 from app.ratelimit import RATELIMIT_ENABLED, limiter
 from app.routers import (
     agent,
@@ -20,6 +21,7 @@ from app.routers import (
     documents,
     faq,
     insights,
+    monitoring,
     operations,
     portals,
     profiles,
@@ -28,6 +30,28 @@ from app.routers import (
     users,
 )
 from app.seed import seed
+
+
+async def _monitoring_loop() -> None:
+    """In-process scheduler for Smart Job Monitoring. Runs the scan -> match ->
+    queue -> digest sweep every `agent_scan_interval_hours`. Needs no Celery/Redis,
+    so it works on the plain systemd + SQLite production server. Failures in a sweep
+    are swallowed so the loop never dies."""
+    from app.services import monitoring_service
+
+    interval = max(1, settings.agent_scan_interval_hours) * 3600
+    await asyncio.sleep(60)  # let the app finish booting before the first sweep
+    while True:
+        try:
+            async with SessionLocal() as db:
+                # Only one worker runs each sweep (cross-process DB lease).
+                if await monitoring_service.acquire_sweep_lease(db, interval):
+                    await monitoring_service.run_once(db)
+        except asyncio.CancelledError:
+            raise
+        except Exception:  # pragma: no cover - a failed sweep must not crash the loop
+            pass
+        await asyncio.sleep(interval)
 
 
 @asynccontextmanager
@@ -47,7 +71,14 @@ async def lifespan(_: FastAPI):
             pass
     await init_db()
     await seed()
-    yield
+    # Start the background monitoring scheduler (in-process; no external broker).
+    monitor_task = asyncio.create_task(_monitoring_loop())
+    try:
+        yield
+    finally:
+        monitor_task.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await monitor_task
 
 
 app = FastAPI(
@@ -96,6 +127,7 @@ for r in (
     referrals.router,
     insights.router,
     apply.router,
+    monitoring.router,
 ):
     app.include_router(r, prefix="/api")
 
@@ -108,7 +140,9 @@ async def health() -> dict[str, object]:
         "environment": settings.environment,
         "integrations": {
             "llm": settings.resolved_llm_provider,
+            "payments": settings.payment_provider,
             "stripe": settings.stripe_enabled,
+            "mercadopago": settings.mercadopago_enabled,
             "google_oauth": settings.google_oauth_enabled,
             "storage": settings.storage_provider if settings.storage_enabled else "local",
             "email": settings.email_provider if settings.email_enabled else "console",

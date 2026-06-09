@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
+import { getPublicPricing } from '@/services/billing'
+import { formatMoney } from '@/lib/money'
+import { currentLocale } from '@/lib/locale'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/Button'
 import { IconTile } from '@/components/ui/IconTile'
@@ -642,9 +646,13 @@ function StatNumber({ value, suffix }: { value: number; suffix?: string }) {
 function Pricing() {
   const t = useT()
   const [annual, setAnnual] = useState(true)
-  // Keep these in sync with the backend plan catalogue (GET /billing/plans):
-  // Pro is 7/month, and the annual plan works out to ~6/month (2 months free).
-  const premium = annual ? 6 : 7
+  // Live prices in the configured currency (default CLP), from the public catalogue.
+  const pricing = useQuery({ queryKey: ['public-pricing'], queryFn: getPublicPricing })
+  const cur = pricing.data?.currency ?? 'CLP'
+  const monthly = pricing.data?.plans.find((p) => p.id === 'pro_monthly')?.price ?? 6990
+  const annualYear = pricing.data?.plans.find((p) => p.id === 'pro_annual')?.price ?? 69900
+  const premium = annual ? annualYear / 12 : monthly
+  const premiumLabel = formatMoney(premium, cur, currentLocale())
   return (
     <section id="pricing" className="mx-auto max-w-5xl px-6 py-28">
       <Reveal className="mx-auto max-w-2xl text-center">
@@ -696,7 +704,7 @@ function Pricing() {
             </span>
             <h3 className="mt-3 font-semibold text-navy-900">{t.pricing.premium.name}</h3>
             <p className="mt-3 text-5xl font-extrabold text-navy-900">
-              ${premium}
+              {premiumLabel}
               <span className="text-base font-medium text-navy-400">{t.pricing.perMonth}</span>
             </p>
             <p className="mt-1 text-sm text-navy-400">{annual ? t.pricing.billedAnnually : t.pricing.billedMonthly}</p>

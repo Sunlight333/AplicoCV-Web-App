@@ -38,6 +38,7 @@ interface ProfileExtraCopy {
   baseCoverLetter: string; baseCoverLetterPh: string
   analysisTitle: string; analysisSub: string; analyzeBtn: string; strengths: string; growthArea: string; motivation: string
   skillsTitle: string; skillsSub: string; suggestBtn: string; analyzeError: string; suggestError: string
+  requiredBanner: string
 }
 
 const PROFILE_COPY: Record<Locale, ProfileExtraCopy> = {
@@ -56,6 +57,7 @@ const PROFILE_COPY: Record<Locale, ProfileExtraCopy> = {
     strengths: 'Strengths', growthArea: 'Growth area', motivation: 'Motivation',
     skillsTitle: 'Skill suggestions', skillsSub: 'Relevant skills to add to your profile.', suggestBtn: '✦ Suggest skills (10 credits)',
     analyzeError: 'Could not analyze', suggestError: 'Could not suggest skills',
+    requiredBanner: 'Complete these required sections so the tools work correctly:',
   },
   es: {
     tabs: { certifications: 'Certificaciones', projects: 'Proyectos', insights: 'Análisis IA' },
@@ -72,6 +74,7 @@ const PROFILE_COPY: Record<Locale, ProfileExtraCopy> = {
     strengths: 'Fortalezas', growthArea: 'Área de mejora', motivation: 'Motivación',
     skillsTitle: 'Sugerencias de habilidades', skillsSub: 'Habilidades relevantes para agregar a tu perfil.', suggestBtn: '✦ Sugerir habilidades (10 créditos)',
     analyzeError: 'No se pudo analizar', suggestError: 'No se pudieron sugerir habilidades',
+    requiredBanner: 'Completa estas secciones obligatorias para que las herramientas funcionen:',
   },
   'pt-BR': {
     tabs: { certifications: 'Certificações', projects: 'Projetos', insights: 'Análise IA' },
@@ -88,6 +91,7 @@ const PROFILE_COPY: Record<Locale, ProfileExtraCopy> = {
     strengths: 'Pontos fortes', growthArea: 'Ponto a desenvolver', motivation: 'Motivação',
     skillsTitle: 'Sugestões de habilidades', skillsSub: 'Habilidades relevantes para adicionar ao seu perfil.', suggestBtn: '✦ Sugerir habilidades (10 créditos)',
     analyzeError: 'Não foi possível analisar', suggestError: 'Não foi possível sugerir habilidades',
+    requiredBanner: 'Complete estas seções obrigatórias para as ferramentas funcionarem:',
   },
 }
 
@@ -143,6 +147,11 @@ export default function ProfilePage() {
   const [pasting, setPasting] = useState(false)
 
   const { data, isLoading } = useQuery({ queryKey: ['profile'], queryFn: getProfile })
+
+  // Experience, Education and Languages are required for the tools to work.
+  const reqMissing = data
+    ? (['experience', 'education', 'languages'] as const).filter((k) => !data[k]?.length)
+    : []
 
   const handleReimported = (profile: Profile) => {
     setDraft(profile)
@@ -283,10 +292,27 @@ export default function ProfilePage() {
             )}
           >
             {tabLabel(tabKey)}
+            {(reqMissing as readonly string[]).includes(tabKey) && (
+              <span className="ml-1 inline-block h-1.5 w-1.5 rounded-full bg-amber-500 align-middle" />
+            )}
             {tab === tabKey && <motion.span layoutId="profile-tab-underline" className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-electric-500" />}
           </button>
         ))}
       </div>
+
+      {reqMissing.length > 0 && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm text-amber-800">
+            {pc.requiredBanner}{' '}
+            {reqMissing.map((k, i) => (
+              <span key={k}>
+                {i > 0 && ', '}
+                <button onClick={() => setTab(k)} className="font-semibold text-amber-900 underline">{tabLabel(k)}</button>
+              </span>
+            ))}
+          </p>
+        </div>
+      )}
 
       <Card className="mt-6 p-6">
         {tab === 'personal' && (

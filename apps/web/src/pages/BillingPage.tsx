@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/auth/AuthContext'
 import { startCheckout, openCustomerPortal, getPlans, buyCreditPack, type Plan } from '@/services/billing'
 import { useT } from '@/i18n/I18nProvider'
+import { currentLocale } from '@/lib/locale'
+import { formatMoney } from '@/lib/money'
 
 export default function BillingPage() {
   const { user } = useAuth()
@@ -35,10 +37,11 @@ export default function BillingPage() {
     }
   }
 
+  const loc = currentLocale()
   const priceLabel = (p: Plan) =>
     p.price === 0
       ? t.app.nav.free
-      : `$${p.price}${p.interval === 'once' ? ` ${tp.oneTime}` : p.interval === 'year' ? '/yr' : '/mo'}`
+      : `${formatMoney(p.price, p.currency, loc)}${p.interval === 'once' ? ` ${tp.oneTime}` : p.interval === 'year' ? '/yr' : '/mo'}`
 
   return (
     <PageTransition>
@@ -100,7 +103,7 @@ export default function BillingPage() {
           <Card key={p.id} className={`p-5 text-center ${p.highlighted ? 'ring-2 ring-violet-300' : ''}`}>
             <p className="text-2xl font-extrabold text-navy-900">✦ {p.credits?.toLocaleString()}</p>
             <p className="mt-0.5 text-sm text-navy-500">{p.name}</p>
-            <p className="mt-2 text-lg font-bold text-navy-900">${p.price}</p>
+            <p className="mt-2 text-lg font-bold text-navy-900">{formatMoney(p.price, p.currency, loc)}</p>
             <Button className="mt-3 w-full rounded-full" variant="secondary" loading={loading === p.id} onClick={() => choose(p)}>
               {tp.buy}
             </Button>

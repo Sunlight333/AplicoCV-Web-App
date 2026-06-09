@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel
-from sqlalchemy import delete as sql_delete
+from sqlalchemy import delete as sql_delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db import get_db
@@ -33,6 +33,16 @@ class UserPatch(BaseModel):
     fullName: str | None = None
 
 
+# Profile sections the tool needs to work correctly. The user cannot finish
+# onboarding until each has at least one entry (client requirement).
+REQUIRED_SECTIONS = ("experience", "education", "languages")
+
+
+def _missing_required(profile_data: dict | None) -> list[str]:
+    p = profile_data or {}
+    return [s for s in REQUIRED_SECTIONS if not (p.get(s) or [])]
+
+
 @router.patch("/me/preferences", response_model=UserOut)
 async def update_preferences(
     prefs: JobPreferences,
@@ -51,7 +61,20 @@ async def update_me(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserOut:
-    if patch.onboarded is not None:
+    if patch.onboarded:
+        # Block completing onboarding until Experience, Education and Languages
+        # each have at least one entry — the tool can't autofill without them.
+        prof = (
+            await db.execute(select(Profile).where(Profile.user_id == user.id))
+        ).scalar_one_or_none()
+        missing = _missing_required(prof.data if prof else {})
+        if missing:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Add at least one entry to: " + ", ".join(missing),
+            )
+        user.onboarded = True
+    elif patch.onboarded is not None:
         user.onboarded = patch.onboarded
     if patch.fullName is not None:
         user.full_name = patch.fullName

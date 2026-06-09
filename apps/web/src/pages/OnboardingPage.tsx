@@ -6,6 +6,7 @@ import { useAuth } from '@/auth/AuthContext'
 import { useToast } from '@/components/Toast'
 import { updatePreferences, completeOnboarding } from '@/services/auth'
 import { saveParsedProfile } from '@/services/documents'
+import { ApiError } from '@/lib/apiClient'
 import type { JobPreferences, Profile } from '@/types'
 import { PreferencesStep } from './onboarding/PreferencesStep'
 import { UploadStep } from './onboarding/UploadStep'
@@ -49,8 +50,8 @@ export default function OnboardingPage() {
       setUser(updated)
       toast(to.allSet)
       navigate('/dashboard', { replace: true })
-    } catch {
-      toast(to.finishError, 'error')
+    } catch (e) {
+      toast(e instanceof ApiError ? e.message : to.finishError, 'error')
     } finally {
       setSaving(false)
     }

@@ -8,6 +8,7 @@ search links if the API is unavailable, so "Go apply" is always a working link.
 
 from __future__ import annotations
 
+import re
 from urllib.parse import quote_plus
 
 import httpx
@@ -42,10 +43,17 @@ def _search_links(role: str, location: str) -> list[dict]:
     ]
 
 
-def _score(title: str, skills: list[str]) -> int:
-    t = (title or "").lower()
-    hits = sum(1 for s in skills if s and s.lower() in t)
-    return min(96, 68 + hits * 7)
+def _score(title: str, skills: list[str], description: str = "") -> int:
+    """Match % from how many of the user's skills appear in the title + description.
+    Description-aware so a genuinely strong fit can realistically reach 85%+ (a
+    title-only score rarely could), which is what the high-match digest/queue need."""
+    text = f"{title or ''} {description or ''}".lower()
+    considered = [s for s in skills if s][:12]
+    if not considered:
+        return 72
+    hits = sum(1 for s in considered if s.lower() in text)
+    ratio = hits / len(considered)
+    return int(min(97, 60 + ratio * 38))
 
 
 async def _live_jobs(role: str, skills: list[str]) -> list[dict]:
@@ -62,12 +70,13 @@ async def _live_jobs(role: str, skills: list[str]) -> list[dict]:
         title = j.get("title")
         if not url or not title:
             continue
+        desc = re.sub(r"<[^>]+>", " ", j.get("description") or "")[:2000]
         out.append({
             "title": title,
             "company": j.get("company_name") or "Company",
             "portal": "Remotive",
             "url": url,
-            "score": _score(title, skills),
+            "score": _score(title, skills, desc),
             "note": None,
         })
     return out

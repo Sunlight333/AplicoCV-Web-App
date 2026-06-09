@@ -17,6 +17,17 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
+class AppLock(Base):
+    """Cross-process lease so a periodic job (the monitoring sweep) runs in only
+    one uvicorn worker even when several are started. New table — created on boot
+    by create_all, so no migration is required."""
+
+    __tablename__ = "app_locks"
+
+    name: Mapped[str] = mapped_column(String, primary_key=True)
+    locked_until: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class User(Base):
     __tablename__ = "users"
 

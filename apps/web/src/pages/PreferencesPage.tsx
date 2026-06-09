@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Locale } from '@/i18n/dictionaries'
 import { useCopy } from '@/i18n/useCopy'
 import { PageTransition } from '@/components/PageTransition'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { useToast } from '@/components/Toast'
 import { useAuth } from '@/auth/AuthContext'
 import { updatePreferences } from '@/services/auth'
+import { getMonitoringStatus, activateMonitoring } from '@/services/monitoring'
 import { ApiError } from '@/lib/apiClient'
 import type { JobPreferences, OnsiteLocation, Citizenship } from '@/types'
 
@@ -29,10 +30,13 @@ interface PrefCopy {
   onsite: string; cityPh: string; citizenship: string; citizenshipOpts: Record<Citizenship, string>; addCity: string; remove: string
   availability: string; asap: string; nextWeek: string; specificDate: string
   relocation: string; license: string; veteran: string; disability: string; accommodation: string; accommodationPh: string
-  gender: string; genderPh: string
-  howHeard: string; howHeardPh: string
+  choose: string
+  gender: string; genderOpts: string[]
+  howHeard: string; howHeardOpts: string[]
   defaults: string; defaultsHint: string; workedHere: string; knowsSomeone: string; dataPolicy: string
   assistant: string; assistantHint: string; emailDigest: string; autoApply: string
+  assistantLockText: string; assistantIncluded: string; assistantUntil: string
+  assistantActivate: string; assistantDaysWord: string; assistantActivated: string; assistantActivateError: string
   yes: string; no: string
 }
 
@@ -50,10 +54,13 @@ const COPY: Record<Locale, PrefCopy> = {
     onsite: 'Where would you work on-site?', cityPh: 'City or capital', citizenship: 'Work status there', citizenshipOpts: { citizen: 'Citizen', permanent_resident: 'Permanent resident', work_visa: 'Work visa', open_work_permit: 'Open work permit', not_authorized: 'Not yet authorized' }, addCity: 'Add city', remove: 'Remove',
     availability: 'Start availability', asap: 'As soon as possible', nextWeek: 'Next week', specificDate: 'Specific date',
     relocation: 'Open to relocation?', license: 'Driver’s license?', veteran: 'Veteran?', disability: 'Any disability?', accommodation: 'Accommodation needed for interviews?', accommodationPh: 'Optional — tell us how we can help',
-    gender: 'How do you identify?', genderPh: 'e.g. Man, Woman, Non-binary, Prefer not to say',
-    howHeard: 'How did you hear about jobs (default answer)', howHeardPh: 'e.g. LinkedIn / Job Board',
+    choose: 'Select…',
+    gender: 'How do you identify?', genderOpts: ['Man', 'Woman', 'Non-binary', 'Prefer not to say'],
+    howHeard: 'How did you hear about jobs (default answer)', howHeardOpts: ['LinkedIn', 'Job board', 'Referral', 'Company website', 'Other'],
     defaults: 'Application defaults', defaultsHint: 'Applied automatically to common application checkboxes so forms do not error.', workedHere: 'I have NOT worked at the company before', knowsSomeone: 'I do NOT know anyone at the company', dataPolicy: 'Accept the data policy of each site I apply to',
-    assistant: 'Smart assistant', assistantHint: 'Let AplicoCV work while you are offline.', emailDigest: 'Email me a digest of new high-match jobs', autoApply: 'Prepare strong matches for me to review (apply queue)',
+    assistant: 'Smart job monitoring', assistantHint: 'Let AplicoCV watch for high-match jobs while you are offline.', emailDigest: 'Email me a digest of new high-match jobs', autoApply: 'Prepare strong matches for me to review (apply queue)',
+    assistantLockText: 'Monitor high-match jobs automatically — get email alerts and a ready-to-review queue.', assistantIncluded: 'Included with your membership', assistantUntil: 'Active until',
+    assistantActivate: 'Activate', assistantDaysWord: 'days', assistantActivated: 'Monitoring activated', assistantActivateError: 'Could not activate',
     yes: 'Yes', no: 'No',
   },
   es: {
@@ -69,10 +76,13 @@ const COPY: Record<Locale, PrefCopy> = {
     onsite: '¿Dónde trabajarías presencial?', cityPh: 'Ciudad o capital', citizenship: 'Tu estatus allí', citizenshipOpts: { citizen: 'Ciudadano', permanent_resident: 'Residente permanente', work_visa: 'Visa de trabajo', open_work_permit: 'Permiso de trabajo abierto', not_authorized: 'Aún no autorizado' }, addCity: 'Agregar ciudad', remove: 'Quitar',
     availability: 'Disponibilidad de inicio', asap: 'Lo antes posible', nextWeek: 'La próxima semana', specificDate: 'Fecha específica',
     relocation: '¿Abierto a reubicarte?', license: '¿Licencia de conducir?', veteran: '¿Veterano?', disability: '¿Alguna discapacidad?', accommodation: '¿Necesitas adaptación para entrevistas?', accommodationPh: 'Opcional — cuéntanos cómo ayudarte',
-    gender: '¿Cómo te identificas?', genderPh: 'ej. Hombre, Mujer, No binario, Prefiero no decir',
-    howHeard: '¿Cómo te enteraste del empleo? (respuesta por defecto)', howHeardPh: 'ej. LinkedIn / Portal de empleo',
+    choose: 'Selecciona…',
+    gender: '¿Cómo te identificas?', genderOpts: ['Hombre', 'Mujer', 'No binario', 'Prefiero no decir'],
+    howHeard: '¿Cómo te enteraste del empleo? (respuesta por defecto)', howHeardOpts: ['LinkedIn', 'Portal de empleo', 'Referido', 'Sitio de la empresa', 'Otro'],
     defaults: 'Respuestas por defecto', defaultsHint: 'Se aplican automáticamente en las casillas comunes para que los formularios no den error.', workedHere: 'NO he trabajado en la empresa antes', knowsSomeone: 'NO conozco a nadie en la empresa', dataPolicy: 'Aceptar la política de datos de cada sitio donde me postulo',
-    assistant: 'Asistente inteligente', assistantHint: 'Deja que AplicoCV trabaje mientras no estás conectado.', emailDigest: 'Enviarme por correo un resumen de nuevos empleos con alta coincidencia', autoApply: 'Preparar las mejores coincidencias para que yo las revise (cola de postulación)',
+    assistant: 'Monitoreo inteligente de empleos', assistantHint: 'Deja que AplicoCV busque empleos con alta coincidencia mientras no estás conectado.', emailDigest: 'Enviarme por correo un resumen de nuevos empleos con alta coincidencia', autoApply: 'Preparar las mejores coincidencias para que yo las revise (cola de postulación)',
+    assistantLockText: 'Monitorea automáticamente empleos con alta coincidencia — recibe alertas por correo y una cola lista para revisar.', assistantIncluded: 'Incluido en tu membresía', assistantUntil: 'Activo hasta',
+    assistantActivate: 'Activar', assistantDaysWord: 'días', assistantActivated: 'Monitoreo activado', assistantActivateError: 'No se pudo activar',
     yes: 'Sí', no: 'No',
   },
   'pt-BR': {
@@ -88,10 +98,13 @@ const COPY: Record<Locale, PrefCopy> = {
     onsite: 'Onde você trabalharia presencial?', cityPh: 'Cidade ou capital', citizenship: 'Seu status lá', citizenshipOpts: { citizen: 'Cidadão', permanent_resident: 'Residente permanente', work_visa: 'Visto de trabalho', open_work_permit: 'Permissão de trabalho aberta', not_authorized: 'Ainda não autorizado' }, addCity: 'Adicionar cidade', remove: 'Remover',
     availability: 'Disponibilidade de início', asap: 'O mais rápido possível', nextWeek: 'Próxima semana', specificDate: 'Data específica',
     relocation: 'Aberto a mudança de cidade?', license: 'Carteira de motorista?', veteran: 'Veterano?', disability: 'Alguma deficiência?', accommodation: 'Precisa de adaptação para entrevistas?', accommodationPh: 'Opcional — diga como podemos ajudar',
-    gender: 'Como você se identifica?', genderPh: 'ex. Homem, Mulher, Não binário, Prefiro não dizer',
-    howHeard: 'Como soube da vaga? (resposta padrão)', howHeardPh: 'ex. LinkedIn / Portal de vagas',
+    choose: 'Selecione…',
+    gender: 'Como você se identifica?', genderOpts: ['Homem', 'Mulher', 'Não binário', 'Prefiro não dizer'],
+    howHeard: 'Como soube da vaga? (resposta padrão)', howHeardOpts: ['LinkedIn', 'Portal de vagas', 'Indicação', 'Site da empresa', 'Outro'],
     defaults: 'Respostas padrão', defaultsHint: 'Aplicadas automaticamente nas caixas comuns para os formulários não darem erro.', workedHere: 'NÃO trabalhei na empresa antes', knowsSomeone: 'NÃO conheço ninguém na empresa', dataPolicy: 'Aceitar a política de dados de cada site onde me candidato',
-    assistant: 'Assistente inteligente', assistantHint: 'Deixe a AplicoCV trabalhar enquanto você está offline.', emailDigest: 'Enviar por e-mail um resumo de novas vagas com alta compatibilidade', autoApply: 'Preparar as melhores combinações para eu revisar (fila de candidatura)',
+    assistant: 'Monitoramento inteligente de vagas', assistantHint: 'Deixe a AplicoCV procurar vagas com alta compatibilidade enquanto você está offline.', emailDigest: 'Enviar por e-mail um resumo de novas vagas com alta compatibilidade', autoApply: 'Preparar as melhores combinações para eu revisar (fila de candidatura)',
+    assistantLockText: 'Monitore automaticamente vagas com alta compatibilidade — receba alertas por e-mail e uma fila pronta para revisar.', assistantIncluded: 'Incluído na sua assinatura', assistantUntil: 'Ativo até',
+    assistantActivate: 'Ativar', assistantDaysWord: 'dias', assistantActivated: 'Monitoramento ativado', assistantActivateError: 'Não foi possível ativar',
     yes: 'Sim', no: 'Não',
   },
 }
@@ -139,6 +152,18 @@ export default function PreferencesPage() {
   const [roleInput, setRoleInput] = useState('')
   const [industryInput, setIndustryInput] = useState('')
   const [cityInput, setCityInput] = useState('')
+
+  const qc = useQueryClient()
+  const monitoring = useQuery({ queryKey: ['monitoring'], queryFn: getMonitoringStatus })
+  const activate = useMutation({
+    mutationFn: activateMonitoring,
+    onSuccess: (s) => {
+      qc.setQueryData(['monitoring'], s)
+      set({ emailDigest: true, autoApply: true }) // turn both on by default once entitled
+      toast(c.assistantActivated)
+    },
+    onError: (e) => toast(e instanceof ApiError ? e.message : c.assistantActivateError, 'error'),
+  })
 
   const set = (patch: Partial<JobPreferences>) => setP((prev) => ({ ...prev, ...patch }))
   const toggle = (list: string[] | undefined, value: string): string[] => {
@@ -292,7 +317,16 @@ export default function PreferencesPage() {
         </Section>
 
         <Section title={c.gender}>
-          <Input placeholder={c.genderPh} value={p.gender ?? ''} onChange={(e) => set({ gender: e.target.value })} />
+          <select
+            value={p.gender ?? ''}
+            onChange={(e) => set({ gender: e.target.value || undefined })}
+            className="h-10 w-full max-w-sm rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-700"
+          >
+            <option value="">{c.choose}</option>
+            {c.genderOpts.map((g) => (
+              <option key={g} value={g}>{g}</option>
+            ))}
+          </select>
         </Section>
 
         <div className="grid gap-5 sm:grid-cols-2">
@@ -308,7 +342,16 @@ export default function PreferencesPage() {
         </div>
 
         <Section title={c.howHeard}>
-          <Input placeholder={c.howHeardPh} value={p.howDidYouHear ?? ''} onChange={(e) => set({ howDidYouHear: e.target.value })} />
+          <select
+            value={p.howDidYouHear ?? ''}
+            onChange={(e) => set({ howDidYouHear: e.target.value || undefined })}
+            className="h-10 w-full max-w-sm rounded-lg border border-navy-200 bg-white px-3 text-sm text-navy-700"
+          >
+            <option value="">{c.choose}</option>
+            {c.howHeardOpts.map((h) => (
+              <option key={h} value={h}>{h}</option>
+            ))}
+          </select>
         </Section>
 
         <Section title={c.defaults} hint={c.defaultsHint}>
@@ -332,16 +375,40 @@ export default function PreferencesPage() {
         </Section>
 
         <Section title={c.assistant} hint={c.assistantHint}>
-          <div className="space-y-2.5">
-            <label className="flex items-center gap-2.5 text-sm text-navy-700">
-              <input type="checkbox" checked={Boolean(p.emailDigest)} onChange={(e) => set({ emailDigest: e.target.checked })} className="h-4 w-4 rounded border-navy-300 text-electric-500 focus:ring-electric-400" />
-              {c.emailDigest}
-            </label>
-            <label className="flex items-center gap-2.5 text-sm text-navy-700">
-              <input type="checkbox" checked={Boolean(p.autoApply)} onChange={(e) => set({ autoApply: e.target.checked })} className="h-4 w-4 rounded border-navy-300 text-electric-500 focus:ring-electric-400" />
-              {c.autoApply}
-            </label>
-          </div>
+          {monitoring.data?.active ? (
+            <>
+              <p className="mb-3 text-sm font-medium text-emerald-600">
+                {monitoring.data.premium
+                  ? c.assistantIncluded
+                  : `${c.assistantUntil} ${monitoring.data.until ? new Date(monitoring.data.until).toLocaleDateString() : ''}`}
+              </p>
+              <div className="space-y-2.5">
+                <label className="flex items-center gap-2.5 text-sm text-navy-700">
+                  <input type="checkbox" checked={Boolean(p.emailDigest)} onChange={(e) => set({ emailDigest: e.target.checked })} className="h-4 w-4 rounded border-navy-300 text-electric-500 focus:ring-electric-400" />
+                  {c.emailDigest}
+                </label>
+                <label className="flex items-center gap-2.5 text-sm text-navy-700">
+                  <input type="checkbox" checked={Boolean(p.autoApply)} onChange={(e) => set({ autoApply: e.target.checked })} className="h-4 w-4 rounded border-navy-300 text-electric-500 focus:ring-electric-400" />
+                  {c.autoApply}
+                </label>
+              </div>
+            </>
+          ) : (
+            <div className="rounded-xl border border-navy-100 bg-navy-50 p-4">
+              <p className="text-sm text-navy-600">{c.assistantLockText}</p>
+              <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-navy-500">
+                <li>{c.emailDigest}</li>
+                <li>{c.autoApply}</li>
+              </ul>
+              <Button
+                className="mt-4 rounded-full"
+                loading={activate.isPending}
+                onClick={() => activate.mutate()}
+              >
+                {`${c.assistantActivate} — ${monitoring.data?.costTokens ?? 200} tokens / ${monitoring.data?.days ?? 7} ${c.assistantDaysWord}`}
+              </Button>
+            </div>
+          )}
         </Section>
 
         <div className="sticky bottom-4 flex justify-end">

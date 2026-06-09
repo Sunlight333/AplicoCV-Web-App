@@ -60,6 +60,17 @@ class Settings(BaseSettings):
     stripe_price_id: str = ""
     stripe_webhook_secret: str = ""
 
+    # ---- Billing (MercadoPago — preferred for LATAM) ----------------------
+    # With an access token set, checkout creates a MercadoPago Checkout Pro
+    # preference and redirects there; MercadoPago takes precedence over Stripe.
+    # Set the currency to the account's country currency (ARS, BRL, CLP, MXN, USD…).
+    mercadopago_access_token: str = ""
+    mercadopago_public_key: str = ""
+    # Charge/display currency for the whole catalogue. Defaults to CLP (the pricing
+    # standard); set to any MercadoPago currency (ARS, BRL, MXN, COP, PEN, UYU, USD)
+    # and prices convert automatically. Must match the MercadoPago account country.
+    mercadopago_currency: str = "CLP"
+
     # ---- Google OAuth -----------------------------------------------------
     google_client_id: str = ""
     google_client_secret: str = ""
@@ -87,6 +98,9 @@ class Settings(BaseSettings):
     redis_url: str = ""
     agent_scan_interval_hours: int = 6
     agent_match_threshold: int = 65
+    # Smart Job Monitoring: min match % to include a job in the email digest. The
+    # apply queue uses the stricter alpha_apply_threshold (below).
+    monitoring_digest_threshold: int = 75
 
     # ---- ALPHA autonomous-apply agent (Phase 4.4) -------------------------
     # OFF by default. Even when enabled it only QUEUES high-confidence matches as
@@ -134,6 +148,20 @@ class Settings(BaseSettings):
     @property
     def stripe_enabled(self) -> bool:
         return bool(self.stripe_secret_key)
+
+    @property
+    def mercadopago_enabled(self) -> bool:
+        return bool(self.mercadopago_access_token)
+
+    @property
+    def payment_provider(self) -> str:
+        """The active payment provider. MercadoPago wins for LATAM, then Stripe,
+        else a stub that completes the flow without charging (dev/demo)."""
+        if self.mercadopago_enabled:
+            return "mercadopago"
+        if self.stripe_enabled:
+            return "stripe"
+        return "stub"
 
     @property
     def google_oauth_enabled(self) -> bool:
