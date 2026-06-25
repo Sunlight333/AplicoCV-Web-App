@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { AuthShell } from './AuthShell'
 import { GoogleButton } from './GoogleButton'
+import { OAuthError } from './OAuthError'
 import { registerSchema, type RegisterForm } from './authSchemas'
 import { Input } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
@@ -39,6 +40,7 @@ export default function RegisterPage() {
 
   return (
     <AuthShell title={tr.title} subtitle={tr.subtitle} bgImage="/backgrounds/auth-register-bg.png">
+      <OAuthError />
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
           id="fullName"

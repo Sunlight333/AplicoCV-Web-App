@@ -57,16 +57,14 @@ export async function buyCreditPack(pack: string): Promise<void> {
   window.location.href = url
 }
 
-/** Begin a Stripe Checkout session for a new subscription. */
-export async function startCheckout(): Promise<void> {
+/** Begin a checkout session for the chosen subscription plan. */
+export async function startCheckout(plan: string = 'pro_monthly'): Promise<void> {
   if (env.useMocks) {
     await delay(400)
-    alert('[mock] Would redirect to Stripe Checkout for the Premium plan.')
+    alert(`[mock] Would redirect to checkout for the ${plan} plan.`)
     return
   }
-  const { url } = await api.post<{ url: string }>('/billing/checkout', {
-    plan: 'premium',
-  })
+  const { url } = await api.post<{ url: string }>('/billing/checkout', { plan })
   window.location.href = url
 }
 

@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import { AuthShell } from './AuthShell'
 import { GoogleButton } from './GoogleButton'
+import { OAuthError } from './OAuthError'
 import { loginSchema, type LoginForm } from './authSchemas'
 import { Input } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
@@ -42,6 +43,7 @@ export default function LoginPage() {
 
   return (
     <AuthShell title={tl.title} subtitle={tl.subtitle} bgImage="/backgrounds/auth-login-bg.png">
+      <OAuthError />
       <form onSubmit={onSubmit} className="space-y-4" noValidate>
         <Input
           id="email"

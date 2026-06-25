@@ -42,8 +42,14 @@ export function Footer() {
               onSubmit={(e) => {
                 e.preventDefault()
                 const input = e.currentTarget.elements.namedItem('email') as HTMLInputElement | null
-                if (input?.value) {
-                  toast('Thanks! We’ll keep you posted.')
+                const email = input?.value.trim()
+                if (input && email) {
+                  // No newsletter backend yet — register the interest as a real
+                  // email to support rather than showing a fake confirmation.
+                  const subject = encodeURIComponent('Newsletter subscription')
+                  const body = encodeURIComponent(`Please add ${email} to the AplicoCV updates list.`)
+                  window.location.href = `${CONTACT}?subject=${subject}&body=${body}`
+                  toast(t.footer.subscribed)
                   input.value = ''
                 }
               }}

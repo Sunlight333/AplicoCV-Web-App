@@ -609,3 +609,8 @@ class PlanOut(BaseModel):
 
 class CreditPackInput(BaseModel):
     pack: str  # id of a "credits" PlanOut
+
+
+class CheckoutInput(BaseModel):
+    # id of a "subscription" PlanOut (e.g. "pro_monthly", "pro_annual").
+    plan: str = "pro_monthly"

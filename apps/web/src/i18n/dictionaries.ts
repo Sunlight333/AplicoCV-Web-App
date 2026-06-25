@@ -162,6 +162,7 @@ export const en = {
     tagline: 'Apply to every job that fits — in one click. AI-powered autofill, tailoring, and tracking.',
     emailPlaceholder: 'Your email',
     subscribe: 'Subscribe',
+    subscribed: 'Opening your email app to confirm…',
     rights: '© 2026 AplicoCV. All rights reserved.',
     getStarted: 'Get started free →',
     columns: {
@@ -690,6 +691,7 @@ export const es: Dictionary = {
     tagline: 'Postúlate a cada empleo que encaje — en un clic. Autocompletado, adaptación y seguimiento con IA.',
     emailPlaceholder: 'Tu correo',
     subscribe: 'Suscribirse',
+    subscribed: 'Abriendo tu correo para confirmar…',
     rights: '© 2026 AplicoCV. Todos los derechos reservados.',
     getStarted: 'Comenzar gratis →',
     columns: {
@@ -1201,6 +1203,7 @@ export const ptBR: Dictionary = {
     tagline: 'Candidate-se a toda vaga que combina — em um clique. Preenchimento, adaptação e acompanhamento com IA.',
     emailPlaceholder: 'Seu e-mail',
     subscribe: 'Inscrever-se',
+    subscribed: 'Abrindo seu e-mail para confirmar…',
     rights: '© 2026 AplicoCV. Todos os direitos reservados.',
     getStarted: 'Começar grátis →',
     columns: {

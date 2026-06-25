@@ -11,7 +11,7 @@ from app.db import get_db
 from app.deps import get_current_user
 from app.models import User
 from app import pricing
-from app.schemas import CheckoutOut, CreditPackInput, PlanOut
+from app.schemas import CheckoutInput, CheckoutOut, CreditPackInput, PlanOut
 from app.services import credit_service, mercadopago_service
 
 try:  # Stripe SDK is optional — billing falls back to a stub without it.
@@ -213,20 +213,29 @@ async def credits_checkout(
 
 @router.post("/checkout", response_model=CheckoutOut)
 async def checkout(
-    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    body: CheckoutInput = CheckoutInput(),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ) -> CheckoutOut:
     """
-    Start a subscription. With Stripe configured this creates a Checkout Session
-    and returns its hosted URL. In stub mode we immediately upgrade the user so
-    the demo flow completes end to end.
+    Start a subscription for the chosen plan (`pro_monthly` or `pro_annual`). With
+    Stripe configured this creates a Checkout Session and returns its hosted URL;
+    in stub mode we immediately upgrade the user so the demo flow completes.
     """
+    plan = next(
+        (p for p in _PLANS if p["id"] == body.plan
+         and p["kind"] == "subscription" and p["id"] != "free"),
+        None,
+    )
+    if not plan:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown subscription plan.")
+
     if settings.mercadopago_enabled:
-        pro = next(p for p in _PLANS if p["id"] == "pro_monthly")
         url = await _mp_preference(
             user,
-            title=f"AplicoCV {pro['name']}",
-            price=pricing.price_in(pro["id"]),
-            metadata={"kind": "subscription", "plan_id": pro["id"]},
+            title=f"AplicoCV {plan['name']}",
+            price=pricing.price_in(plan["id"]),
+            metadata={"kind": "subscription", "plan_id": plan["id"]},
             success_qs="upgraded=1",
         )
         return CheckoutOut(url=url)
@@ -237,11 +246,31 @@ async def checkout(
         return CheckoutOut(url=f"{settings.frontend_url}/settings/billing?upgraded=1")
 
     s = _stripe()
+    # A single STRIPE_PRICE_ID only covers the monthly plan; build a recurring
+    # price_data for the selected plan so the annual tier charges the annual amount
+    # and interval rather than silently falling back to monthly.
+    currency = pricing.active_currency()
+    price = pricing.price_in(plan["id"], currency)
+    unit_amount = int(round(price)) if pricing.is_zero_decimal(currency) else int(round(price * 100))
+    interval = "year" if plan["interval"] == "year" else "month"
+    if settings.stripe_price_id and interval == "month":
+        line_item: dict = {"price": settings.stripe_price_id, "quantity": 1}
+    else:
+        line_item = {
+            "price_data": {
+                "currency": currency.lower(),
+                "product_data": {"name": f"AplicoCV {plan['name']}"},
+                "unit_amount": unit_amount,
+                "recurring": {"interval": interval},
+            },
+            "quantity": 1,
+        }
     session = s.checkout.Session.create(
         mode="subscription",
-        line_items=[{"price": settings.stripe_price_id, "quantity": 1}],
+        line_items=[line_item],
         client_reference_id=user.id,
         customer_email=user.email,
+        metadata={"userId": user.id, "plan_id": plan["id"]},
         success_url=f"{settings.frontend_url}/settings/billing?upgraded=1",
         cancel_url=f"{settings.frontend_url}/settings/billing?canceled=1",
     )

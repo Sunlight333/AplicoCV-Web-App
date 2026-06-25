@@ -30,7 +30,7 @@ export default function BillingPage() {
         await buyCreditPack(plan.id)
         qc.invalidateQueries({ queryKey: ['credits'] })
       } else if (plan.id !== 'free') {
-        await startCheckout()
+        await startCheckout(plan.id)
       }
     } finally {
       setLoading(null)
