@@ -8,10 +8,23 @@
   // --- field dictionary (key → profile accessor + label/attr synonyms) --------
   // Multilingual (EN/ES/PT) since the target portals span LATAM. The `key` is
   // what portal selector maps (GET /portals/configs) reference.
+  // Split a full name into given/family parts. Tuned for LATAM (ES/PT) names, which
+  // commonly carry two given names and two surnames ("Juan Carlos Pérez García"):
+  // a naive first-token/rest split would wrongly fold the second given name into the
+  // surname. Heuristic: 4+ tokens → first two are given names, the rest are surnames;
+  // 3 tokens → one given name + two surnames (the most common LATAM shape).
+  function splitName(full) {
+    const parts = (full || '').trim().split(/\s+/).filter(Boolean)
+    if (parts.length <= 1) return { first: parts[0] || '', last: '' }
+    if (parts.length === 2) return { first: parts[0], last: parts[1] }
+    if (parts.length === 3) return { first: parts[0], last: parts.slice(1).join(' ') }
+    return { first: parts.slice(0, 2).join(' '), last: parts.slice(2).join(' ') }
+  }
+
   const FIELD_DEFS = [
     { key: 'fullName', get: (p) => p.personal?.fullName, syn: ['full name', 'name', 'nombre completo', 'nome completo', 'nombre', 'nome'] },
-    { key: 'firstName', get: (p) => (p.personal?.fullName || '').split(' ')[0], syn: ['first name', 'given name', 'primeiro nome'] },
-    { key: 'lastName', get: (p) => (p.personal?.fullName || '').split(' ').slice(1).join(' '), syn: ['last name', 'surname', 'family name', 'apellido', 'sobrenome'] },
+    { key: 'firstName', get: (p) => splitName(p.personal?.fullName).first, syn: ['first name', 'given name', 'primeiro nome'] },
+    { key: 'lastName', get: (p) => splitName(p.personal?.fullName).last, syn: ['last name', 'surname', 'family name', 'apellido', 'sobrenome'] },
     { key: 'email', get: (p) => p.personal?.email, syn: ['email address', 'e-mail address', 'email', 'e-mail', 'correo electronico', 'correo'] },
     { key: 'phone', get: (p) => p.personal?.phone, syn: ['phone', 'telephone', 'mobile', 'telefono', 'celular', 'telefone'] },
     { key: 'location', get: (p) => p.personal?.location, syn: ['location', 'city', 'address', 'ubicacion', 'ciudad', 'localizacao', 'cidade'] },
@@ -142,6 +155,17 @@
           : HTMLInputElement.prototype
     const setter = Object.getOwnPropertyDescriptor(proto, 'value')?.set
     setter ? setter.call(el, value) : (el.value = value)
+  }
+
+  // True when an element already holds a meaningful value, so autofill should skip
+  // it. A <select>'s .value is its first option (often a placeholder), and a
+  // checkbox/radio .value is the constant "on" — neither means "already filled", so
+  // they must not be gated on raw .value (that bug skipped every dropdown/checkbox).
+  function isMeaningfullyFilled(el) {
+    if (el.tagName === 'SELECT') return el.selectedIndex > 0
+    const type = (el.type || '').toLowerCase()
+    if (type === 'checkbox' || type === 'radio') return false
+    return !!el.value
   }
 
   function fillField(el, value) {
@@ -310,7 +334,7 @@
         const container = rowContainer(anchor)
         const inputs = container ? container.querySelectorAll('input, textarea, select') : []
         for (const el of inputs) {
-          if (done.has(el) || el.value) continue
+          if (done.has(el) || isMeaningfullyFilled(el)) continue
           const def = findDef(el)
           if (!def || !defs.includes(def.key)) continue
           const value = view[def.key]
@@ -369,7 +393,7 @@
       } catch {
         el = null
       }
-      if (!el || done.has(el) || el.value) continue
+      if (!el || done.has(el) || isMeaningfullyFilled(el)) continue
       if (fillAny(el, value)) {
         flash(el)
         done.add(el)
@@ -381,7 +405,7 @@
       'input[type="text"], input[type="email"], input[type="tel"], input[type="url"], input:not([type]), textarea, select',
     )
     for (const el of fields) {
-      if (done.has(el) || el.value) continue
+      if (done.has(el) || isMeaningfullyFilled(el)) continue
       const def = findDef(el)
       if (!def) continue
       const value = def.get(profile)
@@ -408,7 +432,7 @@
     if (faq && faq.length) {
       const openText = document.querySelectorAll('textarea, input[type="text"], input:not([type])')
       for (const el of openText) {
-        if (done.has(el) || el.value) continue
+        if (done.has(el) || isMeaningfullyFilled(el)) continue
         const answer = matchFaqAnswer(labelFor(el), faq)
         if (answer && fillAny(el, answer)) {
           flash(el)

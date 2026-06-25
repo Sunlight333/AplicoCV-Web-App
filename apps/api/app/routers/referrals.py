@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
@@ -58,14 +59,25 @@ async def redeem(
     if _code_for(user.id).lower() == code:
         return RedeemOut(ok=False, message="You can't redeem your own code.")
 
-    referrer = (
+    # The code is an 8-hex-char prefix of the referrer's id. On the (astronomically
+    # rare) prefix collision, more than one user matches — reject rather than risk
+    # crediting the wrong referrer. Exactly one match is required.
+    candidates = (
         await db.execute(select(User).where(User.id.like(f"{code}%")))
-    ).scalars().first()
-    if not referrer:
+    ).scalars().all()
+    if len(candidates) != 1:
         return RedeemOut(ok=False, message="That referral code is not valid.")
+    referrer = candidates[0]
 
+    # Record the referral first. The unique constraint on referred_id is the atomic
+    # guard: two concurrent redeems both pass the check above, but only one INSERT
+    # succeeds — the other raises IntegrityError instead of double-granting.
     db.add(Referral(referrer_id=referrer.id, referred_id=user.id))
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        return RedeemOut(ok=False, message="You have already redeemed a referral code.")
 
     reward = credit_service.REFERRAL_REWARD
     me = await credit_service.get_account(db, user.id)

@@ -45,11 +45,13 @@ CLP_PER_UNIT: dict[str, float] = {
     "UYU": 24.0,     # Uruguay
 }
 
-# Currencies charged as whole units (no decimal cents).
-ZERO_DECIMAL: set[str] = {"CLP", "COP", "ARS", "PYG"}
+# Currencies charged as whole units (no decimal cents). Only currencies with a
+# conversion rate above belong here — a zero-decimal currency without a rate would
+# charge the raw CLP amount unconverted.
+ZERO_DECIMAL: set[str] = {"CLP", "COP", "ARS"}
 
 # Rounding step for whole-unit currencies, to keep prices tidy after conversion.
-_ROUND_STEP: dict[str, int] = {"CLP": 10, "ARS": 10, "COP": 100, "PYG": 100}
+_ROUND_STEP: dict[str, int] = {"CLP": 10, "ARS": 10, "COP": 100}
 
 
 def supported_currencies() -> list[str]:
@@ -57,8 +59,13 @@ def supported_currencies() -> list[str]:
 
 
 def active_currency() -> str:
-    """The currency the catalogue is charged/displayed in (defaults to CLP)."""
-    return (settings.mercadopago_currency or "CLP").upper()
+    """The currency the catalogue is charged/displayed in (defaults to CLP).
+
+    Falls back to CLP if the configured currency has no conversion rate, so a
+    misconfigured MERCADOPAGO_CURRENCY can never send an unconverted CLP amount to
+    the payment provider (which would mis-charge and be rejected at checkout)."""
+    cur = (settings.mercadopago_currency or "CLP").upper()
+    return cur if cur in CLP_PER_UNIT else "CLP"
 
 
 def is_zero_decimal(currency: str) -> bool:

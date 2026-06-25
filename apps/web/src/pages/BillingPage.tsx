@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageTransition } from '@/components/PageTransition'
 import { Card } from '@/components/ui/Card'
@@ -6,19 +7,71 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/auth/AuthContext'
 import { startCheckout, openCustomerPortal, getPlans, buyCreditPack, type Plan } from '@/services/billing'
+import { bootstrapSession } from '@/services/auth'
 import { useT } from '@/i18n/I18nProvider'
 import { currentLocale } from '@/lib/locale'
+import type { Locale } from '@/i18n/dictionaries'
 import { formatMoney } from '@/lib/money'
 
+// Localized banners for the params the payment provider redirects back with
+// (back_urls in apps/api/app/routers/billing.py → /settings/billing?upgraded=1 …).
+const NOTICES: Record<Locale, { upgraded: string; credits: string; pending: string; canceled: string }> = {
+  en: {
+    upgraded: 'You’re now on Pro — welcome aboard! 🎉',
+    credits: 'Payment received — your credits have been added.',
+    pending: 'Your payment is pending. We’ll update your account as soon as it’s confirmed.',
+    canceled: 'Checkout canceled — no charge was made.',
+  },
+  es: {
+    upgraded: 'Ya tienes Pro, ¡bienvenido! 🎉',
+    credits: 'Pago recibido: tus créditos se han añadido.',
+    pending: 'Tu pago está pendiente. Actualizaremos tu cuenta apenas se confirme.',
+    canceled: 'Pago cancelado: no se realizó ningún cargo.',
+  },
+  'pt-BR': {
+    upgraded: 'Agora você tem o Pro — bem-vindo! 🎉',
+    credits: 'Pagamento recebido — seus créditos foram adicionados.',
+    pending: 'Seu pagamento está pendente. Atualizaremos sua conta assim que for confirmado.',
+    canceled: 'Pagamento cancelado — nenhuma cobrança foi feita.',
+  },
+}
+
 export default function BillingPage() {
-  const { user } = useAuth()
+  const { user, setUser } = useAuth()
   const qc = useQueryClient()
   const t = useT()
   const tb = t.app.billing
   const tp = t.app.more.plans
   const [loading, setLoading] = useState<string | null>(null)
+  const [notice, setNotice] = useState<{ tone: 'success' | 'info' | 'error'; text: string } | null>(null)
   const isPremium = user?.plan === 'premium'
   const plans = useQuery({ queryKey: ['plans'], queryFn: getPlans })
+  const [params, setParams] = useSearchParams()
+  const loc = currentLocale()
+
+  // On return from checkout, reflect the result: refresh the cached user (plan)
+  // and the credit balance, show a banner, and strip the params so a reload is clean.
+  useEffect(() => {
+    const copy = NOTICES[loc as Locale] ?? NOTICES.en
+    let next: { tone: 'success' | 'info' | 'error'; text: string } | null = null
+    if (params.get('upgraded')) next = { tone: 'success', text: copy.upgraded }
+    else if (params.get('credits')) next = { tone: 'success', text: copy.credits }
+    else if (params.get('pending')) next = { tone: 'info', text: copy.pending }
+    else if (params.get('canceled')) next = { tone: 'error', text: copy.canceled }
+    if (!next) return
+    setNotice(next)
+    if (next.tone === 'success') {
+      // The webhook grants credits / sets the plan server-side; re-pull the user
+      // and invalidate the balance so the UI reflects it without a manual refresh.
+      bootstrapSession().then((u) => { if (u) setUser(u) }).catch(() => {})
+      qc.invalidateQueries({ queryKey: ['credits'] })
+      qc.invalidateQueries({ queryKey: ['plans'] })
+    }
+    const stripped = new URLSearchParams(params)
+    for (const k of ['upgraded', 'credits', 'pending', 'canceled']) stripped.delete(k)
+    setParams(stripped, { replace: true })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const subscriptions = (plans.data ?? []).filter((p) => p.kind === 'subscription')
   const packs = (plans.data ?? []).filter((p) => p.kind === 'credits')
@@ -37,7 +90,6 @@ export default function BillingPage() {
     }
   }
 
-  const loc = currentLocale()
   const priceLabel = (p: Plan) =>
     p.price === 0
       ? t.app.nav.free
@@ -47,6 +99,20 @@ export default function BillingPage() {
     <PageTransition>
       <h1 className="text-2xl font-bold text-navy-900">{tp.title}</h1>
       <p className="mt-1 text-navy-500">{tp.subtitle}</p>
+
+      {notice && (
+        <div
+          className={`mt-4 rounded-lg border px-3 py-2 text-sm font-medium ${
+            notice.tone === 'success'
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : notice.tone === 'error'
+                ? 'border-red-200 bg-red-50 text-red-700'
+                : 'border-amber-200 bg-amber-50 text-amber-700'
+          }`}
+        >
+          {notice.text}
+        </div>
+      )}
 
       {/* Current plan + manage */}
       <Card className="mt-6 flex flex-wrap items-center justify-between gap-3 p-5">

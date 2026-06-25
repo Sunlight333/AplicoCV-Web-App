@@ -63,8 +63,14 @@ async function getPortalConfigs() {
   if (portalConfigs && Date.now() - portalConfigs.ts < CONFIG_TTL_MS) return portalConfigs.data
   try {
     const data = await apiFetch('/portals/configs')
-    await chrome.storage.local.set({ portalConfigs: { ts: Date.now(), data } })
-    return data
+    // Only cache a non-empty result. An empty list (e.g. fetched before the user
+    // is authenticated) would otherwise poison the cache for an hour and silently
+    // downgrade every portal to generic matching. Keep any prior good copy instead.
+    if (Array.isArray(data) && data.length) {
+      await chrome.storage.local.set({ portalConfigs: { ts: Date.now(), data } })
+      return data
+    }
+    return portalConfigs?.data?.length ? portalConfigs.data : data || []
   } catch {
     return portalConfigs?.data || []
   }

@@ -327,12 +327,19 @@ async def webhook(
         user_id = obj.get("client_reference_id")
         customer_id = obj.get("customer")
         meta = obj.get("metadata") or {}
+        event_id = event.get("id") or obj.get("id")
         if user_id:
             user = await db.get(User, user_id)
             if user:
+                # Idempotency: Stripe re-delivers events on any non-2xx/retry, so
+                # record processed event ids (mirrors the MercadoPago _fulfill guard)
+                # to avoid double-granting credits or re-applying the upgrade.
+                acc = await credit_service.get_account(db, user_id)
+                processed = list((acc.grants or {}).get("stripe_events") or [])
+                if event_id and event_id in processed:
+                    return {"received": True}
                 if obj.get("mode") == "payment" and meta.get("credits"):
                     # One-off credit-pack purchase — top up the balance.
-                    acc = await credit_service.get_account(db, user_id)
                     await credit_service.grant(
                         db, acc, int(meta["credits"]), "purchase_credits"
                     )
@@ -342,7 +349,11 @@ async def webhook(
                         user.preferences = {
                             **(user.preferences or {}), "stripeCustomerId": customer_id
                         }
-                    await db.commit()
+                if event_id:
+                    grants = dict(acc.grants or {})
+                    grants["stripe_events"] = processed + [event_id]
+                    acc.grants = grants  # reassign so SQLAlchemy detects the JSON change
+                await db.commit()
     elif etype == "customer.subscription.deleted":
         customer_id = obj.get("customer")
         rows = (await db.execute(select(User))).scalars().all()
