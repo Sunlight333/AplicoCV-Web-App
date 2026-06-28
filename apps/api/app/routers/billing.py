@@ -11,7 +11,7 @@ from app.db import get_db
 from app.deps import get_current_user
 from app.models import User
 from app import pricing
-from app.schemas import CheckoutInput, CheckoutOut, CreditPackInput, PlanOut
+from app.schemas import CheckoutInput, CheckoutOut, CreditPackInput, PlanOut, ReconcileOut
 from app.services import credit_service, mercadopago_service
 
 try:  # Stripe SDK is optional — billing falls back to a stub without it.
@@ -103,16 +103,45 @@ async def _mp_preference(
         )
 
 
+def _resolve_order(payment: dict) -> tuple[str | None, int | None, str | None]:
+    """Work out what was bought (kind, credits, plan_id) from a MercadoPago payment.
+
+    Prefers the preference metadata, but MercadoPago does NOT reliably copy
+    preference metadata onto the payment object, so we fall back to identifying the
+    plan by its amount — which the payment always reports and which is unique per
+    plan/pack. This keeps fulfillment correct for both the webhook and reconcile."""
+    meta = payment.get("metadata") or {}
+    plan_id = meta.get("plan_id") or meta.get("planId")
+    if plan_id:
+        plan = next((p for p in _PLANS if p["id"] == plan_id), None)
+        if plan:
+            return plan["kind"], plan["credits"], plan["id"]
+
+    amount = payment.get("transaction_amount")
+    if amount is not None:
+        currency = pricing.active_currency()
+        for p in _PLANS:
+            if p["id"] == "free":
+                continue
+            if round(pricing.price_in(p["id"], currency)) == round(float(amount)):
+                return p["kind"], p["credits"], p["id"]
+
+    # Last resort: honour explicit metadata even without a known plan.
+    credits = meta.get("credits")
+    return meta.get("kind"), (int(credits) if credits else None), plan_id
+
+
 async def _fulfill(
     db: AsyncSession, user: User, kind: str | None, credits: int | None,
     plan_id: str | None, payment_id: str,
-) -> None:
+) -> bool:
     """Apply a paid order exactly once. The processed payment ids are recorded in
-    the CreditAccount.grants JSON (migration-free) so webhook retries don't double-grant."""
+    the CreditAccount.grants JSON (migration-free) so webhook retries don't double-grant.
+    Returns True if this call actually applied the order (False if already processed)."""
     acc = await credit_service.get_account(db, user.id)
     processed = list((acc.grants or {}).get("mp_payments") or [])
     if payment_id in processed:
-        return
+        return False
     if kind == "credits" and credits:
         await credit_service.grant(db, acc, int(credits), f"purchase_{plan_id or 'credits'}")
     else:
@@ -121,6 +150,7 @@ async def _fulfill(
     grants["mp_payments"] = processed + [payment_id]
     acc.grants = grants  # reassign so SQLAlchemy detects the JSON change
     await db.commit()
+    return True
 
 
 @router.get("/plans", response_model=list[PlanOut])
@@ -413,11 +443,36 @@ async def mercadopago_webhook(
     if not user:
         return {"received": True}
 
+    kind, credits, plan_id = _resolve_order(payment)
     await _fulfill(
-        db, user,
-        kind=meta.get("kind"),
-        credits=meta.get("credits"),
-        plan_id=meta.get("plan_id") or meta.get("planId"),
-        payment_id=str(payment_id),
+        db, user, kind=kind, credits=credits, plan_id=plan_id, payment_id=str(payment_id),
     )
     return {"received": True}
+
+
+@router.post("/reconcile", response_model=ReconcileOut)
+async def reconcile(
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> ReconcileOut:
+    """Fallback fulfillment for when MercadoPago's asynchronous webhook never reached
+    us (an unreachable notification_url is a common cause): poll the buyer's recent
+    payments and apply any approved order not yet fulfilled. Safe to call on every
+    return to the billing page — idempotent via the recorded payment ids."""
+    if not settings.mercadopago_enabled:
+        return ReconcileOut(fulfilled=0)
+    try:
+        payments = await mercadopago_service.search_payments(str(user.id))
+    except Exception:
+        return ReconcileOut(fulfilled=0)
+
+    fulfilled = 0
+    for payment in payments:
+        if payment.get("status") != "approved":
+            continue
+        kind, credits, plan_id = _resolve_order(payment)
+        if await _fulfill(
+            db, user, kind=kind, credits=credits,
+            plan_id=plan_id, payment_id=str(payment.get("id")),
+        ):
+            fulfilled += 1
+    return ReconcileOut(fulfilled=fulfilled)

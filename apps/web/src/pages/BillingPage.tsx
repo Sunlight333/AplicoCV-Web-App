@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useAuth } from '@/auth/AuthContext'
-import { startCheckout, openCustomerPortal, getPlans, buyCreditPack, type Plan } from '@/services/billing'
+import { startCheckout, openCustomerPortal, getPlans, buyCreditPack, reconcilePayments, type Plan } from '@/services/billing'
 import { bootstrapSession } from '@/services/auth'
 import { useT } from '@/i18n/I18nProvider'
 import { currentLocale } from '@/lib/locale'
@@ -49,27 +49,38 @@ export default function BillingPage() {
   const [params, setParams] = useSearchParams()
   const loc = currentLocale()
 
-  // On return from checkout, reflect the result: refresh the cached user (plan)
-  // and the credit balance, show a banner, and strip the params so a reload is clean.
+  // On mount (and on return from checkout) reconcile and reflect the result.
   useEffect(() => {
     const copy = NOTICES[loc as Locale] ?? NOTICES.en
-    let next: { tone: 'success' | 'info' | 'error'; text: string } | null = null
-    if (params.get('upgraded')) next = { tone: 'success', text: copy.upgraded }
-    else if (params.get('credits')) next = { tone: 'success', text: copy.credits }
-    else if (params.get('pending')) next = { tone: 'info', text: copy.pending }
-    else if (params.get('canceled')) next = { tone: 'error', text: copy.canceled }
-    if (!next) return
-    setNotice(next)
-    if (next.tone === 'success') {
-      // The webhook grants credits / sets the plan server-side; re-pull the user
-      // and invalidate the balance so the UI reflects it without a manual refresh.
-      bootstrapSession().then((u) => { if (u) setUser(u) }).catch(() => {})
-      qc.invalidateQueries({ queryKey: ['credits'] })
-      qc.invalidateQueries({ queryKey: ['plans'] })
+    type Notice = { tone: 'success' | 'info' | 'error'; text: string }
+    let banner: Notice | null = null
+    if (params.get('upgraded')) banner = { tone: 'success', text: copy.upgraded }
+    else if (params.get('credits')) banner = { tone: 'success', text: copy.credits }
+    else if (params.get('pending')) banner = { tone: 'info', text: copy.pending }
+    else if (params.get('canceled')) banner = { tone: 'error', text: copy.canceled }
+    const canceled = !!params.get('canceled')
+    if (banner) {
+      setNotice(banner)
+      const stripped = new URLSearchParams(params)
+      for (const k of ['upgraded', 'credits', 'pending', 'canceled']) stripped.delete(k)
+      setParams(stripped, { replace: true })
     }
-    const stripped = new URLSearchParams(params)
-    for (const k of ['upgraded', 'credits', 'pending', 'canceled']) stripped.delete(k)
-    setParams(stripped, { replace: true })
+    // Don't just trust the async webhook (it can be delayed or never arrive if the
+    // notification_url is unreachable) — actively reconcile the buyer's order against
+    // MercadoPago so a charged customer is fulfilled. Runs on every visit, so it also
+    // rescues someone who paid, wasn't credited, and simply returns to this page later.
+    void (async () => {
+      const { fulfilled } = canceled
+        ? { fulfilled: 0 }
+        : await reconcilePayments().catch(() => ({ fulfilled: 0 }))
+      if (fulfilled > 0 || banner?.tone === 'success') {
+        const u = await bootstrapSession().catch(() => null)
+        if (u) setUser(u)
+        qc.invalidateQueries({ queryKey: ['credits'] })
+        qc.invalidateQueries({ queryKey: ['plans'] })
+        if (fulfilled > 0) setNotice((cur) => cur ?? { tone: 'success', text: copy.credits })
+      }
+    })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

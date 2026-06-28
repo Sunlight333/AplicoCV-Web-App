@@ -614,3 +614,8 @@ class CreditPackInput(BaseModel):
 class CheckoutInput(BaseModel):
     # id of a "subscription" PlanOut (e.g. "pro_monthly", "pro_annual").
     plan: str = "pro_monthly"
+
+
+class ReconcileOut(BaseModel):
+    # How many approved-but-unfulfilled payments this call applied.
+    fulfilled: int = 0

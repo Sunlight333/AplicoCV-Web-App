@@ -68,6 +68,24 @@ export async function startCheckout(plan: string = 'pro_monthly'): Promise<void>
   window.location.href = url
 }
 
+/**
+ * Reconcile any paid-but-unfulfilled MercadoPago order. Called when the user
+ * returns to the billing page after checkout, as a fallback for a webhook that
+ * never arrived (so a charged customer still gets their credits / upgrade).
+ * Returns how many orders were applied. Idempotent server-side.
+ */
+export async function reconcilePayments(): Promise<{ fulfilled: number }> {
+  if (env.useMocks) {
+    await delay(100)
+    return { fulfilled: 0 }
+  }
+  try {
+    return await api.post<{ fulfilled: number }>('/billing/reconcile')
+  } catch {
+    return { fulfilled: 0 }
+  }
+}
+
 /** Open the Stripe Customer Portal for plan / billing management. */
 export async function openCustomerPortal(): Promise<void> {
   if (env.useMocks) {

@@ -53,3 +53,18 @@ async def get_payment(payment_id: str) -> dict:
         res = await client.get(f"{API}/v1/payments/{payment_id}", headers=_headers())
         res.raise_for_status()
         return res.json()
+
+
+async def search_payments(external_reference: str) -> list[dict]:
+    """List a buyer's payments by our external_reference (the user id). Used to
+    reconcile a paid order when the asynchronous webhook never arrived (e.g. an
+    unreachable notification_url) — we poll MercadoPago instead of waiting on it."""
+    params = {
+        "external_reference": external_reference,
+        "sort": "date_created",
+        "criteria": "desc",
+    }
+    async with httpx.AsyncClient(timeout=15) as client:
+        res = await client.get(f"{API}/v1/payments/search", params=params, headers=_headers())
+        res.raise_for_status()
+        return res.json().get("results", []) or []
