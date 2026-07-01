@@ -427,6 +427,54 @@
   // Bounded add-clicks per run, so we never loop clicking "Add" endlessly. Reset on
   // each RUN_AUTOFILL.
   let addClicks = {}
+  // One in-flight searchable-dropdown ("prompt") at a time — opened on one pass, its
+  // option clicked on the next (options render async). Reset on each RUN_AUTOFILL.
+  let pendingPrompt = null
+
+  // Workday-style searchable dropdowns: a trigger that opens a listbox of options
+  // (native <select> is handled by fillSelect; this covers the custom widget). Opens
+  // one prompt per pass and, on the next pass, clicks the option whose text matches —
+  // only on a confident match, never a guess; unmatched dropdowns are closed, not set.
+  function fillPromptWidgets(profile, done) {
+    let n = 0
+    if (pendingPrompt) {
+      const opts = document.querySelectorAll('[role="option"], [data-automation-id="promptOption"], [data-automation-id*="menuItem" i]')
+      const wants = valueSynonyms(pendingPrompt.value)
+      let clicked = false
+      for (const o of opts) {
+        if (o.offsetParent === null) continue
+        const ot = norm(o.textContent || '')
+        if (ot && wants.some((w) => ot === w || (w.length > 2 && ot.includes(w)))) {
+          o.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+          o.click()
+          n++; clicked = true; break
+        }
+      }
+      if (!clicked && opts.length) {
+        document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      }
+      pendingPrompt = null
+      if (clicked) return n
+    }
+    for (const trig of document.querySelectorAll('[aria-haspopup="listbox"], [data-automation-id*="selectinput" i], [data-automation-id*="promptinput" i]')) {
+      if (done.has(trig) || trig.offsetParent === null) continue
+      const def = defForHaystacks([groupLabel(trig), trig.getAttribute('aria-label') || '', trig.getAttribute('data-automation-id') || ''])
+      if (!def) continue
+      const value = def.get(profile)
+      if (!value) continue
+      const shown = norm(trig.textContent || trig.value || '')
+      const wants = valueSynonyms(value)
+      if (shown && wants.some((w) => w.length > 2 && shown.includes(w))) { done.add(trig); continue } // already set
+      done.add(trig)
+      pendingPrompt = { value }
+      trig.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+      trig.click()
+      const search = trig.tagName === 'INPUT' ? trig : trig.querySelector('input')
+      if (search) fillField(search, String(value)) // type to filter, if searchable
+      break // one prompt per pass; the observer re-runs to click its option
+    }
+    return n
+  }
 
   // Repeating sections (experience / education / languages): fill each visible row
   // from the matching profile entry, and — bounded — click the section's Add button
@@ -614,6 +662,9 @@
     // (3b) Yes/No radio-button questions (veteran, licence, relocation, ...).
     filled += fillRadioGroups(profile, done)
 
+    // (3b·2) Searchable dropdowns / prompt widgets (Workday) that aren't <select>.
+    filled += fillPromptWidgets(profile, done)
+
     // (3c) default acceptances (Phase 2) — tick the data/privacy-policy consent the
     // user opted into by default, so the form does not block on an unchecked box.
     filled += applyAcceptances(profile, done)
@@ -728,9 +779,42 @@
     return count
   }
 
+  // --- Multi-step navigation (auto-advance) ----------------------------------
+  // Click a step's "Save and Continue"/"Next" to advance a paginated form (Workday),
+  // but NEVER a final "Submit"/"Apply" — the user always makes the final submission.
+  // Only advances when the visible step has no empty required fields, so we never skip
+  // validation or spam a blocked step.
+  const _SUBMIT_RE = /\bsubmit\b|\bapply\b|enviar|postular|finish|send application|revisar y enviar/i
+  const _CONTINUE_RE = /save and continue|save & continue|save and next|\bcontinue\b|\bnext\b|siguiente|continuar|guardar y continuar|pr[oó]ximo|avan[cç]ar/i
+
+  function findContinueButton() {
+    for (const b of document.querySelectorAll('button, a[role="button"], input[type="submit"], [role="button"]')) {
+      if (b.disabled || b.offsetParent === null) continue
+      const t = (b.textContent || b.value || b.getAttribute('aria-label') || '').trim()
+      if (!t || _SUBMIT_RE.test(t)) continue // never auto-click a final submission
+      if (_CONTINUE_RE.test(t)) return b
+    }
+    return null
+  }
+
+  function hasEmptyRequired() {
+    for (const el of document.querySelectorAll('input[required], select[required], textarea[required], [aria-required="true"]')) {
+      if (el.offsetParent === null) continue // not on the visible step
+      const t = (el.type || '').toLowerCase()
+      if (t === 'checkbox' || t === 'radio') {
+        if (el.name && document.querySelector(`input[name="${CSS.escape(el.name)}"]:checked`)) continue
+        return true
+      }
+      if (el.tagName === 'SELECT') { if (el.selectedIndex <= 0) return true; continue }
+      if (!el.value) return true
+    }
+    return false
+  }
+
   chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
     if (msg.type === 'RUN_AUTOFILL') {
       addClicks = {} // reset per run so add-row clicking is bounded to this session
+      pendingPrompt = null
       const filled = autofill(msg.profile, msg.selectors || {}, msg.faq || [])
       pendingProfile = msg.profile
       pendingSelectors = msg.selectors || {}
@@ -739,18 +823,29 @@
       // portals like Workday paginate across steps), closing after IDLE_MS of no new
       // fills or MAX_MS total. This replaces the old fixed 15s cap that expired mid-flow.
       const IDLE_MS = msg.multiStep || IS_WORKDAY ? 12000 : 5000
-      const MAX_MS = 180000
+      const MAX_MS = 300000
+      // Auto-advance paginated forms (default ON for multi-step/Workday; opt out via
+      // preferences.autoAdvance === false). Bounded so it can never loop indefinitely.
+      const autoAdvance = (msg.multiStep || IS_WORKDAY) && msg.profile?.preferences?.autoAdvance !== false
+      const MAX_STEPS = 12
+      let steps = 0
       const token = ++fillToken
       const started = Date.now()
       lastActivity = Date.now()
       observer.observe(document.documentElement, { childList: true, subtree: true })
       const iv = setInterval(() => {
         if (token !== fillToken) { clearInterval(iv); return } // a newer run took over
+        const stop = () => { clearInterval(iv); pendingProfile = null; observer.disconnect() }
         const now = Date.now()
-        if (now - lastActivity > IDLE_MS || now - started > MAX_MS) {
-          clearInterval(iv)
-          pendingProfile = null
-          observer.disconnect()
+        if (now - started > MAX_MS) return stop()
+        if (now - lastActivity > IDLE_MS) {
+          // The step has settled. Advance to the next step when it's safe: auto-advance
+          // is on, we have budget, and no required field on this step is still empty.
+          if (autoAdvance && steps < MAX_STEPS && !hasEmptyRequired()) {
+            const btn = findContinueButton()
+            if (btn) { steps++; btn.click(); lastActivity = Date.now(); return }
+          }
+          stop() // nothing left to fill or advance
         }
       }, 1000)
       if (msg.smartAnswers) {
