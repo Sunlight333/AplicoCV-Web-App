@@ -14,19 +14,43 @@
   // surname. Heuristic: 4+ tokens → first two are given names, the rest are surnames;
   // 3 tokens → one given name + two surnames (the most common LATAM shape).
   function splitName(full) {
-    const parts = (full || '').trim().split(/\s+/).filter(Boolean)
+    const parts = (properName(full) || '').trim().split(/\s+/).filter(Boolean)
     if (parts.length <= 1) return { first: parts[0] || '', last: '' }
     if (parts.length === 2) return { first: parts[0], last: parts[1] }
     if (parts.length === 3) return { first: parts[0], last: parts.slice(1).join(' ') }
     return { first: parts.slice(0, 2).join(' '), last: parts.slice(2).join(' ') }
   }
 
+  // Names stored in ALL CAPS are rejected by some portals (Workday) and look wrong.
+  // If a value is entirely uppercase, convert it to Title Case; mixed-case names are
+  // left untouched so "McDonald" / "de la Cruz" aren't mangled.
+  function properName(s) {
+    if (!s) return s
+    const isAllCaps = s === s.toUpperCase() && s !== s.toLowerCase()
+    if (!isAllCaps) return s
+    return s.toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (_, sep, ch) => sep + ch.toUpperCase())
+  }
+
+  // Phone helpers: portals like Workday have a SEPARATE country-code selector, so
+  // putting the full "+56 9 1234 5678" into the number field duplicates the code and
+  // fails validation. localPhone strips a leading "+<code>" for the number field;
+  // phoneCountryCode returns just the "+56" for the country-code field.
+  function localPhone(s) {
+    if (!s) return s
+    return String(s).replace(/^\s*\+\d{1,3}[\s-]?/, '').trim() || String(s)
+  }
+  function phoneCountryCode(s) {
+    const m = String(s || '').match(/^\s*(\+\d{1,3})/)
+    return m ? m[1] : undefined
+  }
+
   const FIELD_DEFS = [
-    { key: 'fullName', get: (p) => p.personal?.fullName, syn: ['full name', 'name', 'nombre completo', 'nome completo', 'nombre', 'nome'] },
+    { key: 'fullName', get: (p) => properName(p.personal?.fullName), syn: ['full name', 'name', 'nombre completo', 'nome completo', 'nombre', 'nome'] },
     { key: 'firstName', get: (p) => splitName(p.personal?.fullName).first, syn: ['first name', 'given name', 'primeiro nome'] },
     { key: 'lastName', get: (p) => splitName(p.personal?.fullName).last, syn: ['last name', 'surname', 'family name', 'apellido', 'sobrenome'] },
     { key: 'email', get: (p) => p.personal?.email, syn: ['email address', 'e-mail address', 'email', 'e-mail', 'correo electronico', 'correo'] },
-    { key: 'phone', get: (p) => p.personal?.phone, syn: ['phone', 'telephone', 'mobile', 'telefono', 'celular', 'telefone'] },
+    { key: 'phoneCountryCode', get: (p) => phoneCountryCode(p.personal?.phone), syn: ['country code', 'phone country code', 'codigo de pais', 'codigo pais', 'codigo do pais', 'country phone code'] },
+    { key: 'phone', get: (p) => localPhone(p.personal?.phone), syn: ['phone', 'telephone', 'mobile', 'phone number', 'telefono', 'numero de telefono', 'celular', 'telefone'] },
     { key: 'location', get: (p) => p.personal?.location, syn: ['location', 'city', 'address', 'ubicacion', 'ciudad', 'localizacao', 'cidade'] },
     { key: 'headline', get: (p) => p.personal?.headline, syn: ['headline', 'professional headline', 'titular profesional'] },
     { key: 'summary', get: (p) => p.personal?.summary, syn: ['summary', 'about', 'profile', 'resumen', 'sobre', 'resumo'] },
@@ -40,6 +64,8 @@
     { key: 'jobTitle', get: (p) => p.experience?.[0]?.title || p.personal?.headline, syn: ['job title', 'current title', 'most recent title', 'position', 'role', 'puesto', 'puesto actual', 'cargo', 'cargo atual'] },
     { key: 'workStart', get: (p) => p.experience?.[0]?.startDate, syn: ['start date', 'from', 'fecha de inicio', 'data de inicio', 'desde'] },
     { key: 'workEnd', get: (p) => p.experience?.[0]?.endDate, syn: ['end date', 'to', 'fecha de fin', 'data de termino', 'hasta'] },
+    // Role responsibilities — stored as bullet points; joined for a free-text field.
+    { key: 'roleDescription', get: (p) => (p.experience?.[0]?.bullets || []).join('\n'), syn: ['role description', 'description of role', 'responsibilities', 'job duties', 'what did you do', 'descripcion del cargo', 'descripcion del rol', 'responsabilidades', 'funciones', 'descricao', 'atividades', 'descripcion'] },
     // Education (most recent).
     { key: 'school', get: (p) => p.education?.[0]?.institution, syn: ['school', 'university', 'college', 'institution', 'universidad', 'escuela', 'instituicao', 'universidade'] },
     { key: 'degree', get: (p) => p.education?.[0]?.degree, syn: ['degree', 'qualification', 'titulo', 'grado', 'formacao', 'graduacao'] },
@@ -48,6 +74,9 @@
     { key: 'fieldOfStudy', get: (p) => p.education?.[0]?.field, syn: ['field of study', 'major', 'area of study', 'especialidad', 'area de estudo'] },
     // Skills — fills a single skills/keywords field with the full list.
     { key: 'skills', get: (p) => (p.skills || []).join(', '), syn: ['skills', 'key skills', 'top skills', 'habilidades', 'competencias', 'aptidoes', 'conhecimentos'] },
+    // Languages — combined into one field when the form offers a single free-text box.
+    // Per-language rows with proficiency levels are handled by fillRepeating below.
+    { key: 'language', get: (p) => (p.languages || []).map((l) => l.language).filter(Boolean).join(', '), syn: ['languages', 'languages spoken', 'idiomas', 'lenguajes', 'idioma', 'linguas'] },
     // Phase 2 — answers sourced from the user's saved job preferences. `yn` maps a
     // boolean to a Yes/No the typical form select expects.
     { key: 'gender', get: (p) => p.preferences?.gender, syn: ['gender', 'sex', 'how do you identify', 'genero', 'sexo', 'genero'] },
@@ -299,53 +328,121 @@
     return filled
   }
 
+  // Map a language proficiency level to the wording forms commonly use (fillSelect
+  // matches by partial text, so a single label hits most variants).
+  function languageLevelLabel(level) {
+    return {
+      basic: 'Basic', conversational: 'Conversational', professional: 'Professional',
+      advanced: 'Advanced', native: 'Native', bilingual: 'Bilingual',
+    }[level]
+  }
+
+  // Find a section's "Add" button by SECTION-SPECIFIC text only (never a bare "Add"),
+  // so we never mis-click an unrelated control. Prefers the most specific match.
+  function findAddButton(addSyn, scope) {
+    const root = scope || document
+    let best = null, bestLen = 0
+    for (const b of root.querySelectorAll('button, a, [role="button"]')) {
+      if (b.disabled || b.offsetParent === null) continue
+      const t = norm(b.textContent || b.getAttribute('aria-label') || '')
+      if (!t) continue
+      for (const s of addSyn) {
+        const ns = norm(s)
+        if (ns.length >= 5 && t.includes(ns) && ns.length > bestLen) { best = b; bestLen = ns.length }
+      }
+    }
+    return best
+  }
+
+  // Bounded add-clicks per run, so we never loop clicking "Add" endlessly. Reset on
+  // each RUN_AUTOFILL.
+  let addClicks = {}
+
+  // Repeating sections (experience / education / languages): fill each visible row
+  // from the matching profile entry, and — bounded — click the section's Add button
+  // to create rows for extra entries (the MutationObserver re-runs autofill once the
+  // new row renders). Values can be transforms (e.g. bullets -> joined text).
   function fillRepeating(profile, done) {
     let filled = 0
     const sections = [
       {
+        key: 'experience',
         anchorSyn: DEF_BY_KEY.employer.syn,
+        addSyn: ['add experience', 'add another experience', 'add work', 'add employment', 'add position', 'add job', 'agregar experiencia', 'anadir experiencia', 'adicionar experiencia'],
         entries: profile.experience || [],
-        map: { employer: 'employer', jobTitle: 'title', workStart: 'startDate', workEnd: 'endDate' },
+        map: {
+          employer: (e) => e.employer,
+          jobTitle: (e) => e.title,
+          location: (e) => e.location,
+          workStart: (e) => e.startDate,
+          workEnd: (e) => e.endDate,
+          roleDescription: (e) => (e.bullets || []).join('\n'),
+        },
       },
       {
+        key: 'education',
         anchorSyn: DEF_BY_KEY.school.syn,
+        addSyn: ['add education', 'add another education', 'add school', 'add degree', 'agregar educacion', 'anadir educacion', 'adicionar formacao'],
         entries: profile.education || [],
-        map: { school: 'institution', degree: 'degree', fieldOfStudy: 'field', workStart: 'startDate', workEnd: 'endDate' },
+        map: {
+          school: (e) => e.institution,
+          degree: (e) => e.degree,
+          degreeLevel: (e) => degreeLabel(e.degreeLevel),
+          fieldOfStudy: (e) => e.field,
+          workStart: (e) => e.startDate,
+          workEnd: (e) => e.endDate,
+        },
+      },
+      {
+        key: 'languages',
+        anchorSyn: DEF_BY_KEY.language.syn,
+        addSyn: ['add language', 'add another language', 'agregar idioma', 'anadir idioma', 'adicionar idioma'],
+        entries: profile.languages || [],
+        map: { language: (e) => e.language },
+        level: (e) => languageLevelLabel(e.level),
       },
     ]
     for (const sec of sections) {
-      if (sec.entries.length < 2) continue // first entry already handled generically
+      if (!sec.entries.length) continue
+      const keys = Object.keys(sec.map)
       // Find anchor fields (one per visible row), in document order.
-      const all = document.querySelectorAll('input, textarea')
       const anchors = []
-      for (const el of all) {
+      for (const el of document.querySelectorAll('input, textarea')) {
         const h = norm(labelFor(el) || el.name || el.placeholder)
         if (h && sec.anchorSyn.some((s) => h.includes(norm(s)))) anchors.push(el)
       }
-      const keys = Object.keys(sec.map)
+      // A single row/entry is handled fine by the generic pass; only take over when
+      // there are multiple rows to align or extra entries to add.
+      if (anchors.length <= 1 && sec.entries.length <= 1) continue
       anchors.forEach((anchor, i) => {
         const entry = sec.entries[i]
         if (!entry) return
-        // Build an {defKey: value} view of the entry for fillInContainer.
-        const view = {}
-        for (const k of keys) view[k] = entry[sec.map[k]]
-        // Attach a `.field` lookup so fillInContainer can read values by def key.
-        const defs = keys
         const container = rowContainer(anchor)
         const inputs = container ? container.querySelectorAll('input, textarea, select') : []
         for (const el of inputs) {
           if (done.has(el) || isMeaningfullyFilled(el)) continue
           const def = findDef(el)
-          if (!def || !defs.includes(def.key)) continue
-          const value = view[def.key]
+          if (!def || !keys.includes(def.key)) continue
+          const value = sec.map[def.key](entry)
           if (!value) continue
-          if (fillAny(el, value)) {
-            flash(el)
-            done.add(el)
-            filled++
+          if (fillAny(el, value)) { flash(el); done.add(el); filled++ }
+        }
+        // Language proficiency: fill any level select/dropdown in the same row.
+        if (sec.level && container) {
+          const lvl = sec.level(entry)
+          if (lvl) for (const el of container.querySelectorAll('select')) {
+            if (done.has(el) || isMeaningfullyFilled(el)) continue
+            if (fillSelect(el, lvl)) { flash(el); done.add(el); filled++ }
           }
         }
       })
+      // Bounded add-row: more entries than visible rows -> click the section's Add
+      // button once per pass; the observer re-runs to fill the freshly added row.
+      if (anchors.length && anchors.length < sec.entries.length && (addClicks[sec.key] || 0) < sec.entries.length) {
+        const scope = rowContainer(anchors[anchors.length - 1])?.parentElement || document
+        const btn = findAddButton(sec.addSyn, scope) || findAddButton(sec.addSyn, document)
+        if (btn) { addClicks[sec.key] = (addClicks[sec.key] || 0) + 1; btn.click() }
+      }
     }
     return filled
   }
@@ -496,15 +593,19 @@
   }
 
   // MutationObserver: SPA portals (and Workday's multi-step pages) inject fields
-  // after load, so keep filling within a window after the autofill click. The
-  // observer is only active during that window (started on autofill, disconnected
-  // when the window expires) rather than for the page's whole lifetime.
+  // after load, so keep filling within a window after the autofill click. The window
+  // SLIDES — it stays open while fields keep getting filled (so multi-step forms get
+  // each new step populated as the user advances), and closes after a spell of
+  // inactivity or a hard cap, rather than a single fixed timeout.
   let pendingProfile = null
   let pendingSelectors = {}
   let pendingFaq = []
   let fillToken = 0
+  let lastActivity = 0
   const observer = new MutationObserver(() => {
-    if (pendingProfile) autofill(pendingProfile, pendingSelectors, pendingFaq)
+    if (!pendingProfile) return
+    const n = autofill(pendingProfile, pendingSelectors, pendingFaq)
+    if (n > 0) lastActivity = Date.now()
   })
 
   // Phase 1.4 — for open-text fields the FAQ pass couldn't fill, ask the backend
@@ -535,20 +636,29 @@
 
   chrome.runtime.onMessage.addListener((msg, _s, sendResponse) => {
     if (msg.type === 'RUN_AUTOFILL') {
+      addClicks = {} // reset per run so add-row clicking is bounded to this session
       const filled = autofill(msg.profile, msg.selectors || {}, msg.faq || [])
       pendingProfile = msg.profile
       pendingSelectors = msg.selectors || {}
       pendingFaq = msg.faq || []
-      // Workday paginates the form across steps — keep the fill window open
-      // longer so later steps get populated as the user advances.
-      const fillWindow = msg.multiStep || IS_WORKDAY ? 15000 : 4000
+      // Sliding window: stay active while the form keeps yielding fields (multi-step
+      // portals like Workday paginate across steps), closing after IDLE_MS of no new
+      // fills or MAX_MS total. This replaces the old fixed 15s cap that expired mid-flow.
+      const IDLE_MS = msg.multiStep || IS_WORKDAY ? 12000 : 5000
+      const MAX_MS = 180000
       const token = ++fillToken
+      const started = Date.now()
+      lastActivity = Date.now()
       observer.observe(document.documentElement, { childList: true, subtree: true })
-      setTimeout(() => {
-        if (token !== fillToken) return // a newer autofill took over; let it finish
-        pendingProfile = null
-        observer.disconnect()
-      }, fillWindow)
+      const iv = setInterval(() => {
+        if (token !== fillToken) { clearInterval(iv); return } // a newer run took over
+        const now = Date.now()
+        if (now - lastActivity > IDLE_MS || now - started > MAX_MS) {
+          clearInterval(iv)
+          pendingProfile = null
+          observer.disconnect()
+        }
+      }, 1000)
       if (msg.smartAnswers) {
         // Async; reports the combined count back to the popup when done.
         fillSmartAnswers(msg.jobDescription || '').then((extra) =>
