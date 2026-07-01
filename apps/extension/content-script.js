@@ -354,6 +354,76 @@
     return best
   }
 
+  // --- Split date fields (Workday & similar) ---------------------------------
+  // Workday renders dates as separate month/day/year spinbutton inputs the generic
+  // text pass can't fill. Parse the stored date and type each section.
+  function parseDate(str) {
+    if (!str) return null
+    const s = String(str).trim()
+    if (/present|actual|current|ongoing|now|hoy|atual/i.test(s)) return { present: true }
+    const mon = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+    let m
+    if ((m = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/))) return { year: +m[1], month: +m[2], day: m[3] ? +m[3] : null }
+    if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return { year: +m[3], month: +m[1], day: +m[2] }
+    if ((m = s.match(/^(\d{1,2})\/(\d{4})$/))) return { year: +m[2], month: +m[1], day: null }
+    if ((m = s.match(/([A-Za-z]{3})[a-z]*\.?\s+(\d{4})/))) {
+      const mi = mon.indexOf(m[1].toLowerCase())
+      if (mi >= 0) return { year: +m[2], month: mi + 1, day: null }
+    }
+    if ((m = s.match(/\b(19|20)\d{2}\b/))) return { year: +m[0], month: null, day: null }
+    return null
+  }
+
+  // The label of the field group an element belongs to (Workday wraps fields in
+  // a formField group with its own label/legend).
+  function groupLabel(el) {
+    const grp = el.closest('[data-automation-id^="formField" i], fieldset, [role="group"]')
+    if (grp) {
+      const lab = grp.querySelector('label, legend')
+      if (lab && lab.textContent.trim()) return lab.textContent
+      if (grp.getAttribute('aria-label')) return grp.getAttribute('aria-label')
+    }
+    return el.getAttribute('aria-label') || ''
+  }
+
+  // Date-section wrappers within a scope: groups that contain a "year" section input.
+  function dateWrappersIn(scope) {
+    const wrappers = new Set()
+    for (const i of scope.querySelectorAll('input')) {
+      const id = norm(
+        (i.getAttribute('data-automation-id') || '') + ' ' + (i.getAttribute('aria-label') || '') +
+        ' ' + (i.getAttribute('placeholder') || '') + ' ' + (i.name || ''),
+      )
+      if (/year|yyyy|\bano\b/.test(id)) {
+        const w =
+          i.closest('[data-automation-id*="dateinput" i], [data-automation-id^="datewidget" i], [data-automation-id^="formField" i], fieldset, [role="group"]') ||
+          i.parentElement?.parentElement || i.parentElement
+        if (w) wrappers.add(w)
+      }
+    }
+    return [...wrappers]
+  }
+
+  // Type month/day/year into a date wrapper's section inputs.
+  function fillDateSections(wrapper, parsed, done) {
+    if (!parsed || parsed.present) return 0
+    let n = 0
+    const pick = (re) =>
+      [...wrapper.querySelectorAll('input')].find((i) =>
+        re.test(norm(
+          (i.getAttribute('data-automation-id') || '') + ' ' + (i.getAttribute('aria-label') || '') +
+          ' ' + (i.getAttribute('placeholder') || '') + ' ' + (i.name || ''),
+        )),
+      )
+    const put = (el, val) => {
+      if (el && !done.has(el) && val != null) { fillField(el, String(val)); done.add(el); flash(el); n++ }
+    }
+    put(pick(/month|\bmm\b|\bmes\b/), parsed.month)
+    put(pick(/\bday\b|\bdd\b|\bdia\b/), parsed.day)
+    put(pick(/year|yyyy|\bano\b/), parsed.year)
+    return n
+  }
+
   // Bounded add-clicks per run, so we never loop clicking "Add" endlessly. Reset on
   // each RUN_AUTOFILL.
   let addClicks = {}
@@ -411,9 +481,9 @@
         const h = norm(labelFor(el) || el.name || el.placeholder)
         if (h && sec.anchorSyn.some((s) => h.includes(norm(s)))) anchors.push(el)
       }
-      // A single row/entry is handled fine by the generic pass; only take over when
-      // there are multiple rows to align or extra entries to add.
-      if (anchors.length <= 1 && sec.entries.length <= 1) continue
+      // Process every visible row (idempotent via the `done` set): text fields the
+      // generic pass already handled are skipped, but row scoping lets us fill the
+      // split date widgets and per-row values the generic pass can't.
       anchors.forEach((anchor, i) => {
         const entry = sec.entries[i]
         if (!entry) return
@@ -433,6 +503,30 @@
           if (lvl) for (const el of container.querySelectorAll('select')) {
             if (done.has(el) || isMeaningfullyFilled(el)) continue
             if (fillSelect(el, lvl)) { flash(el); done.add(el); filled++ }
+          }
+        }
+        // Split date widgets (Workday): fill start/end date groups from the entry,
+        // and tick "I currently work here" when an experience has no end date.
+        if (container && (entry.startDate || entry.endDate)) {
+          for (const w of dateWrappersIn(container)) {
+            const gl = norm(groupLabel(w))
+            if (/start|from|desde|inicio|inicial/.test(gl) && entry.startDate) {
+              filled += fillDateSections(w, parseDate(entry.startDate), done)
+            } else if (/end|\bto\b|hasta|\bfin\b|termino|final/.test(gl) && entry.endDate) {
+              filled += fillDateSections(w, parseDate(entry.endDate), done)
+            }
+          }
+        }
+        if (sec.key === 'experience' && container && !entry.endDate) {
+          for (const cb of container.querySelectorAll('input[type="checkbox"]')) {
+            if (done.has(cb) || cb.checked) continue
+            if (/current|present|actual|i currently|actualmente|atualmente/.test(norm(labelFor(cb)))) {
+              cb.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
+              cb.checked = true
+              cb.dispatchEvent(new Event('input', { bubbles: true }))
+              cb.dispatchEvent(new Event('change', { bubbles: true }))
+              done.add(cb); flash(cb); filled++
+            }
           }
         }
       })
