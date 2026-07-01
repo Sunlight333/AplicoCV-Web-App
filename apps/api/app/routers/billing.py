@@ -143,7 +143,9 @@ async def _fulfill(
     if payment_id in processed:
         return False
     if kind == "credits" and credits:
-        await credit_service.grant(db, acc, int(credits), f"purchase_{plan_id or 'credits'}")
+        # grant_pending (no commit) so the balance change and the payment-id record
+        # land in ONE transaction — otherwise a crash between them double-grants on retry.
+        credit_service.grant_pending(db, acc, int(credits), f"purchase_{plan_id or 'credits'}")
     else:
         user.plan = "premium"
     grants = dict(acc.grants or {})
@@ -369,8 +371,10 @@ async def webhook(
                 if event_id and event_id in processed:
                     return {"received": True}
                 if obj.get("mode") == "payment" and meta.get("credits"):
-                    # One-off credit-pack purchase — top up the balance.
-                    await credit_service.grant(
+                    # One-off credit-pack purchase — top up the balance. grant_pending
+                    # (no commit) so the grant + event-id record commit atomically below,
+                    # so a crash between them can't let a Stripe retry double-grant.
+                    credit_service.grant_pending(
                         db, acc, int(meta["credits"]), "purchase_credits"
                     )
                 else:

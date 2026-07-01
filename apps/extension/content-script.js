@@ -32,17 +32,17 @@
   }
 
   // Phone helpers: portals like Workday have a SEPARATE country-code selector, so
-  // putting the full "+56 9 1234 5678" into the number field duplicates the code and
-  // fails validation. localPhone strips a leading "+<code>" for the number field;
-  // phoneCountryCode returns just the "+56" for the country-code field.
-  function localPhone(s) {
-    if (!s) return s
-    return String(s).replace(/^\s*\+\d{1,3}[\s-]?/, '').trim() || String(s)
+  // putting the full "+56 9 1234 5678" into the number field duplicates the code.
+  // We only split when a SEPARATOR makes the code boundary unambiguous — a bare
+  // "+56912345678" is left whole rather than risk eating real digits (we can't tell
+  // +56 from +569). Both helpers derive from the same split, so they stay consistent.
+  function phoneParts(s) {
+    const m = String(s || '').match(/^\s*(\+\d{1,3})[\s.\-()]+(.*)$/)
+    if (m && m[2].trim()) return { code: m[1], local: m[2].trim() }
+    return { code: undefined, local: String(s || '') }
   }
-  function phoneCountryCode(s) {
-    const m = String(s || '').match(/^\s*(\+\d{1,3})/)
-    return m ? m[1] : undefined
-  }
+  function localPhone(s) { return phoneParts(s).local }
+  function phoneCountryCode(s) { return phoneParts(s).code }
 
   const FIELD_DEFS = [
     { key: 'fullName', get: (p) => properName(p.personal?.fullName), syn: ['full name', 'name', 'nombre completo', 'nome completo', 'nombre', 'nome'] },
@@ -65,7 +65,7 @@
     { key: 'workStart', get: (p) => p.experience?.[0]?.startDate, syn: ['start date', 'from', 'fecha de inicio', 'data de inicio', 'desde'] },
     { key: 'workEnd', get: (p) => p.experience?.[0]?.endDate, syn: ['end date', 'to', 'fecha de fin', 'data de termino', 'hasta'] },
     // Role responsibilities — stored as bullet points; joined for a free-text field.
-    { key: 'roleDescription', get: (p) => (p.experience?.[0]?.bullets || []).join('\n'), syn: ['role description', 'description of role', 'responsibilities', 'job duties', 'what did you do', 'descripcion del cargo', 'descripcion del rol', 'responsabilidades', 'funciones', 'descricao', 'atividades', 'descripcion'] },
+    { key: 'roleDescription', get: (p) => (p.experience?.[0]?.bullets || []).join('\n'), syn: ['role description', 'description of role', 'responsibilities', 'job duties', 'what did you do', 'descripcion del cargo', 'descripcion del rol', 'descripcion del puesto', 'responsabilidades', 'funciones', 'descricao das atividades', 'atividades'] },
     // Education (most recent).
     { key: 'school', get: (p) => p.education?.[0]?.institution, syn: ['school', 'university', 'college', 'institution', 'universidad', 'escuela', 'instituicao', 'universidade'] },
     { key: 'degree', get: (p) => p.education?.[0]?.degree, syn: ['degree', 'qualification', 'titulo', 'grado', 'formacao', 'graduacao'] },
@@ -299,8 +299,11 @@
   // Conservative: we never click "add row" buttons (too portal-specific) — we only
   // populate rows the page already shows beyond the first.
   function rowContainer(el) {
+    // Prefer the narrowest ROW-level container so one entry's fields don't bleed into
+    // another's; only fall back to the whole-section wrapper, then the parent.
     return (
-      el.closest('fieldset, [class*="experience" i], [class*="education" i], [class*="entry" i], [class*="item" i], li') ||
+      el.closest('li, [role="listitem"], [class*="entry" i], [class*="item" i], [data-automation-id*="panelentry" i]') ||
+      el.closest('fieldset, [class*="experience" i], [class*="education" i]') ||
       el.parentElement
     )
   }
@@ -364,7 +367,13 @@
     const mon = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
     let m
     if ((m = s.match(/^(\d{4})-(\d{1,2})(?:-(\d{1,2}))?/))) return { year: +m[1], month: +m[2], day: m[3] ? +m[3] : null }
-    if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) return { year: +m[3], month: +m[1], day: +m[2] }
+    if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/))) {
+      // Ambiguous slash date: if the first field can't be a month it's DD/MM; if the
+      // second can't it's MM/DD; otherwise default to DD/MM (LATAM, this file's audience).
+      const a = +m[1], b = +m[2]
+      const [day, month] = a > 12 ? [a, b] : b > 12 ? [b, a] : [a, b]
+      return { year: +m[3], month, day }
+    }
     if ((m = s.match(/^(\d{1,2})\/(\d{4})$/))) return { year: +m[2], month: +m[1], day: null }
     if ((m = s.match(/([A-Za-z]{3})[a-z]*\.?\s+(\d{4})/))) {
       const mi = mon.indexOf(m[1].toLowerCase())
@@ -438,7 +447,14 @@
   function fillPromptWidgets(profile, done) {
     let n = 0
     if (pendingPrompt) {
-      const opts = document.querySelectorAll('[role="option"], [data-automation-id="promptOption"], [data-automation-id*="menuItem" i]')
+      // Scope option lookup to the listbox THIS trigger owns (aria-controls/owns), so
+      // we never click an option belonging to a different question (e.g. a stale or
+      // adjacent dropdown) — critical for sensitive prompts like work authorization.
+      const scope =
+        (pendingPrompt.listboxId && document.getElementById(pendingPrompt.listboxId)) ||
+        document.querySelector('[role="listbox"], [data-automation-id="activeListContainer"]') ||
+        document
+      const opts = scope.querySelectorAll('[role="option"], [data-automation-id="promptOption"], [data-automation-id*="menuItem" i]')
       const wants = valueSynonyms(pendingPrompt.value)
       let clicked = false
       for (const o of opts) {
@@ -466,7 +482,7 @@
       const wants = valueSynonyms(value)
       if (shown && wants.some((w) => w.length > 2 && shown.includes(w))) { done.add(trig); continue } // already set
       done.add(trig)
-      pendingPrompt = { value }
+      pendingPrompt = { value, listboxId: trig.getAttribute('aria-controls') || trig.getAttribute('aria-owns') || null }
       trig.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
       trig.click()
       const search = trig.tagName === 'INPUT' ? trig : trig.querySelector('input')
@@ -747,10 +763,11 @@
   let pendingFaq = []
   let fillToken = 0
   let lastActivity = 0
+  let stepFilled = false // did the current (post-advance) step fill anything yet?
   const observer = new MutationObserver(() => {
     if (!pendingProfile) return
     const n = autofill(pendingProfile, pendingSelectors, pendingFaq)
-    if (n > 0) lastActivity = Date.now()
+    if (n > 0) { lastActivity = Date.now(); stepFilled = true }
   })
 
   // Phase 1.4 — for open-text fields the FAQ pass couldn't fill, ask the backend
@@ -832,18 +849,25 @@
       const token = ++fillToken
       const started = Date.now()
       lastActivity = Date.now()
+      stepFilled = filled > 0
       observer.observe(document.documentElement, { childList: true, subtree: true })
       const iv = setInterval(() => {
         if (token !== fillToken) { clearInterval(iv); return } // a newer run took over
-        const stop = () => { clearInterval(iv); pendingProfile = null; observer.disconnect() }
+        const stop = () => {
+          clearInterval(iv); pendingProfile = null; observer.disconnect()
+          if (pendingPrompt) { // don't leave a searchable dropdown hanging open
+            document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+            pendingPrompt = null
+          }
+        }
         const now = Date.now()
         if (now - started > MAX_MS) return stop()
         if (now - lastActivity > IDLE_MS) {
-          // The step has settled. Advance to the next step when it's safe: auto-advance
-          // is on, we have budget, and no required field on this step is still empty.
-          if (autoAdvance && steps < MAX_STEPS && !hasEmptyRequired()) {
+          // Step settled. Advance only when it's safe AND this step actually filled
+          // something — never walk blindly through steps the engine can't populate.
+          if (autoAdvance && steps < MAX_STEPS && stepFilled && !hasEmptyRequired()) {
             const btn = findContinueButton()
-            if (btn) { steps++; btn.click(); lastActivity = Date.now(); return }
+            if (btn) { steps++; stepFilled = false; btn.click(); lastActivity = Date.now(); return }
           }
           stop() // nothing left to fill or advance
         }

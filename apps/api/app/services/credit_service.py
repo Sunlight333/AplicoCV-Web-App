@@ -66,6 +66,15 @@ async def grant(db: AsyncSession, acc: CreditAccount, amount: int, reason: str) 
     return acc
 
 
+def grant_pending(db: AsyncSession, acc: CreditAccount, amount: int, reason: str) -> None:
+    """Apply a grant to the session WITHOUT committing, so the caller can commit it
+    atomically together with an idempotency key (e.g. a processed payment id). Prevents
+    the crash window where credits are persisted but the dedup key is not — which would
+    let a webhook retry double-grant."""
+    acc.balance += amount
+    db.add(CreditTransaction(user_id=acc.user_id, amount=amount, reason=reason))
+
+
 async def spend(db: AsyncSession, acc: CreditAccount, amount: int, reason: str) -> bool:
     """Deduct credits; returns False (no change) if the balance is insufficient."""
     if acc.balance < amount:
