@@ -20,26 +20,95 @@ from app.models import Profile, Recommendation, User
 REMOTIVE_URL = "https://remotive.com/api/remote-jobs"
 
 
-def _search_links(role: str, location: str) -> list[dict]:
+# LATAM signals in a free-text location / region string (accent-insensitive-ish).
+_LATAM_HINTS = (
+    "latam", "latin", "south america", "sudamerica", "sudamérica", "chile", "argentina",
+    "mexico", "méxico", "colombia", "peru", "perú", "brasil", "brazil", "uruguay",
+    "ecuador", "bolivia", "paraguay", "venezuela", "santiago", "buenos aires", "bogota",
+    "bogotá", "lima", "cdmx",
+)
+_USA_HINTS = (
+    "usa", "united states", "estados unidos", "north america", "norteamerica",
+    "norteamérica", "u.s.", "new york", "san francisco", "texas", "california",
+)
+
+
+def _derive_targeting(prefs: dict) -> tuple[bool, bool, str]:
+    """From the user's saved intake, decide (wants_remote, wants_onsite, region_bucket).
+    region_bucket ∈ {"latam", "usa", "global"} routes which portals we query — the
+    'in which regions + remote vs on-site' question the client asked for."""
+    remote = (prefs.get("remote") or "any").lower()
+    modalities = [m.lower() for m in (prefs.get("workModalities") or [])]
+    scope = prefs.get("remoteScope")
+    wants_remote = remote in ("remote", "any") or "remote" in modalities or scope == "full_remote"
+    wants_onsite = (
+        remote in ("onsite", "hybrid", "any")
+        or scope == "onsite_hybrid"
+        or bool(prefs.get("onsiteLocations"))
+    )
+    if not wants_remote and not wants_onsite:
+        wants_remote = wants_onsite = True  # unset → search both
+
+    blob = " ".join(
+        [*(prefs.get("locations") or []), *(prefs.get("remoteRegions") or [])]
+    ).lower()
+    regions = [r.lower() for r in (prefs.get("remoteRegions") or [])]
+    if any(h in blob for h in _LATAM_HINTS) or "south_america" in regions:
+        bucket = "latam"
+    elif any(h in blob for h in _USA_HINTS) or "north_america" in regions:
+        bucket = "usa"
+    else:
+        bucket = "global"
+    return wants_remote, wants_onsite, bucket
+
+
+# Vetted portal search links (stable query URLs). Each is tagged with the work modes
+# and region buckets it fits; selection below filters by the user's intake.
+def _portal_catalog(q: str, loc: str) -> list[dict]:
+    locq = f"&location={loc}" if loc else ""
+    locq_l = f"&l={loc}" if loc else ""
+    return [
+        {"portal": "We Work Remotely", "url": f"https://weworkremotely.com/remote-jobs/search?term={q}",
+         "modes": {"remote"}, "buckets": {"latam", "usa", "global"}},
+        {"portal": "Get on Board", "url": f"https://www.getonbrd.com/jobs?q={q}",
+         "modes": {"remote", "onsite"}, "buckets": {"latam", "global"}},
+        {"portal": "LinkedIn", "url": f"https://www.linkedin.com/jobs/search/?keywords={q}{locq}",
+         "modes": {"remote", "onsite"}, "buckets": {"latam", "usa", "global"}},
+        {"portal": "Indeed", "url": f"https://www.indeed.com/jobs?q={q}{locq_l}",
+         "modes": {"remote", "onsite"}, "buckets": {"usa", "global"}},
+        {"portal": "Glassdoor", "url": f"https://www.glassdoor.com/Job/jobs.htm?sc.keyword={q}",
+         "modes": {"remote", "onsite"}, "buckets": {"usa", "global"}},
+        {"portal": "Computrabajo", "url": f"https://www.computrabajo.com/empleos-de-{q}",
+         "modes": {"onsite"}, "buckets": {"latam"}},
+    ]
+
+
+def _search_links(role: str, location: str, prefs: dict | None = None) -> list[dict]:
+    """Region- and mode-aware search links: pick the portals that match the user's
+    'which regions + remote/on-site' intake, so recommendations point at the right
+    boards instead of a fixed list."""
     q = quote_plus(role)
     loc = quote_plus(location)
-    portals = [
-        ("LinkedIn", "LinkedIn Jobs",
-         f"https://www.linkedin.com/jobs/search/?keywords={q}" + (f"&location={loc}" if location else "")),
-        ("Indeed", "Indeed", f"https://www.indeed.com/jobs?q={q}" + (f"&l={loc}" if location else "")),
-        ("Get on Board", "Get on Board", f"https://www.getonbrd.com/jobs?q={q}"),
-        ("We Work Remotely", "We Work Remotely", f"https://weworkremotely.com/remote-jobs/search?term={q}"),
+    wants_remote, wants_onsite, bucket = _derive_targeting(prefs or {})
+    wanted_modes = ({"remote"} if wants_remote else set()) | ({"onsite"} if wants_onsite else set())
+
+    picked = [
+        p for p in _portal_catalog(q, loc)
+        if (p["modes"] & wanted_modes) and bucket in p["buckets"]
     ]
+    if not picked:  # never return nothing — fall back to the broad global set
+        picked = [p for p in _portal_catalog(q, loc) if "global" in p["buckets"]]
+
     return [
         {
             "title": f"{role} roles",
-            "company": company,
-            "portal": portal,
-            "url": url,
-            "score": max(62, 92 - i * 8),
-            "note": f"Live search tailored to your target role on {portal}." if i == 0 else None,
+            "company": p["portal"],
+            "portal": p["portal"],
+            "url": p["url"],
+            "score": max(62, 92 - i * 6),
+            "note": f"Search tailored to your target role and region on {p['portal']}." if i == 0 else None,
         }
-        for i, (portal, company, url) in enumerate(portals)
+        for i, p in enumerate(picked)
     ]
 
 
@@ -151,9 +220,13 @@ async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
     location = (prefs.get("locations") or [""])[0]
     skills = pdata.get("skills") or []
 
-    jobs = await _live_jobs(role, skills)
-    if not jobs:
-        jobs = _search_links(role, location)
+    wants_remote, _wants_onsite, _bucket = _derive_targeting(prefs)
+    # Remotive lists remote roles, so only pull it for users open to remote.
+    jobs: list[dict] = await _live_jobs(role, skills) if wants_remote else []
+    jobs += _search_links(role, location, prefs)
+    # Dedupe by URL and cap to a daily shortlist (client's "up to ~20" target).
+    seen: set[str] = set()
+    jobs = [j for j in jobs if j["url"] not in seen and not seen.add(j["url"])][:20]
 
     created: list[Recommendation] = []
     for job in jobs:
