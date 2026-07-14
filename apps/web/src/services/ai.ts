@@ -35,6 +35,71 @@ export async function getPersonalAnalysis(): Promise<{ strengths: string[]; weak
   return api.post(`/ai/personal-analysis?language=${encodeURIComponent(currentLocale())}`)
 }
 
+// --- Recruiter-grade CV review + achievement builder (Enfoque 2.0) -----------
+
+export interface CvReview {
+  score: number
+  verdict: string
+  strengths: string[]
+  weaknesses: string[]
+  missingKeywords: string[]
+  toImprove: string[]
+}
+
+export interface AchievementRole {
+  roleId: string
+  employer: string
+  title: string
+  options: string[]
+}
+
+/** Recruiter-grade review: strengths, <10s weaknesses, ATS gaps, score, how to reach 10. */
+export async function reviewCv(): Promise<CvReview> {
+  if (env.useMocks) {
+    await delay(900)
+    return {
+      score: 68,
+      verdict: 'Solid experience, but reads as a job history rather than a sales tool.',
+      strengths: ['Clear domain expertise', 'Real, senior-level experience'],
+      weaknesses: ['No target job title at the top', 'Several roles lack quantified results', 'No LinkedIn in the header'],
+      missingKeywords: ['Stakeholder Management', 'KPI ownership', 'Go-to-market'],
+      toImprove: ['Add a target title above the summary', 'Quantify each role (numbers, %, $)', 'Trim to 3–4 achievement bullets per role'],
+    }
+  }
+  return api.post<CvReview>(`/ai/cv-review?language=${encodeURIComponent(currentLocale())}`)
+}
+
+/** Propose 2–3 achievement options per recent role for the user to pick from. */
+export async function suggestAchievements(role?: string): Promise<AchievementRole[]> {
+  if (env.useMocks) {
+    await delay(900)
+    return store.profile.experience.slice(0, 3).map((e, i) => ({
+      roleId: e.id || `exp${i}`,
+      employer: e.employer,
+      title: e.title,
+      options: [
+        `Grew key results in ${e.title || 'the role'} by 20%+ through focused execution.`,
+        `Led cross-functional initiatives, improving delivery time by ~30%.`,
+        `Owned budget and KPIs, exceeding targets two periods running.`,
+      ],
+    }))
+  }
+  const q = role ? `?role=${encodeURIComponent(role)}&language=${encodeURIComponent(currentLocale())}` : `?language=${encodeURIComponent(currentLocale())}`
+  const res = await api.post<{ roles: AchievementRole[] }>(`/ai/achievements/suggest${q}`)
+  return res.roles
+}
+
+/** Insert the chosen achievements into the matching roles and re-score the CV. */
+export async function applyAchievements(
+  selections: { roleId: string; text: string }[],
+): Promise<{ added: number; atsBefore: number; atsAfter: number }> {
+  if (env.useMocks) {
+    await delay(700)
+    return { added: selections.length, atsBefore: 68, atsAfter: Math.min(96, 68 + selections.length * 6) }
+  }
+  return api.post('/ai/achievements/apply', { selections })
+}
+
 export async function getSkillSuggestions(): Promise<string[]> {
   if (env.useMocks) {
     await delay(700)

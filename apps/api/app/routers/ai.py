@@ -8,10 +8,15 @@ from app.db import get_db
 from app.deps import get_current_user
 from app.models import CoverLetter, Document, InterviewSession, Profile as ProfileModel, User
 from app.schemas import (
+    AchievementApplyInput,
+    AchievementApplyOut,
+    AchievementRole,
+    AchievementSuggestOut,
     AtsAnalysis,
     AtsSimulationOut,
     CoverLetterInput,
     CoverLetterOut,
+    CvReviewOut,
     FieldAnswerInput,
     FieldAnswerOut,
     GhostRecruiterOut,
@@ -31,7 +36,7 @@ from app.schemas import (
     SuperCvInput,
     SuperCvOut,
 )
-from app.services import credit_service, job_fetch_service, llm_service
+from app.services import credit_service, job_fetch_service, llm_service, teaser_service
 
 # In-memory ATS cache keyed by (job hash + profile version) per the plan's MVP note.
 _ats_cache: dict[str, dict] = {}
@@ -46,7 +51,12 @@ async def _profile_data(db: AsyncSession, user_id: str) -> dict:
 
 
 async def _charge(db: AsyncSession, user_id: str, action: str) -> None:
-    """Spend the action's credit cost; 402 if the balance is insufficient."""
+    """Enfoque 2.0 is subscription‑only: a paid member's subscription unlocks every
+    AI action, so we never charge per‑action credits. (Kept as a hook so non‑paying
+    accounts — which the paywall shouldn't let reach here — still degrade safely.)"""
+    user = await db.get(User, user_id)
+    if user and user.plan == "premium":
+        return
     cost = credit_service.AI_COSTS.get(action, 0)
     if cost <= 0:
         return
@@ -54,7 +64,7 @@ async def _charge(db: AsyncSession, user_id: str, action: str) -> None:
     if not await credit_service.spend(db, acc, cost, f"ai_{action}"):
         raise HTTPException(
             status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"Not enough credits — {action} costs {cost}, you have {acc.balance}.",
+            detail="This feature requires an active subscription.",
         )
 
 
@@ -102,7 +112,7 @@ async def super_cv(
     )
     doc = Document(
         user_id=user.id,
-        filename=f"Super CV — {body.targetRole}",
+        filename=f"Optimized CV — {body.targetRole}",
         path="",
         kind="optimized_cv",
         parsed={"text": result["cvText"], "ats": result["atsScore"], "role": body.targetRole},
@@ -144,6 +154,75 @@ async def skill_suggestions(
     profile = await _profile_data(db, user.id)
     skills = await llm_service.skill_suggestions(profile, language)
     return SkillSuggestionsOut(skills=skills)
+
+
+@router.post("/ai/cv-review", response_model=CvReviewOut)
+async def cv_review(
+    language: str | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> CvReviewOut:
+    """Recruiter-grade CV review (strengths, <10s weaknesses, ATS gaps, score, how to
+    reach a 10) — the quality bar the client set."""
+    await _charge(db, user.id, "personal_analysis")
+    profile = await _profile_data(db, user.id)
+    return CvReviewOut(**await llm_service.cv_review(profile, language))
+
+
+@router.post("/ai/achievements/suggest", response_model=AchievementSuggestOut)
+async def achievements_suggest(
+    role: str | None = None,
+    language: str | None = None,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AchievementSuggestOut:
+    """Propose 2-3 achievement bullet options per recent role for the user to pick from."""
+    await _charge(db, user.id, "skill_suggestions")
+    profile = await _profile_data(db, user.id)
+    roles = await llm_service.achievement_options(profile, role, language)
+    return AchievementSuggestOut(roles=[AchievementRole(**r) for r in roles])
+
+
+@router.post("/ai/achievements/apply", response_model=AchievementApplyOut)
+async def achievements_apply(
+    body: AchievementApplyInput,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> AchievementApplyOut:
+    """Insert the chosen achievements into the matching roles and re-score the CV."""
+    row = (
+        await db.execute(select(ProfileModel).where(ProfileModel.user_id == user.id))
+    ).scalar_one_or_none()
+    if row is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="No profile to update.")
+
+    data = dict(row.data or {})
+    before, _ = teaser_service.ats_quicklook(llm_service._cv_to_text(data))
+    experience = [dict(e) for e in (data.get("experience") or [])]
+    wanted: dict[str, list[str]] = {}
+    for sel in body.selections:
+        wanted.setdefault(sel.roleId, []).append(sel.text)
+
+    added = 0
+    for i, e in enumerate(experience):
+        rid = str(e.get("id") or f"exp{i}")
+        if rid not in wanted:
+            continue
+        bullets = list(e.get("bullets") or [])
+        for text in wanted[rid]:
+            if text and text not in bullets:
+                bullets.append(text)
+                added += 1
+        e["bullets"] = bullets
+
+    if added:
+        data["experience"] = experience
+        data["version"] = int(data.get("version") or 1) + 1
+        row.data = data
+        await db.commit()
+
+    after, _ = teaser_service.ats_quicklook(llm_service._cv_to_text(data))
+    return AchievementApplyOut(added=added, atsBefore=before, atsAfter=max(after, before))
 
 
 @router.post("/ai/cover-letter-pro", response_model=CoverLetterOut)

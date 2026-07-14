@@ -28,7 +28,7 @@ const COPY: Record<Locale, BlogCopy> = {
       { tag: 'CV', date: 'May 2026', title: 'The X-Y-Z formula for achievement bullets', excerpt: 'Turn flat job duties into measurable accomplishments recruiters actually notice.', body: [
         'Google’s famous advice: write bullets as “Accomplished X, as measured by Y, by doing Z.” It forces a result and a number into every line.',
         'Instead of “Responsible for the checkout page,” write “Increased checkout conversion 14% by rebuilding the payment flow in React.” Same work — far more credible.',
-        'Super-CV rewrites your experience with this formula automatically, using only the facts already in your CV.',
+        'The optimized CV rewrites your experience with this formula automatically, using only the facts already in your CV.',
       ] },
       { tag: 'Cover letters', date: 'Apr 2026', title: 'Cover letters that don’t sound like everyone else’s', excerpt: 'A focused 250-word letter beats a generic page every time. Here’s the structure.', body: [
         'Open with the specific role and one concrete reason you’re a fit — not “I am writing to express my interest.” Middle: one proof point with a result. Close: a confident, brief call to action.',
@@ -56,7 +56,7 @@ const COPY: Record<Locale, BlogCopy> = {
       { tag: 'CV', date: 'Mayo 2026', title: 'La fórmula X-Y-Z para tus logros', excerpt: 'Convierte tareas planas en logros medibles que los reclutadores sí notan.', body: [
         'El famoso consejo de Google: escribe los puntos como “Logré X, medido por Y, haciendo Z.” Obliga a incluir un resultado y un número en cada línea.',
         'En lugar de “Responsable de la página de pago,” escribe “Aumenté la conversión de pago un 14% reconstruyendo el flujo de pago en React.” El mismo trabajo — mucho más creíble.',
-        'Super-CV reescribe tu experiencia con esta fórmula automáticamente, usando solo los hechos que ya están en tu CV.',
+        'El CV optimizado reescribe tu experiencia con esta fórmula automáticamente, usando solo los hechos que ya están en tu CV.',
       ] },
       { tag: 'Cartas', date: 'Abr 2026', title: 'Cartas que no suenan como las de todos', excerpt: 'Una carta enfocada de 250 palabras gana siempre a una página genérica. Esta es la estructura.', body: [
         'Abre con el puesto específico y una razón concreta de por qué encajas — no con “Escribo para expresar mi interés.” En el medio: una prueba con un resultado. Al cierre: un llamado a la acción breve y seguro.',
@@ -84,7 +84,7 @@ const COPY: Record<Locale, BlogCopy> = {
       { tag: 'Currículo', date: 'Maio 2026', title: 'A fórmula X-Y-Z para suas conquistas', excerpt: 'Transforme tarefas sem graça em conquistas mensuráveis que os recrutadores notam.', body: [
         'O famoso conselho do Google: escreva os tópicos como “Realizei X, medido por Y, fazendo Z.” Isso força um resultado e um número em cada linha.',
         'Em vez de “Responsável pela página de checkout,” escreva “Aumentei a conversão do checkout em 14% reconstruindo o fluxo de pagamento em React.” O mesmo trabalho — muito mais convincente.',
-        'O Super-CV reescreve sua experiência com essa fórmula automaticamente, usando apenas os fatos que já estão no seu currículo.',
+        'O currículo otimizado reescreve sua experiência com essa fórmula automaticamente, usando apenas os fatos que já estão no seu currículo.',
       ] },
       { tag: 'Cartas', date: 'Abr 2026', title: 'Cartas que não soam como as de todo mundo', excerpt: 'Uma carta focada de 250 palavras ganha sempre de uma página genérica. Veja a estrutura.', body: [
         'Abra com a vaga específica e um motivo concreto de por que você combina — não com “Escrevo para manifestar meu interesse.” No meio: uma prova com resultado. No fim: uma chamada para ação breve e confiante.',

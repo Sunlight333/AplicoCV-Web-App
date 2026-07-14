@@ -309,6 +309,43 @@ class PersonalAnalysisOut(BaseModel):
     motivation: str
 
 
+# --- Recruiter-grade CV review + achievement builder (Enfoque 2.0) ------------
+
+class CvReviewOut(BaseModel):
+    score: int                    # 0-100 overall readiness
+    verdict: str                  # one-line recruiter verdict
+    strengths: list[str]
+    weaknesses: list[str]         # what a recruiter spots in < 10 seconds
+    missingKeywords: list[str]    # ATS keywords to add
+    toImprove: list[str]          # concrete steps to reach a 10/10
+
+
+class AchievementRole(BaseModel):
+    roleId: str
+    employer: str
+    title: str
+    options: list[str]            # 2-3 achievement bullet options to choose from
+
+
+class AchievementSuggestOut(BaseModel):
+    roles: list[AchievementRole]
+
+
+class AchievementSelection(BaseModel):
+    roleId: str
+    text: str
+
+
+class AchievementApplyInput(BaseModel):
+    selections: list[AchievementSelection]
+
+
+class AchievementApplyOut(BaseModel):
+    added: int
+    atsBefore: int
+    atsAfter: int
+
+
 class SkillSuggestionsOut(BaseModel):
     skills: list[str]
 

@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card'
 import { Input, TextArea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { CvReviewPanel } from '@/components/CvReviewPanel'
 import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
 import {
@@ -59,36 +60,36 @@ interface OptCopy {
 const COPY: Record<Locale, OptCopy> = {
   en: {
     title: 'Optimize CV & cover letter', subtitle: 'Advanced recruiter-grade tools to multiply your interviews.', viewDocs: 'View generated documents →',
-    superTitle: 'Super CV (ATS)', superDesc: 'A senior recruiter rewrites your experience with the X-Y-Z formula, with gap analysis and ATS optimization.',
+    superTitle: 'Optimized CV (ATS)', superDesc: 'A senior recruiter rewrites your experience with the X-Y-Z formula, with gap analysis and ATS optimization.',
     whichCv: 'Which CV?', useSaved: 'Use my saved profile', useSavedSub: 'Your profile from “Profile”', pasteOther: 'Paste another CV', pasteOtherSub: 'For this application only', pasteLabel: 'Paste CV text',
     targetRole: 'Target role *', targetRolePh: 'e.g. Senior Frontend Engineer', jd: 'Job description (optional, recommended)', jdPh: 'Paste the posting’s requirements and responsibilities…',
-    warning: '⚠️ The AI uses only the facts in your CV — it will not invent roles or companies.', generate: 'Generate Super CV',
+    warning: '⚠️ The AI uses only the facts in your CV — it will not invent roles or companies.', generate: 'Generate optimized CV',
     resultTitle: 'Your optimized CV', missing: 'Missing keywords:', copy: 'Copy', downloadPdf: 'Download PDF',
-    superToast: 'Super CV generated 🎉', genError: 'Could not generate', copied: 'Copied to clipboard',
+    superToast: 'Optimized CV generated 🎉', genError: 'Could not generate', copied: 'Copied to clipboard',
     letterTitle: '100% personalized cover letter', letterDesc: 'Written from scratch for one specific posting — references the company, the role and what you want to emphasize.',
     company: 'Company', companyPh: 'e.g. Acme Inc.', role: 'Role', rolePh: 'e.g. Product Manager',
     tone: 'Tone', emphasize: 'What should it emphasize? (optional)', jdRequired: 'Job description *', write: 'Write my letter', letterToast: 'Cover letter ready 🎉',
   },
   es: {
     title: 'Optimizar CV y carta', subtitle: 'Herramientas avanzadas de nivel reclutador para multiplicar tus entrevistas.', viewDocs: 'Ver documentos generados →',
-    superTitle: 'Super CV (ATS)', superDesc: 'Un reclutador senior reescribe tu experiencia con la fórmula X-Y-Z, con análisis de brechas y optimización ATS.',
+    superTitle: 'CV optimizado (ATS)', superDesc: 'Un reclutador senior reescribe tu experiencia con la fórmula X-Y-Z, con análisis de brechas y optimización ATS.',
     whichCv: '¿Qué CV?', useSaved: 'Usar mi perfil guardado', useSavedSub: 'Tu perfil de “Perfil”', pasteOther: 'Pegar otro CV', pasteOtherSub: 'Solo para esta postulación', pasteLabel: 'Pega el texto del CV',
     targetRole: 'Puesto objetivo *', targetRolePh: 'ej. Ingeniero Frontend Senior', jd: 'Descripción del empleo (opcional, recomendado)', jdPh: 'Pega los requisitos y responsabilidades de la oferta…',
-    warning: '⚠️ La IA usa solo los hechos de tu CV — no inventará puestos ni empresas.', generate: 'Generar Super CV',
+    warning: '⚠️ La IA usa solo los hechos de tu CV — no inventará puestos ni empresas.', generate: 'Generar CV optimizado',
     resultTitle: 'Tu CV optimizado', missing: 'Palabras clave faltantes:', copy: 'Copiar', downloadPdf: 'Descargar PDF',
-    superToast: 'Super CV generado 🎉', genError: 'No se pudo generar', copied: 'Copiado al portapapeles',
+    superToast: 'CV optimizado generado 🎉', genError: 'No se pudo generar', copied: 'Copiado al portapapeles',
     letterTitle: 'Carta de presentación 100% personalizada', letterDesc: 'Escrita desde cero para una oferta específica — menciona la empresa, el puesto y lo que quieres destacar.',
     company: 'Empresa', companyPh: 'ej. Acme Inc.', role: 'Puesto', rolePh: 'ej. Gerente de Producto',
     tone: 'Tono', emphasize: '¿Qué debería destacar? (opcional)', jdRequired: 'Descripción del empleo *', write: 'Escribir mi carta', letterToast: 'Carta lista 🎉',
   },
   'pt-BR': {
     title: 'Otimizar currículo e carta', subtitle: 'Ferramentas avançadas de nível recrutador para multiplicar suas entrevistas.', viewDocs: 'Ver documentos gerados →',
-    superTitle: 'Super CV (ATS)', superDesc: 'Um recrutador sênior reescreve sua experiência com a fórmula X-Y-Z, com análise de lacunas e otimização ATS.',
+    superTitle: 'Currículo otimizado (ATS)', superDesc: 'Um recrutador sênior reescreve sua experiência com a fórmula X-Y-Z, com análise de lacunas e otimização ATS.',
     whichCv: 'Qual currículo?', useSaved: 'Usar meu perfil salvo', useSavedSub: 'Seu perfil de “Perfil”', pasteOther: 'Colar outro currículo', pasteOtherSub: 'Apenas para esta candidatura', pasteLabel: 'Cole o texto do currículo',
     targetRole: 'Cargo desejado *', targetRolePh: 'ex. Engenheiro Frontend Sênior', jd: 'Descrição da vaga (opcional, recomendado)', jdPh: 'Cole os requisitos e responsabilidades da vaga…',
-    warning: '⚠️ A IA usa apenas os fatos do seu currículo — não vai inventar cargos ou empresas.', generate: 'Gerar Super CV',
+    warning: '⚠️ A IA usa apenas os fatos do seu currículo — não vai inventar cargos ou empresas.', generate: 'Gerar currículo otimizado',
     resultTitle: 'Seu currículo otimizado', missing: 'Palavras-chave ausentes:', copy: 'Copiar', downloadPdf: 'Baixar PDF',
-    superToast: 'Super CV gerado 🎉', genError: 'Não foi possível gerar', copied: 'Copiado para a área de transferência',
+    superToast: 'Currículo otimizado gerado 🎉', genError: 'Não foi possível gerar', copied: 'Copiado para a área de transferência',
     letterTitle: 'Carta de apresentação 100% personalizada', letterDesc: 'Escrita do zero para uma vaga específica — cita a empresa, o cargo e o que você quer destacar.',
     company: 'Empresa', companyPh: 'ex. Acme Inc.', role: 'Cargo', rolePh: 'ex. Gerente de Produto',
     tone: 'Tom', emphasize: 'O que deve destacar? (opcional)', jdRequired: 'Descrição da vaga *', write: 'Escrever minha carta', letterToast: 'Carta pronta 🎉',
@@ -168,6 +169,11 @@ export default function OptimizePage() {
           <p className="mt-1 text-navy-500">{c.subtitle}</p>
         </div>
         <Link to="/documents" className="text-sm font-medium text-electric-600 hover:underline">{c.viewDocs}</Link>
+      </div>
+
+      {/* Recruiter-grade review + achievement builder (Enfoque 2.0) */}
+      <div className="mt-6">
+        <CvReviewPanel />
       </div>
 
       <Card className="mt-6 p-6">

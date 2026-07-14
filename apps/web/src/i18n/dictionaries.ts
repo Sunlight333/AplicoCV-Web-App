@@ -93,7 +93,7 @@ export const en = {
     subtitle:
       'AplicoCV is more than a form-filler — it’s an AI career assistant that helps you apply smarter and interview better.',
     items: [
-      { title: 'Super CV optimizer', body: 'Rewrite your experience with the X-Y-Z formula and an instant ATS score — always truthful to your real background.' },
+      { title: 'Optimized CV', body: 'Rewrite your experience with the X-Y-Z formula and an instant ATS score — always truthful to your real background.' },
       { title: 'ATS simulator', body: 'See exactly how tracking software reads your CV against a posting, with the keywords to add.' },
       { title: 'AI mock interview', body: 'Practice role-specific questions and get scored, actionable feedback before the real thing.' },
       { title: 'Personalized cover letters', body: 'A focused letter written from scratch for each posting, in your chosen tone.' },
@@ -626,7 +626,7 @@ export const es: Dictionary = {
     subtitle:
       'AplicoCV es más que un rellenador de formularios: es un asistente de carrera con IA que te ayuda a postularte mejor y a preparar entrevistas.',
     items: [
-      { title: 'Optimizador Super CV', body: 'Reescribe tu experiencia con la fórmula X-Y-Z y un puntaje ATS al instante — siempre fiel a tu trayectoria real.' },
+      { title: 'CV optimizado', body: 'Reescribe tu experiencia con la fórmula X-Y-Z y un puntaje ATS al instante — siempre fiel a tu trayectoria real.' },
       { title: 'Simulador ATS', body: 'Mira exactamente cómo el software lee tu CV frente a una oferta, con las palabras clave que debes agregar.' },
       { title: 'Entrevista simulada con IA', body: 'Practica preguntas según el puesto y recibe feedback con puntaje y acciones concretas antes de la entrevista real.' },
       { title: 'Cartas personalizadas', body: 'Una carta enfocada escrita desde cero para cada oferta, en el tono que elijas.' },
@@ -1142,7 +1142,7 @@ export const ptBR: Dictionary = {
     subtitle:
       'A AplicoCV é mais do que um preenchedor de formulários — é um assistente de carreira com IA que ajuda você a se candidatar melhor e a treinar para entrevistas.',
     items: [
-      { title: 'Otimizador Super CV', body: 'Reescreve sua experiência com a fórmula X-Y-Z e uma pontuação ATS na hora — sempre fiel ao seu histórico real.' },
+      { title: 'Currículo otimizado', body: 'Reescreve sua experiência com a fórmula X-Y-Z e uma pontuação ATS na hora — sempre fiel ao seu histórico real.' },
       { title: 'Simulador ATS', body: 'Veja exatamente como o software lê seu currículo diante de uma vaga, com as palavras-chave a adicionar.' },
       { title: 'Entrevista simulada com IA', body: 'Pratique perguntas conforme a vaga e receba feedback com pontuação e ações concretas antes da entrevista real.' },
       { title: 'Cartas personalizadas', body: 'Uma carta focada escrita do zero para cada vaga, no tom que você escolher.' },

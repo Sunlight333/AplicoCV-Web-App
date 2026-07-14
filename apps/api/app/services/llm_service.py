@@ -230,6 +230,24 @@ async def skill_suggestions(
     return await _real_skill_suggestions(profile, language)
 
 
+async def cv_review(profile: dict[str, Any], language: str | None = None) -> dict[str, Any]:
+    """Recruiter‑grade review: strengths, <10s weaknesses, ATS gaps, score, and how
+    to reach a 10 (the quality bar the client set with the Claude transcript)."""
+    if settings.resolved_llm_provider == "stub":
+        return _stub_cv_review(profile)
+    return await _real_cv_review(profile, language)
+
+
+async def achievement_options(
+    profile: dict[str, Any], target_role: str | None = None, language: str | None = None
+) -> list[dict[str, Any]]:
+    """For each recent role, propose 2–3 quantified achievement options the user picks
+    from — framed as typical accomplishments for that title, to be confirmed/edited."""
+    if settings.resolved_llm_provider == "stub":
+        return _stub_achievement_options(profile)
+    return await _real_achievement_options(profile, target_role, language)
+
+
 async def interview_questions(
     profile: dict[str, Any],
     role: str,
@@ -766,20 +784,40 @@ def _stub_personalized_cover_letter(profile, company, role, tone):  # type: igno
     )
 
 
+def _clean_cv_text(text: str) -> str:
+    """Strip markdown/decorative noise so the CV is clean, paste-ready plain text
+    (the client's complaint about the old 'Super CV': asterisks and symbols everywhere)."""
+    import re
+
+    t = text or ""
+    t = re.sub(r"`{1,3}", "", t)                       # backticks
+    t = re.sub(r"\*\*(.+?)\*\*", r"\1", t)             # **bold**
+    t = re.sub(r"(?<!\w)[*_]{1,3}(?=\S)|(?<=\S)[*_]{1,3}(?!\w)", "", t)  # stray * _ emphasis
+    t = re.sub(r"^\s{0,3}#{1,6}\s*", "", t, flags=re.MULTILINE)  # # headings
+    t = re.sub(r"^\s*[*•·]\s+", "- ", t, flags=re.MULTILINE)     # * / • bullets -> -
+    t = re.sub(r"\n{3,}", "\n\n", t)                  # collapse blank runs
+    return t.strip()
+
+
 async def _real_super_cv(profile, target_role, jd, cv_text, language=None):  # type: ignore[no-untyped-def]
     source = cv_text or _cv_to_text(profile)
     try:
         res = await _chat_json(
             "You are a senior FAANG recruiter. Rewrite the CV for the target role using the X-Y-Z "
             "formula (Accomplished X, measured by Y, by doing Z). NEVER invent employers, titles or "
-            "facts not present in the source. Integrate keywords from the job description. Return JSON "
-            "{cvText: markdown string, atsScore: integer 0-100, gaps: array of missing-keyword strings}.",
+            "facts not present in the source. Integrate keywords from the job description. "
+            "OUTPUT RULES for cvText: write CLEAN, PASTE-READY plain text a person can drop straight "
+            "into a job application — NO markdown, NO asterisks or bold/backtick/heading symbols, no "
+            "emojis, no decorative characters. Use plain UPPERCASE section titles and simple '- ' "
+            "bullets. Write the ENTIRE CV in ONE language only (the requested language); never mix "
+            "languages. Return JSON {cvText: plain-text string, atsScore: integer 0-100, gaps: array "
+            "of missing-keyword strings}.",
             f"TARGET ROLE: {target_role}\nJOB DESCRIPTION: {jd or '(none provided)'}\n\nCV SOURCE:\n{source[:7000]}",
             task="super_cv",
             language=language,
         )
         return {
-            "cvText": _s(res.get("cvText")) or source,
+            "cvText": _clean_cv_text(_s(res.get("cvText")) or source),
             "atsScore": int(res.get("atsScore") or 78),
             "gaps": [_s(g) for g in (res.get("gaps") or [])][:8],
         }
@@ -803,6 +841,102 @@ async def _real_personal_analysis(profile, language=None):  # type: ignore[no-un
         }
     except Exception:
         return _stub_personal_analysis(profile)
+
+
+def _recent_roles(profile):  # type: ignore[no-untyped-def]
+    """The user's most recent roles with a stable id for the achievement builder."""
+    out = []
+    for i, e in enumerate((profile.get("experience") or [])[:4]):
+        rid = _s(e.get("id")) or f"exp{i}"
+        out.append({"roleId": rid, "employer": _s(e.get("employer")), "title": _s(e.get("title"))})
+    return out
+
+
+async def _real_cv_review(profile, language=None):  # type: ignore[no-untyped-def]
+    try:
+        res = await _chat_json(
+            "Act as a recruiter with 15 years of experience. Review this CV the way you would in a "
+            "10-second scan. Return JSON {score: integer 0-100, verdict: one short sentence, "
+            "strengths: array of 3-5 short strings, weaknesses: array of 3-5 short strings (things a "
+            "recruiter notices in seconds — missing objective title, roles without metrics, text "
+            "density, missing LinkedIn, format inconsistencies), missingKeywords: array of ATS "
+            "keywords to add, toImprove: array of 3-5 concrete steps to reach a 10}. Be specific and "
+            "honest, never generic.",
+            _cv_to_text(profile)[:6000],
+            task="personal_analysis",
+            language=language,
+        )
+        return {
+            "score": int(res.get("score") or 65),
+            "verdict": _s(res.get("verdict")),
+            "strengths": [_s(s) for s in (res.get("strengths") or [])][:5],
+            "weaknesses": [_s(s) for s in (res.get("weaknesses") or [])][:5],
+            "missingKeywords": [_s(s) for s in (res.get("missingKeywords") or [])][:12],
+            "toImprove": [_s(s) for s in (res.get("toImprove") or [])][:6],
+        }
+    except Exception:
+        return _stub_cv_review(profile)
+
+
+def _stub_cv_review(profile):  # type: ignore[no-untyped-def]
+    skills = profile.get("skills") or []
+    has_linkedin = any("linkedin" in _s(l.get("url")).lower() for l in (profile.get("links") or []))
+    weaknesses = ["No clear objective/target title at the top", "Some roles lack quantified results"]
+    if not has_linkedin:
+        weaknesses.append("No LinkedIn URL in the header")
+    return {
+        "score": 68,
+        "verdict": "Solid experience, but reads as a job history rather than a sales tool.",
+        "strengths": [f"Experience with {s}" for s in skills[:3]] or ["Relevant experience"],
+        "weaknesses": weaknesses,
+        "missingKeywords": ["Stakeholder Management", "KPI ownership", "Cross-functional leadership"],
+        "toImprove": [
+            "Add a target job title above the summary",
+            "Quantify each role with numbers, % or $",
+            "Trim each role to 3-4 achievement-focused bullets",
+        ],
+    }
+
+
+async def _real_achievement_options(profile, target_role, language=None):  # type: ignore[no-untyped-def]
+    roles = _recent_roles(profile)
+    if not roles:
+        return []
+    role_lines = "\n".join(f"{r['roleId']}: {r['title']} at {r['employer']}" for r in roles)
+    try:
+        res = await _chat_json(
+            "For each role below, propose 2-3 achievement bullet options that are TYPICAL and "
+            "impactful for that title — quantified where natural (numbers, %, $) — that the candidate "
+            "can pick from and edit. These are SUGGESTIONS to confirm, so they may be typical rather "
+            "than verified. Keep each under 22 words, action-verb first. Return JSON "
+            "{roles: [{roleId: string, options: [string, ...]}]}.",
+            f"TARGET ROLE (optional): {target_role or '(none)'}\n\nROLES:\n{role_lines}",
+            task="skill_suggestions",
+            language=language,
+        )
+        by_id = {_s(r.get("roleId")): [_s(o) for o in (r.get("options") or [])][:3]
+                 for r in (res.get("roles") or [])}
+    except Exception:
+        return _stub_achievement_options(profile)
+    return [
+        {**r, "options": by_id.get(r["roleId"]) or []}
+        for r in roles if by_id.get(r["roleId"])
+    ]
+
+
+def _stub_achievement_options(profile):  # type: ignore[no-untyped-def]
+    out = []
+    for r in _recent_roles(profile):
+        title = r["title"] or "the role"
+        out.append({
+            **r,
+            "options": [
+                f"Grew key results in {title} by 20%+ year over year through focused execution.",
+                f"Led cross-functional initiatives as {title}, improving delivery time by ~30%.",
+                f"Owned budget and KPIs for {title}, exceeding targets two periods running.",
+            ],
+        })
+    return out
 
 
 async def _real_skill_suggestions(profile, language=None):  # type: ignore[no-untyped-def]
