@@ -275,7 +275,13 @@ async def checkout(
 
 @router.post("/portal", response_model=CheckoutOut)
 async def customer_portal(user: User = Depends(get_current_user)) -> CheckoutOut:
-    """Redirect to the Stripe Customer Portal for plan/billing management."""
+    """Manage-subscription link. Lemon Squeezy provides a per-subscriber customer
+    portal URL (captured from its webhook); otherwise fall back to Stripe's portal."""
+    # Lemon Squeezy: return the customer-portal URL saved from the subscription webhook.
+    ls_portal = (user.preferences or {}).get("lsPortalUrl")
+    if settings.lemonsqueezy_enabled and ls_portal:
+        return CheckoutOut(url=ls_portal)
+
     if not settings.stripe_enabled:
         return CheckoutOut(url=f"{settings.frontend_url}/settings/billing")
 
@@ -480,10 +486,16 @@ async def lemonsqueezy_webhook(
     if not user:
         return {"received": True}
 
+    attrs = (body.get("data") or {}).get("attributes") or {}
+    portal_url = ((attrs.get("urls") or {}).get("customer_portal")) if isinstance(attrs.get("urls"), dict) else None
+
     if event in _LS_ACTIVE_EVENTS and (status_ in _LS_ACTIVE_STATUS or status_ is None):
+        prefs = dict(user.preferences or {})
+        prefs["planId"] = plan_id or prefs.get("planId")
+        if portal_url:
+            prefs["lsPortalUrl"] = portal_url
         user.plan = "premium"
-        if plan_id:
-            user.preferences = {**(user.preferences or {}), "planId": plan_id}
+        user.preferences = prefs
         await db.commit()
     elif event in _LS_INACTIVE_EVENTS or status_ in {"cancelled", "expired", "unpaid"}:
         user.plan = "free"

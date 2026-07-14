@@ -37,7 +37,7 @@ const STORE_READY = Boolean(CHROME_STORE_URL)
 // Version of the downloadable package in /public/aplicocv-extension.zip. Keep in
 // sync with apps/extension/manifest.json whenever the zip is rebuilt. The manual
 // download always serves this latest build.
-const EXTENSION_VERSION = '1.4.9'
+const EXTENSION_VERSION = '1.5.0'
 
 // Version currently LIVE on the Chrome Web Store. This can lag behind the package
 // while a new build waits for Google's review, so it's a separate env value —

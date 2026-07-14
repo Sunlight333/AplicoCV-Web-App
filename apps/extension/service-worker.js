@@ -22,6 +22,12 @@ const SUPPORTED = [
   { name: 'WeRemoto', match: /weremoto\.com/ },
   { name: 'RemoteOK', match: /remoteok\.com/ },
   { name: 'We Work Remotely', match: /weworkremotely\.com/ },
+  { name: 'USAJobs', match: /usajobs\.gov/ },
+  { name: 'FlexJobs', match: /flexjobs\.com/ },
+  { name: 'ZipRecruiter', match: /ziprecruiter\.com/ },
+  { name: 'Remote.co', match: /remote\.co/ },
+  { name: 'Chiletrabajos', match: /chiletrabajos\./ },
+  { name: 'InfoJobs', match: /infojobs\./ },
 ]
 
 async function getToken() {
