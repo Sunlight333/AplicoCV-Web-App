@@ -32,7 +32,9 @@ export default function RegisterPage() {
     try {
       await signup(data.fullName, data.email, data.password)
       toast(tr.created)
-      navigate('/onboarding', { replace: true })
+      // Enfoque 2.0: pay before the portal — new accounts go straight to the paywall,
+      // then onboarding once subscribed.
+      navigate('/subscribe', { replace: true })
     } catch (err) {
       setSubmitError(err instanceof ApiError ? err.message : tr.error)
     }

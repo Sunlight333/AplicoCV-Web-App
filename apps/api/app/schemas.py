@@ -619,3 +619,15 @@ class CheckoutInput(BaseModel):
 class ReconcileOut(BaseModel):
     # How many approved-but-unfulfilled payments this call applied.
     fulfilled: int = 0
+
+
+class TeaserInput(BaseModel):
+    cvText: str = ""
+    role: str = ""
+
+
+class TeaserOut(BaseModel):
+    atsScore: int
+    wins: list[str]        # codes the frontend localizes (quantify, add_linkedin, …)
+    matchCount: int
+    role: str
