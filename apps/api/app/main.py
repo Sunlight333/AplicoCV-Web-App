@@ -141,6 +141,7 @@ async def health() -> dict[str, object]:
         "integrations": {
             "llm": settings.resolved_llm_provider,
             "payments": settings.payment_provider,
+            "lemonsqueezy": settings.lemonsqueezy_enabled,
             "stripe": settings.stripe_enabled,
             "mercadopago": settings.mercadopago_enabled,
             "google_oauth": settings.google_oauth_enabled,

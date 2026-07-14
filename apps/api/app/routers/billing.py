@@ -12,7 +12,7 @@ from app.deps import get_current_user
 from app.models import User
 from app import pricing
 from app.schemas import CheckoutInput, CheckoutOut, PlanOut, ReconcileOut
-from app.services import credit_service, mercadopago_service
+from app.services import credit_service, lemonsqueezy_service, mercadopago_service
 
 try:  # Stripe SDK is optional — billing falls back to a stub without it.
     import stripe  # type: ignore
@@ -203,6 +203,27 @@ async def checkout(
     )
     if not plan:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown subscription plan.")
+
+    if settings.lemonsqueezy_enabled:
+        variant = lemonsqueezy_service.variant_for(plan["id"])
+        if not variant:
+            raise HTTPException(
+                status.HTTP_400_BAD_REQUEST,
+                detail=f"No Lemon Squeezy variant configured for the {plan['id']} plan.",
+            )
+        try:
+            url = await lemonsqueezy_service.create_checkout(
+                variant_id=variant,
+                email=user.email,
+                user_id=user.id,
+                plan_id=plan["id"],
+                success_url=f"{settings.frontend_url}/settings/billing?upgraded=1",
+            )
+        except Exception:
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, detail="Could not start Lemon Squeezy checkout."
+            )
+        return CheckoutOut(url=url)
 
     if settings.mercadopago_enabled:
         url = await _mp_preference(
@@ -423,3 +444,49 @@ async def reconcile(
         ):
             fulfilled += 1
     return ReconcileOut(fulfilled=fulfilled)
+
+
+# Lemon Squeezy subscription lifecycle → our plan tier. Subscriptions are idempotent
+# (we just set premium/free), so no per-event dedup is needed.
+_LS_ACTIVE_EVENTS = {"subscription_created", "subscription_updated", "subscription_payment_success", "subscription_resumed"}
+_LS_INACTIVE_EVENTS = {"subscription_cancelled", "subscription_expired", "subscription_paused"}
+_LS_ACTIVE_STATUS = {"active", "on_trial", "paused"}
+
+
+@router.post("/lemonsqueezy/webhook")
+async def lemonsqueezy_webhook(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    x_signature: str | None = Header(default=None, alias="X-Signature"),
+) -> dict[str, bool]:
+    """Handle Lemon Squeezy subscription events. Verifies the HMAC signature, then
+    upgrades/downgrades the user identified by the checkout's custom user_id."""
+    payload = await request.body()
+    if not settings.lemonsqueezy_enabled:
+        return {"received": True}
+    if not lemonsqueezy_service.verify_signature(payload, x_signature):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid webhook signature")
+
+    body = json.loads(payload)
+    meta = body.get("meta") or {}
+    event = meta.get("event_name")
+    custom = meta.get("custom_data") or {}
+    user_id = custom.get("user_id") or custom.get("userId")
+    plan_id = custom.get("plan_id") or custom.get("planId")
+    status_ = ((body.get("data") or {}).get("attributes") or {}).get("status")
+    if not user_id:
+        return {"received": True}
+    user = await db.get(User, user_id)
+    if not user:
+        return {"received": True}
+
+    if event in _LS_ACTIVE_EVENTS and (status_ in _LS_ACTIVE_STATUS or status_ is None):
+        user.plan = "premium"
+        if plan_id:
+            user.preferences = {**(user.preferences or {}), "planId": plan_id}
+        await db.commit()
+    elif event in _LS_INACTIVE_EVENTS or status_ in {"cancelled", "expired", "unpaid"}:
+        user.plan = "free"
+        await db.commit()
+
+    return {"received": True}

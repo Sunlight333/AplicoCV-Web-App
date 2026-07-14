@@ -60,9 +60,23 @@ class Settings(BaseSettings):
     stripe_price_id: str = ""
     stripe_webhook_secret: str = ""
 
-    # ---- Billing (MercadoPago — preferred for LATAM) ----------------------
+    # ---- Billing (Lemon Squeezy — Merchant of Record, USD / worldwide) -----
+    # Primary rail for the USA and international payers. As a Merchant of Record it
+    # needs no US company, takes international cards, handles sales tax, and bills the
+    # weekly/monthly subscriptions natively. Key‑ready: with an API key + store +
+    # variant ids set, checkout redirects to Lemon Squeezy's hosted page and the
+    # webhook fulfills the subscription. Takes precedence over MercadoPago/Stripe.
+    lemonsqueezy_api_key: str = ""
+    lemonsqueezy_store_id: str = ""
+    lemonsqueezy_webhook_secret: str = ""
+    # Product variant ids for each plan (from the Lemon Squeezy dashboard).
+    lemonsqueezy_variant_weekly: str = ""
+    lemonsqueezy_variant_monthly: str = ""
+
+    # ---- Billing (MercadoPago — LATAM local currency) ---------------------
     # With an access token set, checkout creates a MercadoPago Checkout Pro
-    # preference and redirects there; MercadoPago takes precedence over Stripe.
+    # preference and redirects there. Used for LATAM payers; Lemon Squeezy is the
+    # worldwide/USD rail and takes precedence when configured.
     # Set the currency to the account's country currency (ARS, BRL, CLP, MXN, USD…).
     mercadopago_access_token: str = ""
     mercadopago_public_key: str = ""
@@ -150,13 +164,24 @@ class Settings(BaseSettings):
         return bool(self.stripe_secret_key)
 
     @property
+    def lemonsqueezy_enabled(self) -> bool:
+        return bool(
+            self.lemonsqueezy_api_key
+            and self.lemonsqueezy_store_id
+            and (self.lemonsqueezy_variant_weekly or self.lemonsqueezy_variant_monthly)
+        )
+
+    @property
     def mercadopago_enabled(self) -> bool:
         return bool(self.mercadopago_access_token)
 
     @property
     def payment_provider(self) -> str:
-        """The active payment provider. MercadoPago wins for LATAM, then Stripe,
-        else a stub that completes the flow without charging (dev/demo)."""
+        """The active payment provider. Lemon Squeezy (USD/worldwide) wins, then
+        MercadoPago (LATAM), then Stripe, else a stub that completes the flow without
+        charging (dev/demo)."""
+        if self.lemonsqueezy_enabled:
+            return "lemonsqueezy"
         if self.mercadopago_enabled:
             return "mercadopago"
         if self.stripe_enabled:
