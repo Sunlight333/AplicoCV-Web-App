@@ -1,6 +1,7 @@
 import { api } from '@/lib/apiClient'
 import { env } from '@/lib/env'
-import { delay } from './mock/store'
+import { delay, store } from './mock/store'
+import { persistedAuth } from './mock/data'
 
 export interface Plan {
   id: string
@@ -46,8 +47,11 @@ export async function getPublicPricing(): Promise<PublicPricing> {
 /** Begin a checkout session for the chosen subscription plan ('weekly' | 'monthly'). */
 export async function startCheckout(plan: string = 'monthly'): Promise<void> {
   if (env.useMocks) {
+    // Simulate a completed purchase so the demo's pay→portal flow works end to end.
     await delay(400)
-    alert(`[mock] Would redirect to checkout for the ${plan} plan.`)
+    store.user = { ...store.user, plan: 'premium', premiumActive: true }
+    persistedAuth.savePremium(true)
+    window.location.href = '/subscribe?upgraded=1'
     return
   }
   const { url } = await api.post<{ url: string }>('/billing/checkout', { plan })

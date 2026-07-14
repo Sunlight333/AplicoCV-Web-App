@@ -19,7 +19,12 @@ export const mockId = (prefix: string) => `${prefix}_${++seq}`
  * directly; React Query caches the reads.
  */
 export const store = {
-  user: { ...mockUser, onboarded: persistedAuth.load() } as User,
+  user: {
+    ...mockUser,
+    onboarded: persistedAuth.load(),
+    plan: persistedAuth.isPremium() ? 'premium' : 'free',
+    premiumActive: persistedAuth.isPremium(),
+  } as User,
   profile: structuredClone(emptyProfile) as Profile,
   applications: structuredClone(mockApplications) as Application[],
   credentials: structuredClone(mockCredentials) as PortalCredential[],

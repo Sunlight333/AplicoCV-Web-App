@@ -20,6 +20,7 @@ const MarketPage = lazy(() => import('@/pages/MarketPage'))
 const GuidePage = lazy(() => import('@/pages/GuidePage'))
 const SupportedPortalsPage = lazy(() => import('@/pages/SupportedPortalsPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
+const SubscribePage = lazy(() => import('@/pages/SubscribePage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
 const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'))
@@ -70,13 +71,14 @@ export function App() {
           <Route path="/cookies" element={<CookiesPage />} />
           <Route path="/chrome-extension" element={<ChromeExtensionPage />} />
 
-          {/* Authenticated, pre-onboarding */}
+          {/* Authenticated, pre-subscription / pre-onboarding */}
           <Route element={<ProtectedRoute requireOnboarded={false} />}>
+            <Route path="/subscribe" element={<SubscribePage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
           </Route>
 
-          {/* Authenticated app shell */}
-          <Route element={<ProtectedRoute />}>
+          {/* Authenticated app shell — subscription required (nothing free) */}
+          <Route element={<ProtectedRoute requireSubscription />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/profile" element={<ProfilePage />} />

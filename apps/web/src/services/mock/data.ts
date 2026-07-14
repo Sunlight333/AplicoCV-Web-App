@@ -15,6 +15,7 @@ import type {
  */
 
 const AUTH_KEY = 'aplicocv.mock.auth'
+const PREMIUM_KEY = 'aplicocv.mock.premium'
 
 export const mockUser: User = {
   id: 'usr_001',
@@ -200,7 +201,26 @@ export const persistedAuth = {
   save(loggedIn: boolean) {
     try {
       if (loggedIn) localStorage.setItem(AUTH_KEY, '1')
-      else localStorage.removeItem(AUTH_KEY)
+      else {
+        localStorage.removeItem(AUTH_KEY)
+        localStorage.removeItem(PREMIUM_KEY)
+      }
+    } catch {
+      /* ignore */
+    }
+  },
+  // Subscription state for the demo (real app reads it from the backend).
+  isPremium(): boolean {
+    try {
+      return localStorage.getItem(PREMIUM_KEY) === '1'
+    } catch {
+      return false
+    }
+  },
+  savePremium(premium: boolean) {
+    try {
+      if (premium) localStorage.setItem(PREMIUM_KEY, '1')
+      else localStorage.removeItem(PREMIUM_KEY)
     } catch {
       /* ignore */
     }
