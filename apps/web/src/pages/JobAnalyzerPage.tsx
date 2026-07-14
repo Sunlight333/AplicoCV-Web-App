@@ -12,8 +12,10 @@ import { ApiError } from '@/lib/apiClient'
 import {
   getPredictiveScore,
   getGhostRecruiter,
+  getSalaryInsights,
   type PredictiveScore,
   type GhostRecruiter,
+  type SalaryInsights,
 } from '@/services/ai'
 import { checkScam, type ScamCheck } from '@/services/insights'
 
@@ -24,6 +26,7 @@ interface AnalyzerCopy {
   missing: string; overqualified: string; atsPass: string; atsFail: string
   ghost: string; verdictApply: string; verdictCaution: string; verdictSkip: string; betterFit: string
   scam: string; riskLow: string; riskMed: string; riskHigh: string
+  salaryTitle: string; salaryHint: string; negotiation: string
 }
 
 const COPY: Record<Locale, AnalyzerCopy> = {
@@ -34,6 +37,7 @@ const COPY: Record<Locale, AnalyzerCopy> = {
     missing: 'Add these keywords', overqualified: 'You may be overqualified', atsPass: 'Likely passes ATS', atsFail: 'May not pass ATS',
     ghost: 'Ghost recruiter', verdictApply: 'Apply', verdictCaution: 'Apply with caution', verdictSkip: 'Skip this one', betterFit: 'Better fit',
     scam: 'Scam check', riskLow: 'Low risk', riskMed: 'Medium risk', riskHigh: 'High risk',
+    salaryTitle: 'Expected salary', salaryHint: 'Reference range for this role — a guide for your ask, not a guarantee.', negotiation: 'Negotiation points',
   },
   es: {
     title: 'Analizador de empleo', subtitle: 'Pega una oferta (o su enlace) para ver tus probabilidades reales, si vale la pena postular y si parece una estafa.',
@@ -42,6 +46,7 @@ const COPY: Record<Locale, AnalyzerCopy> = {
     missing: 'Agrega estas palabras clave', overqualified: 'Podrías estar sobrecalificado', atsPass: 'Probablemente pasa el ATS', atsFail: 'Puede no pasar el ATS',
     ghost: 'Reclutador fantasma', verdictApply: 'Postular', verdictCaution: 'Postular con cautela', verdictSkip: 'Mejor omitir', betterFit: 'Mejor opción',
     scam: 'Verificación de estafa', riskLow: 'Riesgo bajo', riskMed: 'Riesgo medio', riskHigh: 'Riesgo alto',
+    salaryTitle: 'Salario esperado', salaryHint: 'Rango de referencia para este puesto — una guía para tu pretensión, no una garantía.', negotiation: 'Puntos de negociación',
   },
   'pt-BR': {
     title: 'Analisador de vagas', subtitle: 'Cole uma vaga (ou o link) para ver suas chances reais, se vale a pena se candidatar e se parece golpe.',
@@ -50,6 +55,7 @@ const COPY: Record<Locale, AnalyzerCopy> = {
     missing: 'Adicione estas palavras-chave', overqualified: 'Você pode estar superqualificado', atsPass: 'Provavelmente passa no ATS', atsFail: 'Pode não passar no ATS',
     ghost: 'Recrutador fantasma', verdictApply: 'Candidatar-se', verdictCaution: 'Candidatar-se com cautela', verdictSkip: 'Melhor pular', betterFit: 'Melhor opção',
     scam: 'Verificação de golpe', riskLow: 'Risco baixo', riskMed: 'Risco médio', riskHigh: 'Risco alto',
+    salaryTitle: 'Salário esperado', salaryHint: 'Faixa de referência para esta vaga — um guia para sua pretensão, não uma garantia.', negotiation: 'Pontos de negociação',
   },
 }
 
@@ -75,21 +81,27 @@ export default function JobAnalyzerPage() {
   const [predictive, setPredictive] = useState<PredictiveScore | null>(null)
   const [ghost, setGhost] = useState<GhostRecruiter | null>(null)
   const [scam, setScam] = useState<ScamCheck | null>(null)
+  const [salary, setSalary] = useState<SalaryInsights | null>(null)
 
   const analyze = useMutation({
     mutationFn: async () => {
       const ref = { jobDescription: jd.trim() || undefined, jobUrl: url.trim() || undefined }
-      const [p, g, s] = await Promise.all([
+      // Derive a role for the salary reference from the posting's first line (the
+      // backend blends it with the user's profile).
+      const role = jd.trim().split('\n')[0]?.slice(0, 80) || 'this role'
+      const [p, g, s, sal] = await Promise.all([
         getPredictiveScore(ref),
         getGhostRecruiter(ref),
         checkScam({ jobDescription: ref.jobDescription, jobUrl: ref.jobUrl }),
+        getSalaryInsights({ role }).catch(() => null),
       ])
-      return { p, g, s }
+      return { p, g, s, sal }
     },
-    onSuccess: ({ p, g, s }) => {
+    onSuccess: ({ p, g, s, sal }) => {
       setPredictive(p)
       setGhost(g)
       setScam(s)
+      setSalary(sal)
     },
     onError: (e) => toast(e instanceof ApiError ? e.message : c.error, 'error'),
   })
@@ -151,6 +163,27 @@ export default function JobAnalyzerPage() {
             </Card>
           )}
 
+          {salary && (
+            <Card className="p-6">
+              <div className="flex items-center justify-between">
+                <h2 className="font-semibold text-navy-900">{c.salaryTitle}</h2>
+                <Badge tone="success">{salary.estimatedRange}</Badge>
+              </div>
+              <p className="mt-1 text-xs text-navy-400">{c.salaryHint}</p>
+              {salary.negotiationPoints.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-sm font-semibold text-navy-700">{c.negotiation}</p>
+                  <ul className="mt-2 space-y-1.5">
+                    {salary.negotiationPoints.map((n, i) => (
+                      <li key={i} className="flex gap-2 text-sm text-navy-600"><span className="text-green-500">→</span>{n}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {salary.marketNote && <p className="mt-3 rounded-lg bg-navy-50 p-3 text-sm text-navy-600">{salary.marketNote}</p>}
+            </Card>
+          )}
+
           {ghost && (
             <Card className="p-6">
               <div className="flex items-center justify-between">
@@ -183,7 +216,7 @@ export default function JobAnalyzerPage() {
             </Card>
           )}
 
-          {!predictive && !ghost && !scam && (
+          {!predictive && !ghost && !scam && !salary && (
             <Card className="flex min-h-[18rem] items-center justify-center p-6 text-center text-sm text-navy-400">
               {c.subtitle}
             </Card>
