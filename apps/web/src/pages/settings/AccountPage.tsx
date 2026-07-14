@@ -38,7 +38,7 @@ const COPY: Record<Locale, AccountCopy> = {
     pwUpdated: 'Password updated', pwSet: 'Password set — you can now sign in with email',
     deleteTitle: 'Delete account', deleteSub: 'Permanently delete your account, profile, documents and all data. This can’t be undone.',
     deleteBtn: 'Delete my account', deleteError: 'Could not delete your account',
-    confirmTitle: 'Delete your account?', confirmSub: 'This permanently removes your profile, CV, applications, documents and credits. There is no undo.',
+    confirmTitle: 'Delete your account?', confirmSub: 'This permanently removes your profile, CV, applications and documents. There is no undo.',
     cancel: 'Cancel', confirmBtn: 'Yes, delete everything',
   },
   es: {
@@ -55,7 +55,7 @@ const COPY: Record<Locale, AccountCopy> = {
     pwUpdated: 'Contraseña actualizada', pwSet: 'Contraseña establecida — ahora puedes iniciar sesión con tu correo',
     deleteTitle: 'Eliminar cuenta', deleteSub: 'Elimina permanentemente tu cuenta, perfil, documentos y todos los datos. No se puede deshacer.',
     deleteBtn: 'Eliminar mi cuenta', deleteError: 'No se pudo eliminar tu cuenta',
-    confirmTitle: '¿Eliminar tu cuenta?', confirmSub: 'Esto elimina permanentemente tu perfil, CV, postulaciones, documentos y créditos. No hay forma de deshacerlo.',
+    confirmTitle: '¿Eliminar tu cuenta?', confirmSub: 'Esto elimina permanentemente tu perfil, CV, postulaciones y documentos. No hay forma de deshacerlo.',
     cancel: 'Cancelar', confirmBtn: 'Sí, eliminar todo',
   },
   'pt-BR': {
@@ -72,7 +72,7 @@ const COPY: Record<Locale, AccountCopy> = {
     pwUpdated: 'Senha atualizada', pwSet: 'Senha definida — agora você pode entrar com seu e-mail',
     deleteTitle: 'Excluir conta', deleteSub: 'Exclua permanentemente sua conta, perfil, documentos e todos os dados. Isso não pode ser desfeito.',
     deleteBtn: 'Excluir minha conta', deleteError: 'Não foi possível excluir sua conta',
-    confirmTitle: 'Excluir sua conta?', confirmSub: 'Isso remove permanentemente seu perfil, currículo, candidaturas, documentos e créditos. Não há como desfazer.',
+    confirmTitle: 'Excluir sua conta?', confirmSub: 'Isso remove permanentemente seu perfil, currículo, candidaturas e documentos. Não há como desfazer.',
     cancel: 'Cancelar', confirmBtn: 'Sim, excluir tudo',
   },
 }

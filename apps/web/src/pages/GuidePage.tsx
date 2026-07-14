@@ -18,7 +18,7 @@ const STEPS: Record<Locale, Step[]> = {
   en: [
     { title: 'Import your CV', body: 'Upload a PDF or DOCX once. Our AI structures your experience, skills and education into a profile you can reuse everywhere.', to: '/profile', cta: 'Go to profile' },
     { title: 'Set your job preferences', body: 'Tell us your target roles, salary, modality and locations. These answers also let the autofill complete the tricky application fields for you.', to: '/preferences', cta: 'Set preferences' },
-    { title: 'Complete your profile & earn credits', body: 'Add experience, skills and a few common answers. Each completed section grants credits you spend on the AI tools.', to: '/rewards', cta: 'See rewards' },
+    { title: 'Complete your profile', body: 'Add experience, skills and a few common answers. A complete profile makes every AI tool sharper and lets the autofill do more for you.', to: '/profile', cta: 'Go to profile' },
     { title: 'Optimize your CV for a role', body: 'Use Super-CV to rewrite your experience with the X-Y-Z formula and an ATS score, or generate a 100% personalized cover letter.', to: '/optimize', cta: 'Optimize CV' },
     { title: 'Practice with a mock interview', body: 'Get role-tailored questions and instant, specific feedback before the real thing.', to: '/interview', cta: 'Start interview' },
     { title: 'Install the browser extension', body: 'Add AplicoCV to Chrome to autofill applications across LinkedIn, Workday, Indeed and more — in one click.', to: '/extension', cta: 'Install' },
@@ -27,7 +27,7 @@ const STEPS: Record<Locale, Step[]> = {
   es: [
     { title: 'Importa tu CV', body: 'Sube un PDF o DOCX una sola vez. Nuestra IA estructura tu experiencia, habilidades y formación en un perfil que puedes reutilizar en todas partes.', to: '/profile', cta: 'Ir al perfil' },
     { title: 'Define tus preferencias de empleo', body: 'Indícanos tus puestos objetivo, salario, modalidad y ubicaciones. Estas respuestas también permiten que el autocompletado complete los campos difíciles por ti.', to: '/preferences', cta: 'Definir preferencias' },
-    { title: 'Completa tu perfil y gana créditos', body: 'Agrega experiencia, habilidades y algunas respuestas comunes. Cada sección completada otorga créditos que usas en las herramientas de IA.', to: '/rewards', cta: 'Ver recompensas' },
+    { title: 'Completa tu perfil', body: 'Agrega experiencia, habilidades y algunas respuestas comunes. Un perfil completo hace que cada herramienta de IA sea más precisa y permite que el autocompletado haga más por ti.', to: '/profile', cta: 'Ir al perfil' },
     { title: 'Optimiza tu CV para un puesto', body: 'Usa el Súper CV para reescribir tu experiencia con la fórmula X-Y-Z y un puntaje ATS, o genera una carta de presentación 100% personalizada.', to: '/optimize', cta: 'Optimizar CV' },
     { title: 'Practica con una entrevista simulada', body: 'Recibe preguntas según el puesto y feedback inmediato y específico antes de la entrevista real.', to: '/interview', cta: 'Iniciar entrevista' },
     { title: 'Instala la extensión del navegador', body: 'Agrega AplicoCV a Chrome para autocompletar postulaciones en LinkedIn, Workday, Indeed y más — con un clic.', to: '/extension', cta: 'Instalar' },
@@ -36,7 +36,7 @@ const STEPS: Record<Locale, Step[]> = {
   'pt-BR': [
     { title: 'Importe seu currículo', body: 'Envie um PDF ou DOCX uma única vez. Nossa IA estrutura sua experiência, habilidades e formação em um perfil que você reutiliza em qualquer lugar.', to: '/profile', cta: 'Ir para o perfil' },
     { title: 'Defina suas preferências de emprego', body: 'Diga seus cargos desejados, salário, modalidade e locais. Estas respostas também permitem que o preenchimento automático complete os campos difíceis por você.', to: '/preferences', cta: 'Definir preferências' },
-    { title: 'Complete seu perfil e ganhe créditos', body: 'Adicione experiência, habilidades e algumas respostas comuns. Cada seção concluída concede créditos para usar nas ferramentas de IA.', to: '/rewards', cta: 'Ver recompensas' },
+    { title: 'Complete seu perfil', body: 'Adicione experiência, habilidades e algumas respostas comuns. Um perfil completo deixa cada ferramenta de IA mais precisa e permite que o preenchimento automático faça mais por você.', to: '/profile', cta: 'Ir para o perfil' },
     { title: 'Otimize seu currículo para uma vaga', body: 'Use o Super CV para reescrever sua experiência com a fórmula X-Y-Z e uma pontuação ATS, ou gere uma carta de apresentação 100% personalizada.', to: '/optimize', cta: 'Otimizar currículo' },
     { title: 'Pratique com uma entrevista simulada', body: 'Receba perguntas conforme a vaga e feedback imediato e específico antes da entrevista real.', to: '/interview', cta: 'Iniciar entrevista' },
     { title: 'Instale a extensão do navegador', body: 'Adicione a AplicoCV ao Chrome para preencher candidaturas no LinkedIn, Workday, Indeed e mais — com um clique.', to: '/extension', cta: 'Instalar' },

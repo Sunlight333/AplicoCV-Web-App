@@ -18,19 +18,19 @@ import { formatMoney } from '@/lib/money'
 const NOTICES: Record<Locale, { upgraded: string; credits: string; pending: string; canceled: string }> = {
   en: {
     upgraded: 'You’re now on Pro — welcome aboard! 🎉',
-    credits: 'Payment received — your credits have been added.',
+    credits: 'Payment received — your subscription is active.',
     pending: 'Your payment is pending. We’ll update your account as soon as it’s confirmed.',
     canceled: 'Checkout canceled — no charge was made.',
   },
   es: {
     upgraded: 'Ya tienes Pro, ¡bienvenido! 🎉',
-    credits: 'Pago recibido: tus créditos se han añadido.',
+    credits: 'Pago recibido: tu suscripción está activa.',
     pending: 'Tu pago está pendiente. Actualizaremos tu cuenta apenas se confirme.',
     canceled: 'Pago cancelado: no se realizó ningún cargo.',
   },
   'pt-BR': {
     upgraded: 'Agora você tem o Pro — bem-vindo! 🎉',
-    credits: 'Pagamento recebido — seus créditos foram adicionados.',
+    credits: 'Pagamento recebido — sua assinatura está ativa.',
     pending: 'Seu pagamento está pendente. Atualizaremos sua conta assim que for confirmado.',
     canceled: 'Pagamento cancelado — nenhuma cobrança foi feita.',
   },
@@ -147,7 +147,6 @@ export default function BillingPage() {
             )}
             <p className="text-lg font-bold text-navy-900">{p.name}</p>
             <p className="mt-1 text-2xl font-extrabold text-navy-900">{priceLabel(p)}</p>
-            {p.credits != null && <p className="mt-0.5 text-xs text-navy-400">✦ {p.credits.toLocaleString()} credits</p>}
             <ul className="mt-4 space-y-1.5 text-sm text-navy-600">
               {p.features.map((f) => (
                 <li key={f} className="flex gap-2"><span className="text-green-500">✓</span>{f}</li>

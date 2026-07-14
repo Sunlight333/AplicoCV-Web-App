@@ -24,19 +24,19 @@ const AC: Record<Locale, DeepCopy> = {
   en: {
     matched: (m, t) => `${m}/${t} keywords matched`,
     deepTitle: 'Deep ATS scan of your CV', deepSub: 'How an ATS actually parses your profile — parse score, sections it reads or drops, and invisible errors.',
-    deepRun: '✦ Run deep scan (15 credits)', deepError: 'Could not run the scan',
+    deepRun: 'Run deep scan', deepError: 'Could not run the scan',
     parseScore: 'Parse score', detected: 'Sections detected', dropped: 'Likely dropped', format: 'Formatting issues', invisible: 'Invisible errors',
   },
   es: {
     matched: (m, t) => `${m}/${t} palabras clave coincidentes`,
     deepTitle: 'Escaneo ATS profundo de tu CV', deepSub: 'Cómo un ATS analiza tu perfil — puntuación de lectura, secciones que lee o descarta y errores invisibles.',
-    deepRun: '✦ Escaneo profundo (15 créditos)', deepError: 'No se pudo ejecutar el escaneo',
+    deepRun: 'Escaneo profundo', deepError: 'No se pudo ejecutar el escaneo',
     parseScore: 'Puntuación de lectura', detected: 'Secciones detectadas', dropped: 'Posiblemente descartadas', format: 'Problemas de formato', invisible: 'Errores invisibles',
   },
   'pt-BR': {
     matched: (m, t) => `${m}/${t} palavras-chave correspondentes`,
     deepTitle: 'Varredura ATS profunda do seu currículo', deepSub: 'Como um ATS analisa seu perfil — pontuação de leitura, seções lidas ou descartadas e erros invisíveis.',
-    deepRun: '✦ Varredura profunda (15 créditos)', deepError: 'Não foi possível executar a varredura',
+    deepRun: 'Varredura profunda', deepError: 'Não foi possível executar a varredura',
     parseScore: 'Pontuação de leitura', detected: 'Seções detectadas', dropped: 'Possivelmente descartadas', format: 'Problemas de formatação', invisible: 'Erros invisíveis',
   },
 }

@@ -12,14 +12,12 @@ import { useToast } from '@/components/Toast'
 import { scoreAts } from '@/services/dashboard'
 import { addSkills } from '@/services/profile'
 import { generateCoverLetter, type CoverLetterTone } from '@/services/ai'
-import { useT, useI18n } from '@/i18n/I18nProvider'
-import { costLabel } from '@/lib/aiCosts'
+import { useT } from '@/i18n/I18nProvider'
 import type { AtsAnalysis } from '@/types'
 
 export default function AiToolsPage() {
   const t = useT()
   const ta = t.app.aiTools
-  const { locale } = useI18n()
   const qc = useQueryClient()
   const { toast } = useToast()
 
@@ -67,7 +65,7 @@ export default function AiToolsPage() {
         />
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button loading={ats.isPending} disabled={!jd.trim()} onClick={() => ats.mutate()}>
-            {ta.runAts} · {costLabel(0, locale)}
+            {ta.runAts}
           </Button>
           <Button
             variant="secondary"
@@ -75,7 +73,7 @@ export default function AiToolsPage() {
             disabled={!jd.trim()}
             onClick={() => cover.mutate()}
           >
-            {ta.genCover} · {costLabel('cover_letter', locale)}
+            {ta.genCover}
           </Button>
         </div>
         <p className="mt-3 text-xs text-navy-400">

@@ -23,13 +23,13 @@ const COPY: Record<Locale, HelpCopy> = {
     categories: [
       { icon: 'rocket', title: 'Getting started', body: 'Import your CV, complete your profile, install the extension.' },
       { icon: 'extension', title: 'The extension', body: 'Autofill, tailored CVs, cover letters, and auto-tracking.' },
-      { icon: 'sparkles', title: 'Credits & billing', body: 'Earn credits, buy packs, manage your subscription.' },
+      { icon: 'sparkles', title: 'Plans & billing', body: 'Upgrade, manage your subscription, and billing.' },
       { icon: 'shield', title: 'Account & privacy', body: 'Passwords, data export, deleting your account.' },
     ],
     faqs: [
       { q: 'How does AplicoCV fill out application forms?', a: 'Upload your CV once and our AI structures your data. The Chrome extension then detects form fields on job portals and fills them automatically — matching each field to the right data, even on dynamic sites like LinkedIn and Workday.' },
       { q: 'Which job portals are supported?', a: 'We ship built-in support for 14 major portals including LinkedIn, Workday, Indeed, Glassdoor, Get on Board, Computrabajo and Bumeran. For any unlisted site, a smart fallback detects and fills standard fields.' },
-      { q: 'What are credits and how do I earn them?', a: 'Credits power AI actions (Super-CV, cover letters, mock interviews). You get a welcome bonus, daily check-in rewards, one-time grants for completing your profile, and referral bonuses — or top up any time on the Plans page.' },
+      { q: 'How does billing work?', a: 'AplicoCV is a subscription — a Weekly or Monthly plan unlocks full access to every AI feature (Super-CV, cover letters, mock interviews, ATS simulator and more). Manage or cancel anytime from the Plans page.' },
       { q: 'How do mock interviews work?', a: 'Pick a role and interview type; the AI generates tailored questions, you answer in your own words, and you get a score plus specific, actionable feedback per answer.' },
       { q: 'Is my data secure?', a: 'Your CV and profile are encrypted, portal passwords are stored with strong encryption and never exposed to the browser, and login autofill always asks for your confirmation. You can delete your account and all data anytime.' },
       { q: 'How do I install the extension?', a: 'From the Chrome Web Store (coming soon) or via manual “developer mode” install using the package we provide. The in-app Install page walks you through both.' },
@@ -43,13 +43,13 @@ const COPY: Record<Locale, HelpCopy> = {
     categories: [
       { icon: 'rocket', title: 'Primeros pasos', body: 'Importa tu CV, completa tu perfil, instala la extensión.' },
       { icon: 'extension', title: 'La extensión', body: 'Autocompletado, CVs adaptados, cartas y seguimiento automático.' },
-      { icon: 'sparkles', title: 'Créditos y facturación', body: 'Gana créditos, compra paquetes, gestiona tu suscripción.' },
+      { icon: 'sparkles', title: 'Planes y facturación', body: 'Mejora tu plan, gestiona tu suscripción y la facturación.' },
       { icon: 'shield', title: 'Cuenta y privacidad', body: 'Contraseñas, exportar datos, eliminar tu cuenta.' },
     ],
     faqs: [
       { q: '¿Cómo completa AplicoCV los formularios de postulación?', a: 'Sube tu CV una vez y nuestra IA estructura tus datos. La extensión de Chrome detecta los campos en los portales y los completa automáticamente — asignando cada campo al dato correcto, incluso en sitios dinámicos como LinkedIn y Workday.' },
       { q: '¿Qué portales de empleo son compatibles?', a: 'Incluimos soporte para 14 portales principales como LinkedIn, Workday, Indeed, Glassdoor, Get on Board, Computrabajo y Bumeran. Para cualquier sitio no listado, un respaldo inteligente detecta y completa los campos estándar.' },
-      { q: '¿Qué son los créditos y cómo los gano?', a: 'Los créditos impulsan las acciones de IA (Super-CV, cartas, entrevistas simuladas). Recibes un bono de bienvenida, recompensas por registro diario, créditos únicos por completar tu perfil y bonos por referidos — o recarga cuando quieras en la página de Planes.' },
+      { q: '¿Cómo funciona la facturación?', a: 'AplicoCV es una suscripción — un plan Semanal o Mensual desbloquea el acceso completo a todas las funciones de IA (Super-CV, cartas, entrevistas simuladas, simulador ATS y más). Gestiona o cancela cuando quieras desde la página de Planes.' },
       { q: '¿Cómo funcionan las entrevistas simuladas?', a: 'Elige un puesto y un tipo de entrevista; la IA genera preguntas adaptadas, respondes con tus propias palabras y recibes un puntaje más feedback específico y accionable por respuesta.' },
       { q: '¿Mis datos están seguros?', a: 'Tu CV y perfil están cifrados, las contraseñas de portales se guardan con cifrado fuerte y nunca se exponen al navegador, y el autocompletado de inicio de sesión siempre pide tu confirmación. Puedes eliminar tu cuenta y todos los datos cuando quieras.' },
       { q: '¿Cómo instalo la extensión?', a: 'Desde la Chrome Web Store (próximamente) o con una instalación manual en “modo desarrollador” usando el paquete que ofrecemos. La página de Instalación dentro de la app te guía en ambos casos.' },
@@ -63,13 +63,13 @@ const COPY: Record<Locale, HelpCopy> = {
     categories: [
       { icon: 'rocket', title: 'Primeiros passos', body: 'Importe seu currículo, complete seu perfil, instale a extensão.' },
       { icon: 'extension', title: 'A extensão', body: 'Preenchimento, currículos adaptados, cartas e rastreio automático.' },
-      { icon: 'sparkles', title: 'Créditos e faturamento', body: 'Ganhe créditos, compre pacotes, gerencie sua assinatura.' },
+      { icon: 'sparkles', title: 'Planos e faturamento', body: 'Faça upgrade, gerencie sua assinatura e o faturamento.' },
       { icon: 'shield', title: 'Conta e privacidade', body: 'Senhas, exportar dados, excluir sua conta.' },
     ],
     faqs: [
       { q: 'Como a AplicoCV preenche os formulários de candidatura?', a: 'Envie seu currículo uma vez e nossa IA estrutura seus dados. A extensão do Chrome detecta os campos nos portais e os preenche automaticamente — associando cada campo ao dado certo, mesmo em sites dinâmicos como LinkedIn e Workday.' },
       { q: 'Quais portais de emprego são compatíveis?', a: 'Já incluímos suporte a 14 portais principais, como LinkedIn, Workday, Indeed, Glassdoor, Get on Board, Computrabajo e Bumeran. Para qualquer site não listado, um recurso inteligente detecta e preenche os campos padrão.' },
-      { q: 'O que são créditos e como eu ganho?', a: 'Os créditos movem as ações de IA (Super-CV, cartas, entrevistas simuladas). Você ganha um bônus de boas-vindas, recompensas por check-in diário, créditos únicos por completar o perfil e bônus por indicações — ou recarregue quando quiser na página de Planos.' },
+      { q: 'Como funciona o faturamento?', a: 'A AplicoCV é uma assinatura — um plano Semanal ou Mensal desbloqueia o acesso completo a todos os recursos de IA (Super-CV, cartas, entrevistas simuladas, simulador ATS e mais). Gerencie ou cancele quando quiser na página de Planos.' },
       { q: 'Como funcionam as entrevistas simuladas?', a: 'Escolha um cargo e um tipo de entrevista; a IA gera perguntas adaptadas, você responde com suas palavras e recebe uma pontuação mais feedback específico e prático por resposta.' },
       { q: 'Meus dados estão seguros?', a: 'Seu currículo e perfil são criptografados, as senhas dos portais são guardadas com criptografia forte e nunca expostas ao navegador, e o preenchimento de login sempre pede sua confirmação. Você pode excluir sua conta e todos os dados quando quiser.' },
       { q: 'Como instalo a extensão?', a: 'Pela Chrome Web Store (em breve) ou por instalação manual em “modo desenvolvedor” usando o pacote que fornecemos. A página de Instalação no app orienta nos dois casos.' },

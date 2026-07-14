@@ -10,7 +10,6 @@ const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
 const ResetPasswordPage = lazy(() => import('@/pages/auth/ResetPasswordPage'))
 const AccountPage = lazy(() => import('@/pages/settings/AccountPage'))
-const RewardsPage = lazy(() => import('@/pages/RewardsPage'))
 const FaqPage = lazy(() => import('@/pages/FaqPage'))
 const OptimizePage = lazy(() => import('@/pages/OptimizePage'))
 const DocumentsPage = lazy(() => import('@/pages/DocumentsPage'))
@@ -18,7 +17,6 @@ const InterviewPage = lazy(() => import('@/pages/InterviewPage'))
 const AtsSimulatorPage = lazy(() => import('@/pages/AtsSimulatorPage'))
 const JobAnalyzerPage = lazy(() => import('@/pages/JobAnalyzerPage'))
 const MarketPage = lazy(() => import('@/pages/MarketPage'))
-const ReferralPage = lazy(() => import('@/pages/ReferralPage'))
 const GuidePage = lazy(() => import('@/pages/GuidePage'))
 const SupportedPortalsPage = lazy(() => import('@/pages/SupportedPortalsPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
@@ -85,7 +83,6 @@ export function App() {
               <Route path="/preferences" element={<PreferencesPage />} />
               <Route path="/applications" element={<TrackingPage />} />
               <Route path="/ai-tools" element={<AiToolsPage />} />
-              <Route path="/rewards" element={<RewardsPage />} />
               <Route path="/faq" element={<FaqPage />} />
               <Route path="/optimize" element={<OptimizePage />} />
               <Route path="/documents" element={<DocumentsPage />} />
@@ -93,7 +90,6 @@ export function App() {
               <Route path="/ats" element={<AtsSimulatorPage />} />
               <Route path="/analyze" element={<JobAnalyzerPage />} />
               <Route path="/market" element={<MarketPage />} />
-              <Route path="/referrals" element={<ReferralPage />} />
               <Route path="/guide" element={<GuidePage />} />
               <Route path="/portals" element={<SupportedPortalsPage />} />
               <Route path="/settings/account" element={<AccountPage />} />

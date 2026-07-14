@@ -97,7 +97,6 @@ export default function InterviewPage() {
           <h1 className="text-2xl font-bold text-navy-900">{ti.title}</h1>
           <p className="mt-1 text-navy-500">{ti.subtitle}</p>
         </div>
-        <Badge tone="info">{ti.cost}</Badge>
       </div>
 
       {phase === 'setup' && (

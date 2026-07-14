@@ -34,6 +34,19 @@ const MANUAL_STEPS: Record<Locale, string[]> = {
 const CHROME_STORE_URL = (import.meta.env.VITE_CHROME_STORE_URL as string | undefined) || ''
 const STORE_READY = Boolean(CHROME_STORE_URL)
 
+// Version of the downloadable package in /public/aplicocv-extension.zip. Keep in
+// sync with apps/extension/manifest.json whenever the zip is rebuilt. The manual
+// download always serves this latest build.
+const EXTENSION_VERSION = '1.4.9'
+
+// Version currently LIVE on the Chrome Web Store. This can lag behind the package
+// while a new build waits for Google's review, so it's a separate env value —
+// set VITE_CHROME_STORE_VERSION to the approved version each time the listing
+// updates. Blank = not published / unknown yet.
+const STORE_VERSION = (import.meta.env.VITE_CHROME_STORE_VERSION as string | undefined) || ''
+// The store is out of date (or unpublished) relative to the downloadable package.
+const STORE_BEHIND = STORE_VERSION !== EXTENSION_VERSION
+
 function isChrome() {
   const ua = navigator.userAgent
   return /Chrome/.test(ua) && !/Edg|OPR/.test(ua)
@@ -82,6 +95,14 @@ export default function ExtensionPage() {
                   <p className="mt-2 text-sm text-navy-400">{ti.comingSoon}</p>
                 </div>
               )}
+              {/* Store version — subtle, and only once a build is actually published
+                  (it can trail the manual download while Google reviews an update). */}
+              {STORE_VERSION && (
+                <p className="mt-3 text-xs text-navy-400">
+                  {te.storeVersion} v{STORE_VERSION}
+                  {STORE_BEHIND && <> · {te.updateInReview}</>}
+                </p>
+              )}
             </>
           ) : (
             <>
@@ -120,7 +141,10 @@ export default function ExtensionPage() {
       {/* Manual install (developer mode) — works today, before the store listing */}
       <Card className="mt-6 p-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-semibold text-navy-900">{ti.manual}</h2>
+          <div>
+            <h2 className="font-semibold text-navy-900">{ti.manual}</h2>
+            <p className="mt-0.5 text-xs text-navy-400">{ti.latest} · v{EXTENSION_VERSION}</p>
+          </div>
           <a href="/aplicocv-extension.zip" download>
             <Button variant="secondary" size="sm">{ti.download}</Button>
           </a>

@@ -1,8 +1,6 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useAuth } from '@/auth/AuthContext'
-import { getCredits } from '@/services/credits'
 import { Logo } from '@/components/Logo'
 import { Badge } from '@/components/ui/Badge'
 import { Icon, type IconName } from '@/components/ui/Icon'
@@ -58,7 +56,6 @@ export function AppLayout() {
   const { toast } = useToast()
   const t = useT()
   const [search, setSearch] = useState('')
-  const credits = useQuery({ queryKey: ['credits'], queryFn: getCredits })
 
   const runSearch = useDebouncedCallback((q: string) => {
     navigate(q.trim() ? `/applications?search=${encodeURIComponent(q.trim())}` : '/applications')
@@ -77,8 +74,6 @@ export function AppLayout() {
     { to: '/analyze', label: 'Job analyzer', icon: 'target' },
     { to: '/market', label: 'Market', icon: 'trending' },
     { to: '/documents', label: tm.documents, icon: 'document' },
-    { to: '/rewards', label: tm.rewards, icon: 'gift' },
-    { to: '/referrals', label: tm.referrals, icon: 'referrals' },
     { to: '/faq', label: tm.questions, icon: 'help' },
     { to: '/extension', label: t.app.nav.extension, icon: 'extension' },
   ]
@@ -155,14 +150,6 @@ export function AppLayout() {
             />
           </div>
           <div className="ml-auto flex items-center gap-3">
-            <NavLink
-              to="/rewards"
-              className="sheen-top relative inline-flex items-center gap-1.5 rounded-full bg-brand-gradient px-3.5 py-2 text-sm font-semibold text-white shadow-tile transition-transform hover:-translate-y-0.5"
-              title="Rewards & credits"
-            >
-              <Icon name="star" className="h-4 w-4" strokeWidth={2} />
-              <span className="tabular-nums">{credits.data?.balance ?? '–'}</span>
-            </NavLink>
             <NavLink
               to="/"
               title={t.app.nav.backToSite ?? 'Back to site'}

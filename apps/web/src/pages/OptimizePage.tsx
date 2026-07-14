@@ -21,83 +21,77 @@ import {
 import { downloadTextPdf } from '@/lib/pdf'
 import { ApiError } from '@/lib/apiClient'
 
-const SUPER_CV_COST = 50
-const LETTER_COST = 40
-const SALARY_COST = 15
 const TONES: CoverLetterTone[] = ['professional', 'warm', 'direct']
 
 interface SalaryCopy {
   title: string; desc: string; role: string; rolePh: string; region: string; regionPh: string
-  run: (n: number) => string; range: string; negotiation: string
+  run: string; range: string; negotiation: string
 }
 const SAL: Record<Locale, SalaryCopy> = {
   en: {
     title: 'Salary & negotiation copilot', desc: 'A market-aware estimate for your target role plus negotiation talking points.',
     role: 'Target role *', rolePh: 'e.g. Senior Product Manager', region: 'Region (optional)', regionPh: 'e.g. Remote US, Berlin…',
-    run: (n) => `✦ Get salary insights (${n} credits)`, range: 'Estimated range', negotiation: 'Negotiation points',
+    run: 'Get salary insights', range: 'Estimated range', negotiation: 'Negotiation points',
   },
   es: {
     title: 'Copiloto de salario y negociación', desc: 'Una estimación de mercado para tu puesto objetivo y puntos clave de negociación.',
     role: 'Puesto objetivo *', rolePh: 'ej. Gerente de Producto Senior', region: 'Región (opcional)', regionPh: 'ej. Remoto US, Berlín…',
-    run: (n) => `✦ Ver salario (${n} créditos)`, range: 'Rango estimado', negotiation: 'Puntos de negociación',
+    run: 'Ver salario', range: 'Rango estimado', negotiation: 'Puntos de negociación',
   },
   'pt-BR': {
     title: 'Copiloto de salário e negociação', desc: 'Uma estimativa de mercado para o cargo desejado e pontos de negociação.',
     role: 'Cargo desejado *', rolePh: 'ex. Gerente de Produto Sênior', region: 'Região (opcional)', regionPh: 'ex. Remoto US, Berlim…',
-    run: (n) => `✦ Ver salário (${n} créditos)`, range: 'Faixa estimada', negotiation: 'Pontos de negociação',
+    run: 'Ver salário', range: 'Faixa estimada', negotiation: 'Pontos de negociação',
   },
 }
 
 interface OptCopy {
   title: string; subtitle: string; viewDocs: string
-  superTitle: string; superDesc: string; credits: (n: number) => string
+  superTitle: string; superDesc: string
   whichCv: string; useSaved: string; useSavedSub: string; pasteOther: string; pasteOtherSub: string; pasteLabel: string
-  targetRole: string; targetRolePh: string; jd: string; jdPh: string; warning: string; generate: (n: number) => string
+  targetRole: string; targetRolePh: string; jd: string; jdPh: string; warning: string; generate: string
   resultTitle: string; missing: string; copy: string; downloadPdf: string
   superToast: string; genError: string; copied: string
   letterTitle: string; letterDesc: string; company: string; companyPh: string; role: string; rolePh: string
-  tone: string; emphasize: string; jdRequired: string; write: (n: number) => string; letterToast: string
+  tone: string; emphasize: string; jdRequired: string; write: string; letterToast: string
 }
 
 const COPY: Record<Locale, OptCopy> = {
   en: {
     title: 'Optimize CV & cover letter', subtitle: 'Advanced recruiter-grade tools to multiply your interviews.', viewDocs: 'View generated documents →',
     superTitle: 'Super CV (ATS)', superDesc: 'A senior recruiter rewrites your experience with the X-Y-Z formula, with gap analysis and ATS optimization.',
-    credits: (n) => `${n} credits`,
     whichCv: 'Which CV?', useSaved: 'Use my saved profile', useSavedSub: 'Your profile from “Profile”', pasteOther: 'Paste another CV', pasteOtherSub: 'For this application only', pasteLabel: 'Paste CV text',
     targetRole: 'Target role *', targetRolePh: 'e.g. Senior Frontend Engineer', jd: 'Job description (optional, recommended)', jdPh: 'Paste the posting’s requirements and responsibilities…',
-    warning: '⚠️ The AI uses only the facts in your CV — it will not invent roles or companies.', generate: (n) => `✦ Generate Super CV (${n} credits)`,
+    warning: '⚠️ The AI uses only the facts in your CV — it will not invent roles or companies.', generate: 'Generate Super CV',
     resultTitle: 'Your optimized CV', missing: 'Missing keywords:', copy: 'Copy', downloadPdf: 'Download PDF',
     superToast: 'Super CV generated 🎉', genError: 'Could not generate', copied: 'Copied to clipboard',
     letterTitle: '100% personalized cover letter', letterDesc: 'Written from scratch for one specific posting — references the company, the role and what you want to emphasize.',
     company: 'Company', companyPh: 'e.g. Acme Inc.', role: 'Role', rolePh: 'e.g. Product Manager',
-    tone: 'Tone', emphasize: 'What should it emphasize? (optional)', jdRequired: 'Job description *', write: (n) => `✦ Write my letter (${n} credits)`, letterToast: 'Cover letter ready 🎉',
+    tone: 'Tone', emphasize: 'What should it emphasize? (optional)', jdRequired: 'Job description *', write: 'Write my letter', letterToast: 'Cover letter ready 🎉',
   },
   es: {
     title: 'Optimizar CV y carta', subtitle: 'Herramientas avanzadas de nivel reclutador para multiplicar tus entrevistas.', viewDocs: 'Ver documentos generados →',
     superTitle: 'Super CV (ATS)', superDesc: 'Un reclutador senior reescribe tu experiencia con la fórmula X-Y-Z, con análisis de brechas y optimización ATS.',
-    credits: (n) => `${n} créditos`,
     whichCv: '¿Qué CV?', useSaved: 'Usar mi perfil guardado', useSavedSub: 'Tu perfil de “Perfil”', pasteOther: 'Pegar otro CV', pasteOtherSub: 'Solo para esta postulación', pasteLabel: 'Pega el texto del CV',
     targetRole: 'Puesto objetivo *', targetRolePh: 'ej. Ingeniero Frontend Senior', jd: 'Descripción del empleo (opcional, recomendado)', jdPh: 'Pega los requisitos y responsabilidades de la oferta…',
-    warning: '⚠️ La IA usa solo los hechos de tu CV — no inventará puestos ni empresas.', generate: (n) => `✦ Generar Super CV (${n} créditos)`,
+    warning: '⚠️ La IA usa solo los hechos de tu CV — no inventará puestos ni empresas.', generate: 'Generar Super CV',
     resultTitle: 'Tu CV optimizado', missing: 'Palabras clave faltantes:', copy: 'Copiar', downloadPdf: 'Descargar PDF',
     superToast: 'Super CV generado 🎉', genError: 'No se pudo generar', copied: 'Copiado al portapapeles',
     letterTitle: 'Carta de presentación 100% personalizada', letterDesc: 'Escrita desde cero para una oferta específica — menciona la empresa, el puesto y lo que quieres destacar.',
     company: 'Empresa', companyPh: 'ej. Acme Inc.', role: 'Puesto', rolePh: 'ej. Gerente de Producto',
-    tone: 'Tono', emphasize: '¿Qué debería destacar? (opcional)', jdRequired: 'Descripción del empleo *', write: (n) => `✦ Escribir mi carta (${n} créditos)`, letterToast: 'Carta lista 🎉',
+    tone: 'Tono', emphasize: '¿Qué debería destacar? (opcional)', jdRequired: 'Descripción del empleo *', write: 'Escribir mi carta', letterToast: 'Carta lista 🎉',
   },
   'pt-BR': {
     title: 'Otimizar currículo e carta', subtitle: 'Ferramentas avançadas de nível recrutador para multiplicar suas entrevistas.', viewDocs: 'Ver documentos gerados →',
     superTitle: 'Super CV (ATS)', superDesc: 'Um recrutador sênior reescreve sua experiência com a fórmula X-Y-Z, com análise de lacunas e otimização ATS.',
-    credits: (n) => `${n} créditos`,
     whichCv: 'Qual currículo?', useSaved: 'Usar meu perfil salvo', useSavedSub: 'Seu perfil de “Perfil”', pasteOther: 'Colar outro currículo', pasteOtherSub: 'Apenas para esta candidatura', pasteLabel: 'Cole o texto do currículo',
     targetRole: 'Cargo desejado *', targetRolePh: 'ex. Engenheiro Frontend Sênior', jd: 'Descrição da vaga (opcional, recomendado)', jdPh: 'Cole os requisitos e responsabilidades da vaga…',
-    warning: '⚠️ A IA usa apenas os fatos do seu currículo — não vai inventar cargos ou empresas.', generate: (n) => `✦ Gerar Super CV (${n} créditos)`,
+    warning: '⚠️ A IA usa apenas os fatos do seu currículo — não vai inventar cargos ou empresas.', generate: 'Gerar Super CV',
     resultTitle: 'Seu currículo otimizado', missing: 'Palavras-chave ausentes:', copy: 'Copiar', downloadPdf: 'Baixar PDF',
     superToast: 'Super CV gerado 🎉', genError: 'Não foi possível gerar', copied: 'Copiado para a área de transferência',
     letterTitle: 'Carta de apresentação 100% personalizada', letterDesc: 'Escrita do zero para uma vaga específica — cita a empresa, o cargo e o que você quer destacar.',
     company: 'Empresa', companyPh: 'ex. Acme Inc.', role: 'Cargo', rolePh: 'ex. Gerente de Produto',
-    tone: 'Tom', emphasize: 'O que deve destacar? (opcional)', jdRequired: 'Descrição da vaga *', write: (n) => `✦ Escrever minha carta (${n} créditos)`, letterToast: 'Carta pronta 🎉',
+    tone: 'Tom', emphasize: 'O que deve destacar? (opcional)', jdRequired: 'Descrição da vaga *', write: 'Escrever minha carta', letterToast: 'Carta pronta 🎉',
   },
 }
 
@@ -182,7 +176,6 @@ export default function OptimizePage() {
             <h2 className="text-lg font-semibold text-navy-900">{c.superTitle}</h2>
             <p className="mt-1 text-sm text-navy-500">{c.superDesc}</p>
           </div>
-          <Badge tone="info">{c.credits(SUPER_CV_COST)}</Badge>
         </div>
 
         <div className="mt-5 space-y-4">
@@ -214,7 +207,7 @@ export default function OptimizePage() {
           <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-700">{c.warning}</div>
 
           <Button className="rounded-full" loading={mutation.isPending} disabled={!targetRole.trim()} onClick={() => mutation.mutate()}>
-            {c.generate(SUPER_CV_COST)}
+            {c.generate}
           </Button>
         </div>
       </Card>
@@ -247,7 +240,6 @@ export default function OptimizePage() {
             <h2 className="text-lg font-semibold text-navy-900">{c.letterTitle}</h2>
             <p className="mt-1 text-sm text-navy-500">{c.letterDesc}</p>
           </div>
-          <Badge tone="info">{c.credits(LETTER_COST)}</Badge>
         </div>
 
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
@@ -273,7 +265,7 @@ export default function OptimizePage() {
         <TextArea className="mt-4" label={c.emphasize} rows={2} value={highlights} onChange={(e) => setHighlights(e.target.value)} />
         <TextArea className="mt-4" label={c.jdRequired} rows={5} value={letterJd} onChange={(e) => setLetterJd(e.target.value)} />
         <Button className="mt-4 rounded-full" loading={letterM.isPending} disabled={!letterJd.trim()} onClick={() => letterM.mutate()}>
-          {c.write(LETTER_COST)}
+          {c.write}
         </Button>
 
         {letter && (
@@ -294,14 +286,13 @@ export default function OptimizePage() {
             <h2 className="text-lg font-semibold text-navy-900">{sc.title}</h2>
             <p className="mt-1 text-sm text-navy-500">{sc.desc}</p>
           </div>
-          <Badge tone="info">{c.credits(SALARY_COST)}</Badge>
         </div>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <Input label={sc.role} placeholder={sc.rolePh} value={salaryRole} onChange={(e) => setSalaryRole(e.target.value)} />
           <Input label={sc.region} placeholder={sc.regionPh} value={salaryRegion} onChange={(e) => setSalaryRegion(e.target.value)} />
         </div>
         <Button className="mt-4 rounded-full" loading={salaryM.isPending} disabled={!salaryRole.trim()} onClick={() => salaryM.mutate()}>
-          {sc.run(SALARY_COST)}
+          {sc.run}
         </Button>
         {salary && (
           <div className="mt-5 rounded-xl border border-navy-100 bg-navy-50/40 p-4">

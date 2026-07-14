@@ -8,8 +8,6 @@ import { Input, TextArea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { useToast } from '@/components/Toast'
-import { useI18n } from '@/i18n/I18nProvider'
-import { AI_COSTS } from '@/lib/aiCosts'
 import { ApiError } from '@/lib/apiClient'
 import {
   getPredictiveScore,
@@ -71,10 +69,7 @@ function Meter({ label, value }: { label: string; value: number }) {
 
 export default function JobAnalyzerPage() {
   const { toast } = useToast()
-  const { locale } = useI18n()
   const c = useCopy(COPY)
-  const creditsWord = locale.startsWith('pt') || locale.startsWith('es') ? 'créditos' : 'credits'
-  const analyzeCost = AI_COSTS.predictive_score + AI_COSTS.ghost_recruiter
   const [jd, setJd] = useState('')
   const [url, setUrl] = useState('')
   const [predictive, setPredictive] = useState<PredictiveScore | null>(null)
@@ -121,7 +116,7 @@ export default function JobAnalyzerPage() {
             disabled={!jd.trim() && !url.trim()}
             onClick={() => (jd.trim() || url.trim() ? analyze.mutate() : toast(c.need, 'error'))}
           >
-            {c.analyze} · {analyzeCost} {creditsWord}
+            {c.analyze}
           </Button>
         </Card>
 
