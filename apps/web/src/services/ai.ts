@@ -162,11 +162,12 @@ export interface InterviewSessionSummary {
   completed: boolean
 }
 
-/** Start a mock interview (30 credits) — returns tailored questions. */
+/** Start a mock interview — returns tailored questions in the chosen language. */
 export async function startInterview(input: {
   role: string
   jobDescription?: string
   kind: InterviewKind
+  language?: string
 }): Promise<InterviewStart> {
   if (env.useMocks) {
     await delay(900)
@@ -181,7 +182,10 @@ export async function startInterview(input: {
       ],
     }
   }
-  return api.post<InterviewStart>('/ai/interview/start', { ...input, language: currentLocale() })
+  return api.post<InterviewStart>('/ai/interview/start', {
+    ...input,
+    language: input.language || currentLocale(),
+  })
 }
 
 /** Submit answers and get per-question + overall feedback. */

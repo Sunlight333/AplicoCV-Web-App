@@ -5,46 +5,28 @@ import { Card } from '@/components/ui/Card'
 import { Input, TextArea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
+import { SpokenInterview } from '@/components/SpokenInterview'
 import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
 import { ApiError } from '@/lib/apiClient'
-import {
-  startInterview,
-  submitInterview,
-  getInterviewHistory,
-  type InterviewKind,
-  type InterviewFeedback,
-} from '@/services/ai'
-
+import { currentLocale } from '@/lib/locale'
+import { startInterview, getInterviewHistory, type InterviewKind } from '@/services/ai'
 import { useCopy } from '@/i18n/useCopy'
 import type { Locale } from '@/i18n/dictionaries'
 
-const IC: Record<Locale, { newInterview: string; incomplete: string; questions: (n: number) => string }> = {
-  en: { newInterview: 'New interview', incomplete: 'Incomplete', questions: (n) => `${n} questions` },
-  es: { newInterview: 'Nueva entrevista', incomplete: 'Incompleta', questions: (n) => `${n} preguntas` },
-  'pt-BR': { newInterview: 'Nova entrevista', incomplete: 'Incompleta', questions: (n) => `${n} perguntas` },
+const IC: Record<Locale, { newInterview: string; incomplete: string; questions: (n: number) => string; language: string; realistic: string }> = {
+  en: { newInterview: 'New interview', incomplete: 'Incomplete', questions: (n) => `${n} questions`, language: 'Interview language', realistic: 'A realistic, spoken practice — the interviewer asks out loud, you answer to the screen. Nothing is recorded.' },
+  es: { newInterview: 'Nueva entrevista', incomplete: 'Incompleta', questions: (n) => `${n} preguntas`, language: 'Idioma de la entrevista', realistic: 'Una práctica hablada y realista — el entrevistador pregunta en voz alta y tú respondes a la pantalla. No se graba nada.' },
+  'pt-BR': { newInterview: 'Nova entrevista', incomplete: 'Incompleta', questions: (n) => `${n} perguntas`, language: 'Idioma da entrevista', realistic: 'Uma prática falada e realista — o entrevistador pergunta em voz alta e você responde para a tela. Nada é gravado.' },
 }
 
-type Phase = 'setup' | 'answer' | 'result'
+const LANGS: { code: string; label: string }[] = [
+  { code: 'en', label: 'English' },
+  { code: 'es', label: 'Español' },
+  { code: 'pt-BR', label: 'Português' },
+]
 
-function ScoreRing({ score }: { score: number }) {
-  const tone = score >= 80 ? '#16a34a' : score >= 55 ? '#f59e0b' : '#ef4444'
-  return (
-    <div className="relative h-24 w-24 flex-none">
-      <svg viewBox="0 0 100 100" className="h-24 w-24 -rotate-90">
-        <circle cx="50" cy="50" r="42" fill="none" stroke="#e8ecf6" strokeWidth="9" />
-        <circle
-          cx="50" cy="50" r="42" fill="none" stroke={tone} strokeWidth="9" strokeLinecap="round"
-          strokeDasharray={2 * Math.PI * 42}
-          strokeDashoffset={2 * Math.PI * 42 * (1 - Math.max(0, Math.min(100, score)) / 100)}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center text-2xl font-bold text-navy-900">
-        {score}
-      </span>
-    </div>
-  )
-}
+type Phase = 'setup' | 'drill'
 
 export default function InterviewPage() {
   const qc = useQueryClient()
@@ -57,46 +39,31 @@ export default function InterviewPage() {
   const [role, setRole] = useState('')
   const [kind, setKind] = useState<InterviewKind>('mixed')
   const [jd, setJd] = useState('')
-  const [sessionId, setSessionId] = useState('')
+  const [language, setLanguage] = useState<string>(currentLocale())
   const [questions, setQuestions] = useState<string[]>([])
-  const [answers, setAnswers] = useState<string[]>([])
-  const [feedback, setFeedback] = useState<InterviewFeedback | null>(null)
 
   const history = useQuery({ queryKey: ['interview-history'], queryFn: getInterviewHistory })
 
   const startM = useMutation({
-    mutationFn: () => startInterview({ role: role.trim(), jobDescription: jd.trim() || undefined, kind }),
+    mutationFn: () => startInterview({ role: role.trim(), jobDescription: jd.trim() || undefined, kind, language }),
     onSuccess: (r) => {
-      setSessionId(r.sessionId)
       setQuestions(r.questions)
-      setAnswers(r.questions.map(() => ''))
-      setPhase('answer')
-      qc.invalidateQueries({ queryKey: ['credits'] })
+      setPhase('drill')
     },
     onError: (e) => toast(e instanceof ApiError ? e.message : 'Could not start interview', 'error'),
   })
 
-  const submitM = useMutation({
-    mutationFn: () => submitInterview(sessionId, answers),
-    onSuccess: (r) => {
-      setFeedback(r)
-      setPhase('result')
-      qc.invalidateQueries({ queryKey: ['interview-history'] })
-    },
-    onError: (e) => toast(e instanceof ApiError ? e.message : 'Could not score answers', 'error'),
-  })
-
   const reset = () => {
-    setPhase('setup'); setFeedback(null); setQuestions([]); setAnswers([]); setSessionId('')
+    setPhase('setup')
+    setQuestions([])
+    qc.invalidateQueries({ queryKey: ['interview-history'] })
   }
 
   return (
     <PageTransition>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-navy-900">{ti.title}</h1>
-          <p className="mt-1 text-navy-500">{ti.subtitle}</p>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-navy-900">{ti.title}</h1>
+        <p className="mt-1 max-w-2xl text-navy-500">{ic.realistic}</p>
       </div>
 
       {phase === 'setup' && (
@@ -119,64 +86,35 @@ export default function InterviewPage() {
                 ))}
               </div>
             </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-navy-700">{ic.language}</p>
+              <div className="flex flex-wrap gap-2">
+                {LANGS.map((l) => (
+                  <button
+                    key={l.code}
+                    onClick={() => setLanguage(l.code)}
+                    className={`rounded-full border px-4 py-1.5 text-sm font-medium transition-colors ${
+                      language === l.code ? 'border-electric-500 bg-electric-50 text-electric-700' : 'border-navy-200 text-navy-500 hover:border-electric-300'
+                    }`}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <TextArea label={ti.jd} rows={4} value={jd} onChange={(e) => setJd(e.target.value)} />
             <Button className="rounded-full" loading={startM.isPending} disabled={!role.trim()} onClick={() => startM.mutate()}>
-              ✦ {ti.start}
+              {ti.start}
             </Button>
           </div>
         </Card>
       )}
 
-      {phase === 'answer' && (
-        <Card className="mt-6 max-w-2xl p-6">
-          <h2 className="text-lg font-semibold text-navy-900">{ti.answersTitle}</h2>
-          <div className="mt-4 space-y-5">
-            {questions.map((q, i) => (
-              <div key={i}>
-                <p className="text-sm font-medium text-navy-800">{i + 1}. {q}</p>
-                <TextArea
-                  className="mt-2"
-                  rows={3}
-                  placeholder={ti.answerPlaceholder}
-                  value={answers[i] ?? ''}
-                  onChange={(e) => setAnswers((a) => a.map((v, j) => (j === i ? e.target.value : v)))}
-                />
-              </div>
-            ))}
-          </div>
-          <Button className="mt-5 rounded-full" loading={submitM.isPending} onClick={() => submitM.mutate()}>
-            {ti.submit}
-          </Button>
-        </Card>
+      {phase === 'drill' && questions.length > 0 && (
+        <SpokenInterview questions={questions} locale={language} onDone={reset} />
       )}
 
-      {phase === 'result' && feedback && (
-        <Card className="mt-6 max-w-2xl p-6">
-          <div className="flex items-center gap-5">
-            <ScoreRing score={feedback.overallScore} />
-            <div>
-              <h2 className="text-lg font-semibold text-navy-900">{ti.scoreTitle}</h2>
-              <p className="mt-1 text-sm text-navy-500">{feedback.summary}</p>
-            </div>
-          </div>
-          <div className="mt-5 space-y-4">
-            {feedback.perQuestion.map((p, i) => (
-              <div key={i} className="rounded-xl border border-navy-100 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-medium text-navy-800">{p.question}</p>
-                  <Badge tone={p.rating >= 4 ? 'success' : p.rating >= 3 ? 'info' : 'warning'}>{p.rating}/5</Badge>
-                </div>
-                <p className="mt-2 text-sm text-navy-500">{p.feedback}</p>
-              </div>
-            ))}
-          </div>
-          <Button variant="secondary" className="mt-5 rounded-full" onClick={reset}>
-            {ic.newInterview}
-          </Button>
-        </Card>
-      )}
-
-      {(history.data?.length ?? 0) > 0 && (
+      {phase === 'setup' && (history.data?.length ?? 0) > 0 && (
         <Card className="mt-6 max-w-2xl p-6">
           <h2 className="text-lg font-semibold text-navy-900">{ti.historyTitle}</h2>
           <div className="mt-3 divide-y divide-navy-100">
