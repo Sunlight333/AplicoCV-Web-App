@@ -64,6 +64,7 @@ export function AppLayout() {
   const tm = t.app.more.nav
   const navItems: NavItem[] = [
     { to: '/dashboard', label: t.app.nav.dashboard, icon: 'dashboard' },
+    { to: '/copilot', label: 'Copilot', icon: 'sparkles' },
     { to: '/profile', label: t.app.nav.profile, icon: 'user' },
     { to: '/preferences', label: t.app.nav.preferences, icon: 'target' },
     { to: '/applications', label: t.app.nav.applications, icon: 'applications' },

@@ -22,6 +22,7 @@ const SupportedPortalsPage = lazy(() => import('@/pages/SupportedPortalsPage'))
 const OnboardingPage = lazy(() => import('@/pages/OnboardingPage'))
 const SubscribePage = lazy(() => import('@/pages/SubscribePage'))
 const DashboardPage = lazy(() => import('@/pages/DashboardPage'))
+const CopilotPage = lazy(() => import('@/pages/CopilotPage'))
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'))
 const PreferencesPage = lazy(() => import('@/pages/PreferencesPage'))
 const TrackingPage = lazy(() => import('@/pages/TrackingPage'))
@@ -81,6 +82,7 @@ export function App() {
           <Route element={<ProtectedRoute requireSubscription />}>
             <Route element={<AppLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/copilot" element={<CopilotPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/preferences" element={<PreferencesPage />} />
               <Route path="/applications" element={<TrackingPage />} />
