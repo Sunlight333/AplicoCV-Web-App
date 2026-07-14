@@ -11,7 +11,7 @@ from app.db import get_db
 from app.deps import get_current_user
 from app.models import User
 from app import pricing
-from app.schemas import CheckoutInput, CheckoutOut, CreditPackInput, PlanOut, ReconcileOut
+from app.schemas import CheckoutInput, CheckoutOut, PlanOut, ReconcileOut
 from app.services import credit_service, mercadopago_service
 
 try:  # Stripe SDK is optional — billing falls back to a stub without it.
@@ -21,38 +21,31 @@ except ImportError:  # pragma: no cover
 
 router = APIRouter(prefix="/billing", tags=["billing"])
 
-# Plan catalogue. Subscription tiers unlock premium; credit packs are one-off
-# top-ups. Prices are illustrative and shared with the frontend via GET /plans.
+# Plan catalogue (Enfoque 2.0): subscription‑only, two paid tiers, no free tier and
+# no credit packs. Every paid plan unlocks the full product. Prices come from
+# app.pricing (USD base) and are shared with the frontend via GET /plans.
 _PLANS: list[dict] = [
     {
-        "id": "free", "name": "Free", "interval": "month",
+        "id": "weekly", "name": "Weekly", "interval": "week",
         "credits": None, "kind": "subscription", "highlighted": False,
-        "features": ["15 automatic applications / month", "100 welcome credits", "Daily check-in rewards", "Browser extension", "Basic ATS score"],
+        "features": [
+            "Full access to every feature",
+            "Autonomous AI job search",
+            "CV tailored to each job (ATS)",
+            "AI mock interviews",
+            "Cancel anytime",
+        ],
     },
     {
-        "id": "pro_monthly", "name": "Pro", "interval": "month",
-        "credits": 1000, "kind": "subscription", "highlighted": True,
-        "features": ["Everything in Free", "Unlimited job applications", "1,000 credits / month", "Unlimited Super-CV & cover letters", "AI mock interviews", "Priority AI"],
-    },
-    {
-        "id": "pro_annual", "name": "Pro Annual", "interval": "year",
-        "credits": 12000, "kind": "subscription", "highlighted": False,
-        "features": ["Everything in Pro", "Unlimited job applications", "12,000 credits / year", "2 months free", "Early access to new features"],
-    },
-    {
-        "id": "pack_500", "name": "500 credits", "interval": "once",
-        "credits": 500, "kind": "credits", "highlighted": False,
-        "features": ["One-time top-up", "Never expires"],
-    },
-    {
-        "id": "pack_1500", "name": "1,500 credits", "interval": "once",
-        "credits": 1500, "kind": "credits", "highlighted": True,
-        "features": ["Best value", "One-time top-up", "Never expires"],
-    },
-    {
-        "id": "pack_5000", "name": "5,000 credits", "interval": "once",
-        "credits": 5000, "kind": "credits", "highlighted": False,
-        "features": ["Power user", "One-time top-up", "Never expires"],
+        "id": "monthly", "name": "Monthly", "interval": "month",
+        "credits": None, "kind": "subscription", "highlighted": True,
+        "features": [
+            "Everything in Weekly",
+            "Best value",
+            "Autonomous AI job search",
+            "CV tailored to each job (ATS)",
+            "AI mock interviews",
+        ],
     },
 ]
 
@@ -148,6 +141,8 @@ async def _fulfill(
         credit_service.grant_pending(db, acc, int(credits), f"purchase_{plan_id or 'credits'}")
     else:
         user.plan = "premium"
+        if plan_id:
+            user.preferences = {**(user.preferences or {}), "planId": plan_id}
     grants = dict(acc.grants or {})
     grants["mp_payments"] = processed + [payment_id]
     acc.grants = grants  # reassign so SQLAlchemy detects the JSON change
@@ -157,9 +152,10 @@ async def _fulfill(
 
 @router.get("/plans", response_model=list[PlanOut])
 async def plans(user: User = Depends(get_current_user)) -> list[PlanOut]:
-    """Subscription tiers + one-off credit packs for the Plans screen. Prices are
-    in the configured currency (default CLP), converted from the CLP base catalogue."""
-    current_id = "pro_monthly" if user.plan == "premium" else "free"
+    """The two subscription plans for the Plans screen. Prices are shown in the
+    LATAM local currency for MercadoPago payers (converted from the USD base); the
+    worldwide rail charges USD. `current` marks the plan the subscriber is on."""
+    current_id = (user.preferences or {}).get("planId") if user.plan == "premium" else None
     currency = pricing.active_currency()
     return [
         PlanOut(
@@ -190,59 +186,6 @@ async def public_pricing() -> dict:
     }
 
 
-@router.post("/credits/checkout", response_model=CheckoutOut)
-async def credits_checkout(
-    body: CreditPackInput,
-    user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-) -> CheckoutOut:
-    """Buy a one-off credit pack. With Stripe configured this opens a one-time
-    Checkout (credits granted by the webhook); in stub mode credits are granted
-    immediately so the demo flow completes end to end."""
-    pack = next((p for p in _PLANS if p["id"] == body.pack and p["kind"] == "credits"), None)
-    if not pack:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown credit pack.")
-
-    if settings.mercadopago_enabled:
-        url = await _mp_preference(
-            user,
-            title=pack["name"],
-            price=pricing.price_in(pack["id"]),
-            metadata={"kind": "credits", "credits": int(pack["credits"]), "plan_id": pack["id"]},
-            success_qs=f"credits={pack['credits']}",
-        )
-        return CheckoutOut(url=url)
-
-    if not settings.stripe_enabled:
-        acc = await credit_service.get_account(db, user.id)
-        await credit_service.grant(db, acc, int(pack["credits"]), f"purchase_{pack['id']}")
-        return CheckoutOut(url=f"{settings.frontend_url}/settings/billing?credits={pack['credits']}")
-
-    s = _stripe()
-    currency = pricing.active_currency()
-    price = pricing.price_in(pack["id"], currency)
-    # Stripe expects the amount in the currency's minor unit, except for
-    # zero-decimal currencies (e.g. CLP, COP) which take the whole-unit amount.
-    unit_amount = int(round(price)) if pricing.is_zero_decimal(currency) else int(round(price * 100))
-    session = s.checkout.Session.create(
-        mode="payment",
-        line_items=[{
-            "price_data": {
-                "currency": currency.lower(),
-                "product_data": {"name": pack["name"]},
-                "unit_amount": unit_amount,
-            },
-            "quantity": 1,
-        }],
-        client_reference_id=user.id,
-        customer_email=user.email,
-        metadata={"userId": user.id, "credits": str(pack["credits"])},
-        success_url=f"{settings.frontend_url}/settings/billing?credits={pack['credits']}",
-        cancel_url=f"{settings.frontend_url}/settings/billing?canceled=1",
-    )
-    return CheckoutOut(url=session.url)
-
-
 @router.post("/checkout", response_model=CheckoutOut)
 async def checkout(
     body: CheckoutInput = CheckoutInput(),
@@ -250,13 +193,12 @@ async def checkout(
     db: AsyncSession = Depends(get_db),
 ) -> CheckoutOut:
     """
-    Start a subscription for the chosen plan (`pro_monthly` or `pro_annual`). With
-    Stripe configured this creates a Checkout Session and returns its hosted URL;
-    in stub mode we immediately upgrade the user so the demo flow completes.
+    Start a subscription for the chosen plan (`weekly` or `monthly`). With Stripe
+    configured this creates a Checkout Session and returns its hosted URL; in stub
+    mode we immediately upgrade the user so the demo flow completes.
     """
     plan = next(
-        (p for p in _PLANS if p["id"] == body.plan
-         and p["kind"] == "subscription" and p["id"] != "free"),
+        (p for p in _PLANS if p["id"] == body.plan and p["kind"] == "subscription"),
         None,
     )
     if not plan:
@@ -274,17 +216,18 @@ async def checkout(
 
     if not settings.stripe_enabled:
         user.plan = "premium"
+        user.preferences = {**(user.preferences or {}), "planId": plan["id"]}
         await db.commit()
         return CheckoutOut(url=f"{settings.frontend_url}/settings/billing?upgraded=1")
 
     s = _stripe()
-    # A single STRIPE_PRICE_ID only covers the monthly plan; build a recurring
-    # price_data for the selected plan so the annual tier charges the annual amount
-    # and interval rather than silently falling back to monthly.
+    # Build a recurring price_data for the selected plan so the weekly/monthly tier
+    # charges the right amount and interval. (Stripe is disabled in this project;
+    # Lemon Squeezy is the worldwide rail — see the Lemon Squeezy provider.)
     currency = pricing.active_currency()
     price = pricing.price_in(plan["id"], currency)
     unit_amount = int(round(price)) if pricing.is_zero_decimal(currency) else int(round(price * 100))
-    interval = "year" if plan["interval"] == "year" else "month"
+    interval = plan["interval"] if plan["interval"] in ("week", "month", "year") else "month"
     if settings.stripe_price_id and interval == "month":
         line_item: dict = {"price": settings.stripe_price_id, "quantity": 1}
     else:

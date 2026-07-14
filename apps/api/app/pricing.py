@@ -1,53 +1,44 @@
 """
-Catalogue pricing.
+Catalogue pricing (Enfoque 2.0).
 
-Base prices are defined in Chilean pesos (CLP) — the recommended standard — and
-converted to the configured charge currency at runtime, so any currency MercadoPago
-supports can be used. The conversion rates below are approximate and meant to be
-edited/kept current; CLP (and any currency you set explicitly) is exact.
+The product is subscription‑only, priced in USD:
 
-Tiering (per credit, in CLP): larger packs are cheaper per credit, and Pro is the
-best value — verified in the table below.
+  weekly    USD  9 / week
+  monthly   USD 17 / month   (best value)
 
-  pack_500   4.990 / 500   =  9.98 CLP / credit
-  pack_1500 11.990 / 1500  =  7.99 CLP / credit
-  pack_5000 29.990 / 5000  =  6.00 CLP / credit
-  pro       6.990 / 1000   =  6.99 CLP / credit  (+ unlimited applications & perks)
-  annual   69.900 / 12000  =  5.83 CLP / credit  (2 months free vs monthly)
+USD is the base and is exact. For LATAM payers charged in local currency through
+MercadoPago, the USD price is converted at runtime with the approximate rates
+below (keep them roughly current). The USA / worldwide rail (Lemon Squeezy) always
+charges the exact USD amount.
 """
 
 from __future__ import annotations
 
 from app.config import settings
 
-# --- Base prices, in CLP (the standard) --------------------------------------
-BASE_CLP: dict[str, int] = {
-    "free": 0,
-    "pro_monthly": 6990,
-    "pro_annual": 69900,
-    "pack_500": 4990,
-    "pack_1500": 11990,
-    "pack_5000": 29990,
+# --- Base prices, in USD (the standard) --------------------------------------
+BASE_USD: dict[str, float] = {
+    "weekly": 9.0,
+    "monthly": 17.0,
 }
 
 # --- Currency conversion ------------------------------------------------------
-# Approximate value of ONE unit of each currency in CLP. Covers the MercadoPago
-# site currencies plus USD. Keep these roughly current, or set the charge currency
-# to CLP for exact prices. Add a row here to support any other currency.
-CLP_PER_UNIT: dict[str, float] = {
-    "CLP": 1.0,      # Chile (base)
-    "USD": 950.0,    # US dollar (cross-border)
-    "ARS": 0.80,     # Argentina
-    "BRL": 170.0,    # Brazil
-    "MXN": 52.0,     # Mexico
-    "COP": 0.235,    # Colombia
-    "PEN": 250.0,    # Peru
-    "UYU": 24.0,     # Uruguay
+# Units of each currency per ONE US dollar (approximate; keep roughly current).
+# USD is exact. Covers the MercadoPago LATAM site currencies. Add a row to support
+# another currency.
+PER_USD: dict[str, float] = {
+    "USD": 1.0,        # base (Lemon Squeezy / worldwide)
+    "CLP": 950.0,      # Chile
+    "ARS": 1180.0,     # Argentina
+    "BRL": 5.4,        # Brazil
+    "MXN": 18.0,       # Mexico
+    "COP": 4000.0,     # Colombia
+    "PEN": 3.8,        # Peru
+    "UYU": 40.0,       # Uruguay
 }
 
 # Currencies charged as whole units (no decimal cents). Only currencies with a
-# conversion rate above belong here — a zero-decimal currency without a rate would
-# charge the raw CLP amount unconverted.
+# conversion rate above belong here.
 ZERO_DECIMAL: set[str] = {"CLP", "COP", "ARS"}
 
 # Rounding step for whole-unit currencies, to keep prices tidy after conversion.
@@ -55,17 +46,18 @@ _ROUND_STEP: dict[str, int] = {"CLP": 10, "ARS": 10, "COP": 100}
 
 
 def supported_currencies() -> list[str]:
-    return sorted(CLP_PER_UNIT)
+    return sorted(PER_USD)
 
 
 def active_currency() -> str:
-    """The currency the catalogue is charged/displayed in (defaults to CLP).
+    """The local currency for the MercadoPago (LATAM) rail; defaults to CLP.
 
     Falls back to CLP if the configured currency has no conversion rate, so a
-    misconfigured MERCADOPAGO_CURRENCY can never send an unconverted CLP amount to
-    the payment provider (which would mis-charge and be rejected at checkout)."""
+    misconfigured MERCADOPAGO_CURRENCY can never send an unconverted amount to the
+    payment provider. The Lemon Squeezy / worldwide rail charges USD explicitly and
+    does not depend on this."""
     cur = (settings.mercadopago_currency or "CLP").upper()
-    return cur if cur in CLP_PER_UNIT else "CLP"
+    return cur if cur in PER_USD else "CLP"
 
 
 def is_zero_decimal(currency: str) -> bool:
@@ -80,19 +72,19 @@ def _round(amount: float, currency: str) -> float:
     return round(amount, 2)
 
 
-def convert(amount_clp: float, currency: str) -> float:
-    """Convert a CLP amount to `currency`. Exact for CLP; rounded sensibly otherwise.
-    Unknown currencies fall back to the CLP amount so a price is never zero."""
+def convert(amount_usd: float, currency: str) -> float:
+    """Convert a USD amount to `currency`. Exact for USD; rounded sensibly otherwise.
+    Unknown currencies fall back to the USD amount so a price is never zero."""
     cur = currency.upper()
-    if cur == "CLP" or amount_clp == 0:
-        return float(amount_clp)
-    rate = CLP_PER_UNIT.get(cur)
+    if cur == "USD" or amount_usd == 0:
+        return float(amount_usd)
+    rate = PER_USD.get(cur)
     if not rate:
-        return float(amount_clp)
-    return _round(amount_clp / rate, cur)
+        return float(amount_usd)
+    return _round(amount_usd * rate, cur)
 
 
 def price_in(plan_id: str, currency: str | None = None) -> float:
-    """Catalogue price of a plan/pack in the given (or active) currency."""
-    base = BASE_CLP.get(plan_id, 0)
+    """Catalogue price of a plan in the given (or active LATAM) currency."""
+    base = BASE_USD.get(plan_id, 0.0)
     return convert(base, currency or active_currency())

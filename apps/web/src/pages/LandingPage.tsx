@@ -645,14 +645,13 @@ function StatNumber({ value, suffix }: { value: number; suffix?: string }) {
 
 function Pricing() {
   const t = useT()
-  const [annual, setAnnual] = useState(true)
-  // Live prices in the configured currency (default CLP), from the public catalogue.
+  // Live prices in USD from the public catalogue (weekly / monthly subscription).
   const pricing = useQuery({ queryKey: ['public-pricing'], queryFn: getPublicPricing })
-  const cur = pricing.data?.currency ?? 'CLP'
-  const monthly = pricing.data?.plans.find((p) => p.id === 'pro_monthly')?.price ?? 6990
-  const annualYear = pricing.data?.plans.find((p) => p.id === 'pro_annual')?.price ?? 69900
-  const premium = annual ? annualYear / 12 : monthly
-  const premiumLabel = formatMoney(premium, cur, currentLocale())
+  const cur = pricing.data?.currency ?? 'USD'
+  const loc = currentLocale()
+  const weekly = pricing.data?.plans.find((p) => p.id === 'weekly')?.price ?? 9
+  const monthly = pricing.data?.plans.find((p) => p.id === 'monthly')?.price ?? 17
+  const features = t.pricing.premium.features
   return (
     <section id="pricing" className="mx-auto max-w-5xl px-6 py-28">
       <Reveal className="mx-auto max-w-2xl text-center">
@@ -661,38 +660,21 @@ function Pricing() {
         <p className="mt-4 text-navy-500">{t.pricing.subtitle}</p>
       </Reveal>
 
-      <Reveal className="mt-8 flex items-center justify-center gap-3 text-sm font-medium">
-        <span className={annual ? 'text-navy-400' : 'text-navy-900'}>{t.pricing.monthly}</span>
-        <button
-          onClick={() => setAnnual((a) => !a)}
-          className="relative h-7 w-12 rounded-full bg-brand-gradient"
-          aria-label="Toggle billing period"
-        >
-          <motion.span
-            layout
-            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-            className="absolute top-1 h-5 w-5 rounded-full bg-white shadow"
-            style={{ left: annual ? 26 : 4 }}
-          />
-        </button>
-        <span className={annual ? 'text-navy-900' : 'text-navy-400'}>
-          {t.pricing.annual} <span className="text-electric-600">{t.pricing.annualSave}</span>
-        </span>
-      </Reveal>
-
       <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
         <Reveal direction="right">
           <div className="flex h-full flex-col rounded-2xl border border-navy-100/70 bg-white p-8 shadow-elev-2">
-            <h3 className="font-semibold text-navy-900">{t.pricing.free.name}</h3>
-            <p className="mt-3 text-5xl font-extrabold text-navy-900">$0</p>
-            <p className="mt-1 text-sm text-navy-400">{t.pricing.forever}</p>
+            <h3 className="font-semibold text-navy-900">Weekly</h3>
+            <p className="mt-3 text-5xl font-extrabold text-navy-900">
+              {formatMoney(weekly, cur, loc)}
+              <span className="text-base font-medium text-navy-400">{t.pricing.perWeek}</span>
+            </p>
             <ul className="mt-6 flex-1 space-y-3 text-sm text-navy-600">
-              {t.pricing.free.features.map((f) => (
+              {features.map((f) => (
                 <li key={f} className="flex gap-2"><Check /> {f}</li>
               ))}
             </ul>
             <Link to="/register" className="mt-8 block">
-              <Button variant="secondary" className="w-full rounded-full">{t.pricing.free.cta}</Button>
+              <Button variant="secondary" className="w-full rounded-full">{t.pricing.premium.cta}</Button>
             </Link>
           </div>
         </Reveal>
@@ -702,14 +684,14 @@ function Pricing() {
             <span className="inline-flex w-fit rounded-full bg-brand-gradient px-3 py-1 text-xs font-semibold text-white">
               {t.pricing.mostPopular}
             </span>
-            <h3 className="mt-3 font-semibold text-navy-900">{t.pricing.premium.name}</h3>
+            <h3 className="mt-3 font-semibold text-navy-900">Monthly</h3>
             <p className="mt-3 text-5xl font-extrabold text-navy-900">
-              {premiumLabel}
+              {formatMoney(monthly, cur, loc)}
               <span className="text-base font-medium text-navy-400">{t.pricing.perMonth}</span>
             </p>
-            <p className="mt-1 text-sm text-navy-400">{annual ? t.pricing.billedAnnually : t.pricing.billedMonthly}</p>
+            <p className="mt-1 text-sm text-navy-400">{t.pricing.billedMonthly}</p>
             <ul className="mt-6 flex-1 space-y-3 text-sm text-navy-600">
-              {t.pricing.premium.features.map((f) => (
+              {features.map((f) => (
                 <li key={f} className="flex gap-2"><Check /> {f}</li>
               ))}
             </ul>

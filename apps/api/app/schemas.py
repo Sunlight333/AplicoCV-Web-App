@@ -599,7 +599,7 @@ class PlanOut(BaseModel):
     name: str
     price: float
     currency: str = "USD"
-    interval: Literal["month", "year", "once"]
+    interval: Literal["week", "month", "year", "once"]
     credits: int | None = None
     features: list[str]
     highlighted: bool = False
@@ -612,8 +612,8 @@ class CreditPackInput(BaseModel):
 
 
 class CheckoutInput(BaseModel):
-    # id of a "subscription" PlanOut (e.g. "pro_monthly", "pro_annual").
-    plan: str = "pro_monthly"
+    # id of a "subscription" PlanOut ("weekly" or "monthly").
+    plan: str = "monthly"
 
 
 class ReconcileOut(BaseModel):

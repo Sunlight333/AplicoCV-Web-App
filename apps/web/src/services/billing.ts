@@ -7,7 +7,7 @@ export interface Plan {
   name: string
   price: number
   currency: string
-  interval: 'month' | 'year' | 'once'
+  interval: 'week' | 'month' | 'year' | 'once'
   credits: number | null
   features: string[]
   highlighted: boolean
@@ -15,13 +15,10 @@ export interface Plan {
   current: boolean
 }
 
+// Enfoque 2.0: subscription‑only, two USD plans, no free tier and no credit packs.
 const MOCK_PLANS: Plan[] = [
-  { id: 'free', name: 'Free', price: 0, currency: 'CLP', interval: 'month', credits: null, kind: 'subscription', highlighted: false, current: true, features: ['100 welcome credits', 'Daily check-in rewards', 'Browser extension', 'Basic ATS score'] },
-  { id: 'pro_monthly', name: 'Pro', price: 6990, currency: 'CLP', interval: 'month', credits: 1000, kind: 'subscription', highlighted: true, current: false, features: ['Everything in Free', '1,000 credits / month', 'Unlimited Super-CV & cover letters', 'AI mock interviews', 'Priority AI'] },
-  { id: 'pro_annual', name: 'Pro Annual', price: 69900, currency: 'CLP', interval: 'year', credits: 12000, kind: 'subscription', highlighted: false, current: false, features: ['Everything in Pro', '12,000 credits / year', '2 months free', 'Early access to new features'] },
-  { id: 'pack_500', name: '500 credits', price: 4990, currency: 'CLP', interval: 'once', credits: 500, kind: 'credits', highlighted: false, current: false, features: ['One-time top-up', 'Never expires'] },
-  { id: 'pack_1500', name: '1,500 credits', price: 11990, currency: 'CLP', interval: 'once', credits: 1500, kind: 'credits', highlighted: true, current: false, features: ['Best value', 'One-time top-up', 'Never expires'] },
-  { id: 'pack_5000', name: '5,000 credits', price: 29990, currency: 'CLP', interval: 'once', credits: 5000, kind: 'credits', highlighted: false, current: false, features: ['Power user', 'One-time top-up', 'Never expires'] },
+  { id: 'weekly', name: 'Weekly', price: 9, currency: 'USD', interval: 'week', credits: null, kind: 'subscription', highlighted: false, current: false, features: ['Full access to every feature', 'Autonomous AI job search', 'CV tailored to each job (ATS)', 'AI mock interviews', 'Cancel anytime'] },
+  { id: 'monthly', name: 'Monthly', price: 17, currency: 'USD', interval: 'month', credits: null, kind: 'subscription', highlighted: true, current: false, features: ['Everything in Weekly', 'Best value', 'Autonomous AI job search', 'CV tailored to each job (ATS)', 'AI mock interviews'] },
 ]
 
 export async function getPlans(): Promise<Plan[]> {
@@ -41,24 +38,13 @@ export interface PublicPricing {
 export async function getPublicPricing(): Promise<PublicPricing> {
   if (env.useMocks) {
     await delay(150)
-    return { currency: 'CLP', plans: MOCK_PLANS }
+    return { currency: 'USD', plans: MOCK_PLANS }
   }
   return api.get<PublicPricing>('/billing/pricing')
 }
 
-/** Buy a one-off credit pack. Redirects to Stripe when configured. */
-export async function buyCreditPack(pack: string): Promise<void> {
-  if (env.useMocks) {
-    await delay(400)
-    alert(`[mock] Would buy credit pack ${pack}.`)
-    return
-  }
-  const { url } = await api.post<{ url: string }>('/billing/credits/checkout', { pack })
-  window.location.href = url
-}
-
-/** Begin a checkout session for the chosen subscription plan. */
-export async function startCheckout(plan: string = 'pro_monthly'): Promise<void> {
+/** Begin a checkout session for the chosen subscription plan ('weekly' | 'monthly'). */
+export async function startCheckout(plan: string = 'monthly'): Promise<void> {
   if (env.useMocks) {
     await delay(400)
     alert(`[mock] Would redirect to checkout for the ${plan} plan.`)
