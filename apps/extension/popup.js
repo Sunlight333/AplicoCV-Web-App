@@ -157,9 +157,9 @@ function setupCover() {
     $('cover-generate').textContent = 'Regenerate'
     $('cover-generate').disabled = false
     if (error || !text) {
-      // Surface insufficient-credits / errors instead of failing silently.
+      // Surface the error instead of failing silently.
       $('status').textContent =
-        typeof error === 'string' && error ? error : 'Could not generate — check your credits.'
+        typeof error === 'string' && error ? error : 'Could not generate — please try again.'
       return
     }
     state.coverText = text
@@ -230,13 +230,12 @@ async function init() {
     chrome.storage?.local.set({ aplico_onboarded: true })
   }
 
-  // Credit balance + profile completeness (links to the rewards page).
+  // Profile completeness → dashboard. Subscription-only: no credits are shown.
   send({ type: 'GET_CREDITS' }).then((cr) => {
     if (!cr?.credits) return
-    const c = cr.credits
     const row = $('credits-row')
-    row.innerHTML = `<span>✦ ${c.balance} credits</span><span>${c.completion?.percent ?? 0}% profile</span>`
-    row.href = `${WEB_APP_URL}/rewards`
+    row.innerHTML = `<span>Your profile</span><span>${cr.credits.completion?.percent ?? 0}% complete</span>`
+    row.href = `${WEB_APP_URL}/dashboard`
     row.classList.remove('hidden')
   })
 

@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     # Product variant ids for each plan (from the Lemon Squeezy dashboard).
     lemonsqueezy_variant_weekly: str = ""
     lemonsqueezy_variant_monthly: str = ""
+    # The Lemon Squeezy store's currency — MUST match the currency your LS products
+    # are priced in, so the price shown on the site equals what LS charges (USD if you
+    # price 9/17; CLP if you price 8550/16150).
+    lemonsqueezy_currency: str = "USD"
 
     # ---- Billing (MercadoPago — LATAM local currency) ---------------------
     # With an access token set, checkout creates a MercadoPago Checkout Pro

@@ -50,12 +50,12 @@ def supported_currencies() -> list[str]:
 
 
 def active_currency() -> str:
-    """The local currency for the MercadoPago (LATAM) rail; defaults to CLP.
-
-    Falls back to CLP if the configured currency has no conversion rate, so a
-    misconfigured MERCADOPAGO_CURRENCY can never send an unconverted amount to the
-    payment provider. The Lemon Squeezy / worldwide rail charges USD explicitly and
-    does not depend on this."""
+    """The currency prices are shown/charged in. Lemon Squeezy (worldwide) wins when
+    configured — its store currency — otherwise the MercadoPago (LATAM) currency.
+    Falls back to a currency we can convert so we never emit an unconverted amount."""
+    if settings.lemonsqueezy_enabled:
+        cur = (settings.lemonsqueezy_currency or "USD").upper()
+        return cur if cur in PER_USD else "USD"
     cur = (settings.mercadopago_currency or "CLP").upper()
     return cur if cur in PER_USD else "CLP"
 
