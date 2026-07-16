@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageTransition } from '@/components/PageTransition'
 import { Card } from '@/components/ui/Card'
@@ -7,6 +8,7 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
 import { getRecommendations } from '@/services/dashboard'
 import { runAgentScan } from '@/services/ai'
+import { requestApply } from '@/services/apply'
 import { currentLocale } from '@/lib/locale'
 import type { Recommendation } from '@/types'
 
@@ -27,6 +29,11 @@ const COPY = {
     apply: 'Apply',
     view: 'View',
     match: 'match',
+    preparing: 'Preparing your application…',
+    prepared: 'Prepared — check Applications',
+    failed: 'Could not prepare it. Try again.',
+    searches: 'Portal searches',
+    searchesSub: 'Open searches on the boards for your role and region — not scored matches.',
     empty: 'No matches yet — run a search to get your first shortlist.',
     done: (n: number) => `Found ${n} matches for you.`,
   },
@@ -42,6 +49,11 @@ const COPY = {
     apply: 'Postular',
     view: 'Ver',
     match: 'match',
+    preparing: 'Preparando tu postulación…',
+    prepared: 'Lista — revisa Postulaciones',
+    failed: 'No se pudo preparar. Inténtalo de nuevo.',
+    searches: 'Búsquedas en portales',
+    searchesSub: 'Búsquedas abiertas en los portales para tu puesto y región — no son coincidencias puntuadas.',
     empty: 'Aún no hay coincidencias — inicia una búsqueda para tu primera lista.',
     done: (n: number) => `Encontramos ${n} coincidencias para ti.`,
   },
@@ -57,6 +69,11 @@ const COPY = {
     apply: 'Candidatar',
     view: 'Ver',
     match: 'match',
+    preparing: 'Preparando sua candidatura…',
+    prepared: 'Pronta — veja Candidaturas',
+    failed: 'Não foi possível preparar. Tente de novo.',
+    searches: 'Buscas nos portais',
+    searchesSub: 'Buscas abertas nos portais para sua vaga e região — não são combinações pontuadas.',
     empty: 'Ainda não há combinações — inicie uma busca para sua primeira lista.',
     done: (n: number) => `Encontramos ${n} combinações para você.`,
   },
@@ -77,8 +94,13 @@ export default function CopilotPage() {
   })
 
   const list = recs.data ?? []
-  const ready = list.filter((r) => r.matchScore >= READY_THRESHOLD)
-  const more = list.filter((r) => r.matchScore < READY_THRESHOLD)
+  // matchScore === 0 is the server's sentinel for "portal search link", not a scored
+  // job. Those are shown in their own group WITHOUT a match badge — showing a % for a
+  // search URL would be inventing a number we never computed.
+  const scored = list.filter((r) => r.matchScore > 0)
+  const links = list.filter((r) => r.matchScore === 0)
+  const ready = scored.filter((r) => r.matchScore >= READY_THRESHOLD)
+  const more = scored.filter((r) => r.matchScore < READY_THRESHOLD)
 
   return (
     <PageTransition>
@@ -109,7 +131,7 @@ export default function CopilotPage() {
               <p className="text-sm text-navy-400">{c.readySub}</p>
               <div className="mt-3 grid gap-4 sm:grid-cols-2">
                 {ready.map((r) => (
-                  <ReadyCard key={r.id} r={r} applyLabel={c.apply} matchLabel={c.match} />
+                  <ReadyCard key={r.id} r={r} applyLabel={c.apply} matchLabel={c.match} preparingLabel={c.preparing} preparedLabel={c.prepared} failedLabel={c.failed} />
                 ))}
               </div>
             </section>
@@ -136,13 +158,70 @@ export default function CopilotPage() {
               </Card>
             </section>
           )}
+
+          {/* C — portal searches. Not scored jobs: these are query links, so they get
+              no match badge and never sit in "ready to apply". */}
+          {links.length > 0 && (
+            <section className="mt-8">
+              <h2 className="text-lg font-semibold text-navy-900">{c.searches}</h2>
+              <p className="text-sm text-navy-400">{c.searchesSub}</p>
+              <Card className="mt-3 divide-y divide-navy-100 p-0">
+                {links.map((r) => (
+                  <div key={r.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold text-navy-900">{r.jobTitle}</p>
+                      <p className="truncate text-xs text-navy-400">{r.portal}</p>
+                    </div>
+                    <a href={r.jobUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-electric-600 hover:underline">
+                      {c.view} →
+                    </a>
+                  </div>
+                ))}
+              </Card>
+            </section>
+          )}
         </>
       )}
     </PageTransition>
   )
 }
 
-function ReadyCard({ r, applyLabel, matchLabel }: { r: Recommendation; applyLabel: string; matchLabel: string }) {
+/** A strong match. "Apply" here is the real one-click action: it calls /apply/request,
+ *  which tailors a CV to the posting and drafts the cover letter, then opens the job so
+ *  the extension can fill it. It used to be a bare <a href> — identical to "View" in the
+ *  table below — so the headline promise did nothing but open a tab. */
+function ReadyCard({
+  r, applyLabel, matchLabel, preparingLabel, preparedLabel, failedLabel,
+}: {
+  r: Recommendation
+  applyLabel: string
+  matchLabel: string
+  preparingLabel: string
+  preparedLabel: string
+  failedLabel: string
+}) {
+  const [state, setState] = useState<'idle' | 'working' | 'done' | 'error'>('idle')
+
+  const apply = async () => {
+    setState('working')
+    try {
+      await requestApply({
+        recommendationId: r.id,
+        jobUrl: r.jobUrl,
+        portal: r.portal,
+        jobTitle: r.jobTitle,
+        company: r.company,
+        autoTailor: true,
+      })
+      setState('done')
+      // Open the posting only after the tailored CV + letter are prepared, so the
+      // extension has something to fill with.
+      window.open(r.jobUrl, '_blank', 'noopener')
+    } catch {
+      setState('error')
+    }
+  }
+
   return (
     <Card className="flex flex-col p-5 ring-1 ring-electric-100">
       <div className="flex items-start justify-between gap-2">
@@ -153,9 +232,15 @@ function ReadyCard({ r, applyLabel, matchLabel }: { r: Recommendation; applyLabe
         <Badge tone="success">{r.matchScore}% {matchLabel}</Badge>
       </div>
       {r.strategicNote && <p className="mt-3 flex-1 text-sm text-navy-600">{r.strategicNote}</p>}
-      <a href={r.jobUrl} target="_blank" rel="noreferrer" className="mt-4 block">
-        <Button className="w-full rounded-full">{applyLabel}</Button>
-      </a>
+      <Button
+        className="mt-4 w-full rounded-full"
+        loading={state === 'working'}
+        disabled={state === 'working'}
+        onClick={apply}
+      >
+        {state === 'working' ? preparingLabel : state === 'done' ? preparedLabel : applyLabel}
+      </Button>
+      {state === 'error' && <p className="mt-2 text-center text-xs text-red-600">{failedLabel}</p>}
     </Card>
   )
 }

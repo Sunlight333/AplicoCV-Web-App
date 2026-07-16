@@ -99,16 +99,22 @@ def _search_links(role: str, location: str, prefs: dict | None = None) -> list[d
     if not picked:  # never return nothing — fall back to the broad global set
         picked = [p for p in _portal_catalog(q, loc) if "global" in p["buckets"]]
 
+    # A search link is NOT a job match: it is a query URL on a portal. It therefore
+    # carries NO match score (0 = "search link", the sentinel the Copilot UI groups
+    # on). Previously these were given an invented score (92, 86, 80…) which put a
+    # bare Glassdoor search URL into "ready to apply" wearing a "92% match" badge —
+    # and, being above the auto-apply threshold, made it eligible to be queued as a
+    # prepared application. Never fabricate a score for something we did not score.
     return [
         {
             "title": f"{role} roles",
             "company": p["portal"],
             "portal": p["portal"],
             "url": p["url"],
-            "score": max(62, 92 - i * 6),
-            "note": f"Search tailored to your target role and region on {p['portal']}." if i == 0 else None,
+            "score": 0,
+            "note": f"Open search for your target role and region on {p['portal']}.",
         }
-        for i, p in enumerate(picked)
+        for p in picked
     ]
 
 

@@ -178,13 +178,20 @@ async def acquire_sweep_lease(db: AsyncSession, ttl_seconds: int) -> bool:
 
 
 async def run_once(db: AsyncSession) -> int:
-    """One monitoring pass over every eligible, opted-in user. Returns how many ran."""
+    """One monitoring pass over every active subscriber. Returns how many ran.
+
+    The sweep deliberately does NOT require an opt-in toggle. The product promise is
+    that the copilot searches the portals for you and you find the proposals already
+    waiting in your panel — gating the SEARCH behind `emailDigest`/`autoApply` (both
+    default off) left a paying user's Copilot empty until they went hunting through
+    Preferences. Those two toggles still gate their own side effects inside
+    run_for_user: `emailDigest` gates sending mail, `autoApply` gates queueing apply
+    tasks. So nobody is emailed or auto-queued without opting in; they just get the
+    shortlist they paid for.
+    """
     users = (await db.execute(select(User))).scalars().all()
     ran = 0
     for user in users:
-        prefs = user.preferences or {}
-        if not (prefs.get("emailDigest") or prefs.get("autoApply")):
-            continue
         # Non-creating lookup: never grant a welcome account as a side effect of a sweep.
         acc = await db.get(CreditAccount, user.id)
         if not is_active(user, acc):

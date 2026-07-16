@@ -454,9 +454,19 @@ async def reconcile(
 
 # Lemon Squeezy subscription lifecycle → our plan tier. Subscriptions are idempotent
 # (we just set premium/free), so no per-event dedup is needed.
+#
+# Lemon Squeezy semantics that matter here:
+#  - "cancelled" means WILL NOT RENEW — the subscription stays usable until ends_at.
+#    Revoking then would take away access the user has already paid for, so we don't:
+#    we wait for "expired", which LS sends when the paid period actually ends.
+#  - "paused" means billing is paused and access should stop (it is NOT an active
+#    status — previously it was listed as both active and inactive, and active won).
 _LS_ACTIVE_EVENTS = {"subscription_created", "subscription_updated", "subscription_payment_success", "subscription_resumed"}
-_LS_INACTIVE_EVENTS = {"subscription_cancelled", "subscription_expired", "subscription_paused"}
-_LS_ACTIVE_STATUS = {"active", "on_trial", "paused"}
+_LS_INACTIVE_EVENTS = {"subscription_expired", "subscription_paused"}
+# "past_due" keeps access during LS's dunning retries; it becomes unpaid/expired if
+# the retries ultimately fail, and those do revoke.
+_LS_ACTIVE_STATUS = {"active", "on_trial", "cancelled", "past_due"}
+_LS_INACTIVE_STATUS = {"expired", "unpaid", "paused"}
 
 
 @router.post("/lemonsqueezy/webhook")
@@ -497,7 +507,7 @@ async def lemonsqueezy_webhook(
         user.plan = "premium"
         user.preferences = prefs
         await db.commit()
-    elif event in _LS_INACTIVE_EVENTS or status_ in {"cancelled", "expired", "unpaid"}:
+    elif event in _LS_INACTIVE_EVENTS or status_ in _LS_INACTIVE_STATUS:
         user.plan = "free"
         await db.commit()
 

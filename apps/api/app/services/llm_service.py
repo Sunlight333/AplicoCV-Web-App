@@ -625,15 +625,17 @@ async def _real_cover_letter(
     jd: str, profile: dict[str, Any], tone: str, language: str | None = None
 ) -> str:
     try:
-        return await _chat_text(
+        return _clean_cv_text(await _chat_text(
             f"Write a focused 250-350 word cover letter in a {tone} tone. Avoid generic "
-            "openers. Use only facts from the profile.",
+            "openers. Use only facts from the profile. Write CLEAN, PASTE-READY plain text: "
+            "NO markdown, NO asterisks or heading symbols, no emojis. Write the ENTIRE letter "
+            "in ONE language only (the requested language); never mix languages.",
             f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
             task="cover_letter",
             language=language,
-        )
+        ))
     except Exception:
-        return _stub_cover_letter(jd, profile, tone)
+        return _clean_cv_text(_stub_cover_letter(jd, profile, tone))
 
 
 async def _real_tailor(
@@ -679,14 +681,24 @@ def _stub_super_cv(profile, target_role, jd, cv_text):  # type: ignore[no-untype
     matched = [t for t in jd_tokens if t in skills_txt] if jd else []
     ats = min(95, 60 + len(matched) * 4) if jd else 78
     gaps = [t for t in list(jd_tokens) if t not in skills_txt][:5] if jd else []
-    out = [f"# {per.get('fullName','Your Name')}", f"**{target_role}**", "", per.get("summary", ""), "", "## Experience"]
+    # This stub is also the FALLBACK when the LLM call fails, so its output goes
+    # straight to a real user. It must therefore obey the same rules as the real
+    # prompt: clean paste-ready plain text — no markdown headings/asterisks — and no
+    # invented English filler (which would mix languages for an ES/PT user). We only
+    # echo the person's own content, and still run _clean_cv_text as a backstop.
+    out = [per.get("fullName", ""), target_role, "", per.get("summary", ""), "", "EXPERIENCE"]
     for e in profile.get("experience") or []:
-        out.append(f"### {e.get('title','')} · {e.get('employer','')}")
-        for b in e.get("bullets") or ["Delivered measurable results on key initiatives."]:
-            out.append(f"- Accomplished {str(b).rstrip('.')}, measured by clear impact, by applying {target_role} best practices.")
+        title, employer = e.get("title", ""), e.get("employer", "")
+        out.append(" · ".join([p for p in (title, employer) if p]))
+        for b in e.get("bullets") or []:
+            out.append(f"- {str(b).strip()}")
+    if profile.get("education"):
+        out += ["", "EDUCATION"]
+        for ed in profile["education"]:
+            out.append(" · ".join([p for p in (ed.get("degree", ""), ed.get("institution", "")) if p]))
     if profile.get("skills"):
-        out += ["", "## Skills", ", ".join(profile["skills"])]
-    return {"cvText": "\n".join(out), "atsScore": ats, "gaps": gaps}
+        out += ["", "SKILLS", ", ".join(profile["skills"])]
+    return {"cvText": _clean_cv_text("\n".join(out)), "atsScore": ats, "gaps": gaps}
 
 
 def _stub_personal_analysis(profile):  # type: ignore[no-untyped-def]
@@ -1012,18 +1024,20 @@ async def _real_interview_feedback(profile, role, qa, language=None):  # type: i
 
 async def _real_personalized_cover_letter(profile, jd, company, role, highlights, tone, language=None):  # type: ignore[no-untyped-def]
     try:
-        return await _chat_text(
+        return _clean_cv_text(await _chat_text(
             f"Write a fully personalized 250-380 word cover letter in a {tone} tone, addressed to "
             f"{company or 'the hiring team'} for the {role or 'role'}. Reference concrete, relevant "
             "facts from the candidate profile and weave in the points they want to emphasize. Avoid "
-            "generic filler. Never invent experience the profile does not contain.",
+            "generic filler. Never invent experience the profile does not contain. Write CLEAN, "
+            "PASTE-READY plain text: NO markdown, NO asterisks or heading symbols, no emojis. Write "
+            "the ENTIRE letter in ONE language only (the requested language); never mix languages.",
             f"JOB DESCRIPTION:\n{jd[:3500]}\n\nEMPHASIZE: {highlights or '(candidate did not specify)'}"
             f"\n\nCANDIDATE PROFILE:\n{json.dumps(profile)[:3500]}",
             task="cover_letter_pro",
             language=language,
-        )
+        ))
     except Exception:
-        return _stub_personalized_cover_letter(profile, company, role, tone)
+        return _clean_cv_text(_stub_personalized_cover_letter(profile, company, role, tone))
 
 
 def _cache_key(*parts: str) -> str:
