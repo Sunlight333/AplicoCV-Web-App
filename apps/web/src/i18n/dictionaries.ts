@@ -18,11 +18,11 @@ export const en = {
     language: 'Language',
   },
   hero: {
-    badge: 'AI-powered job applications',
-    titleLead: 'Apply to every job that fits —',
-    rotating: ['in one click.', 'tailored to you.', 'automatically.'],
+    badge: 'Your AI job-search copilot',
+    titleLead: 'Stop adapting your CV by hand —',
+    rotating: ['CV for Marketing.', 'CV for Sales.', 'CV for Product.', 'CV for Customer Success.'],
     subtitle:
-      'Upload your CV once. AplicoCV structures it with AI, then autofills applications across LinkedIn, Workday, Indeed and 11 more portals — tailored to each role.',
+      'Upload your CV once. AplicoCV adapts it to every role, writes your cover letters, answers screening questions, preps your interviews and tracks every application — and the extension speeds up the forms when the portal allows it.',
     ctaPrimary: 'Get started free',
     ctaSecondary: 'See how it works',
     note: 'Free forever plan · No credit card required',
@@ -51,11 +51,11 @@ export const en = {
   how: {
     kicker: 'How it works',
     title: 'From CV to applied in three steps',
-    subtitle: 'No more copy-pasting the same details into every form.',
+    subtitle: 'No more rewriting the same CV for every job.',
     steps: [
       { title: 'Upload your CV once', body: 'Drop in a PDF or DOCX. Our AI reads and structures your entire professional history in seconds.' },
-      { title: 'Install the extension', body: 'Add AplicoCV to Chrome and connect it to your profile with a single click — no setup headaches.' },
-      { title: 'Apply in one click', body: 'On any compatible portal, hit autofill. Every field is completed and tailored to the role.' },
+      { title: 'Get a CV for each role', body: 'The AI adapts it to every job — plus a cover letter and ready answers for the screening questions.' },
+      { title: 'Apply, track and prep', body: 'Follow each application on your board and rehearse the interview. The extension fills the forms when the portal allows it.' },
     ],
   },
   features: {
@@ -63,12 +63,12 @@ export const en = {
     title: 'Everything you need to apply smarter',
     subtitle: 'A complete toolkit — from parsing your CV to landing the interview.',
     items: [
-      { title: 'Universal autofill', body: 'Fills application forms across all the major portals, with a smart fallback for everything else.' },
       { title: 'AI CV tailoring', body: 'Reorders and reframes your experience to match each job description — truthfully.' },
       { title: 'ATS match score', body: 'See how well you fit before applying, with the exact keywords you’re missing.' },
       { title: 'Cover letters', body: 'Generate a focused, role-specific letter in your chosen tone — in seconds.' },
       { title: 'Application tracking', body: 'A Kanban board that follows every application from applied to offer.' },
       { title: 'AI job agent', body: 'Scans portals on a schedule and surfaces the highest-match roles for you.' },
+      { title: 'Autofill extension (bonus)', body: 'Speeds up the application forms on the major portals whenever the portal allows it.' },
     ],
   },
   showcase: {
@@ -89,9 +89,9 @@ export const en = {
   },
   toolkit: {
     kicker: 'Your complete toolkit',
-    title: 'Everything you need after the autofill',
+    title: 'Everything your job search needs',
     subtitle:
-      'AplicoCV is more than a form-filler — it’s an AI career assistant that helps you apply smarter and interview better.',
+      'AplicoCV is an AI career platform: it adapts your CV per role, writes your letters, answers questions, preps your interviews and tracks it all. The autofill extension is a bonus that speeds up forms when it can.',
     items: [
       { title: 'Optimized CV', body: 'Rewrite your experience with the X-Y-Z formula and an instant ATS score — always truthful to your real background.' },
       { title: 'ATS simulator', body: 'See exactly how tracking software reads your CV against a posting, with the keywords to add.' },
@@ -155,12 +155,12 @@ export const en = {
     ],
   },
   finalCta: {
-    title: 'Stop filling out the same form.',
-    subtitle: 'Join job seekers across LATAM and beyond who apply in one click. Free to start — no card required.',
+    title: 'Stop rewriting your CV for every job.',
+    subtitle: 'Join job seekers across LATAM and beyond who let AI adapt their CV, write their letters and prep their interviews. Free to start — no card required.',
     cta: 'Get started free →',
   },
   footer: {
-    tagline: 'Apply to every job that fits — in one click. AI-powered autofill, tailoring, and tracking.',
+    tagline: 'Your AI job-search copilot — a CV adapted to every role, cover letters, interview prep and tracking.',
     emailPlaceholder: 'Your email',
     subscribe: 'Subscribe',
     subscribed: 'Opening your email app to confirm…',
@@ -551,11 +551,11 @@ export const es: Dictionary = {
     language: 'Idioma',
   },
   hero: {
-    badge: 'Postulaciones con IA',
-    titleLead: 'Postúlate a cada empleo que encaje —',
-    rotating: ['en un clic.', 'a tu medida.', 'automáticamente.'],
+    badge: 'Tu copiloto de búsqueda laboral con IA',
+    titleLead: 'No adaptes más tu CV a mano —',
+    rotating: ['CV para Marketing.', 'CV para Ventas.', 'CV para Producto.', 'CV para Customer Success.'],
     subtitle:
-      'Sube tu CV una sola vez. AplicoCV lo estructura con IA y luego completa automáticamente las postulaciones en LinkedIn, Workday, Indeed y 11 portales más — adaptadas a cada puesto.',
+      'Sube tu CV una sola vez. AplicoCV lo adapta a cada puesto, escribe tus cartas de presentación, responde las preguntas frecuentes, te prepara para las entrevistas y hace seguimiento de tus postulaciones — y la extensión acelera el llenado cuando el portal lo permite.',
     ctaPrimary: 'Comenzar gratis',
     ctaSecondary: 'Ver cómo funciona',
     note: 'Plan gratis para siempre · Sin tarjeta de crédito',
@@ -584,11 +584,11 @@ export const es: Dictionary = {
   how: {
     kicker: 'Cómo funciona',
     title: 'Del CV a la postulación en tres pasos',
-    subtitle: 'Basta de copiar y pegar los mismos datos en cada formulario.',
+    subtitle: 'Basta de reescribir el mismo CV para cada empleo.',
     steps: [
       { title: 'Sube tu CV una vez', body: 'Carga un PDF o DOCX. Nuestra IA lee y estructura toda tu trayectoria profesional en segundos.' },
-      { title: 'Instala la extensión', body: 'Agrega AplicoCV a Chrome y conéctala a tu perfil con un solo clic — sin complicaciones.' },
-      { title: 'Postúlate en un clic', body: 'En cualquier portal compatible, pulsa autocompletar. Cada campo se llena y se adapta al puesto.' },
+      { title: 'Un CV para cada puesto', body: 'La IA lo adapta a cada oferta — más una carta de presentación y respuestas listas para las preguntas del formulario.' },
+      { title: 'Postúlate, haz seguimiento y prepárate', body: 'Sigue cada postulación en tu tablero y ensaya la entrevista. La extensión llena los formularios cuando el portal lo permite.' },
     ],
   },
   features: {
@@ -596,12 +596,12 @@ export const es: Dictionary = {
     title: 'Todo lo que necesitas para postularte mejor',
     subtitle: 'Un kit completo — desde analizar tu CV hasta conseguir la entrevista.',
     items: [
-      { title: 'Autocompletado universal', body: 'Completa formularios en los principales portales, con un respaldo inteligente para el resto.' },
       { title: 'Adaptación de CV con IA', body: 'Reordena y reformula tu experiencia para encajar con cada oferta — con honestidad.' },
       { title: 'Puntaje ATS', body: 'Mira qué tan bien encajas antes de postularte, con las palabras clave que te faltan.' },
       { title: 'Cartas de presentación', body: 'Genera una carta enfocada y específica en el tono que elijas — en segundos.' },
       { title: 'Seguimiento de postulaciones', body: 'Un tablero Kanban que sigue cada postulación desde el envío hasta la oferta.' },
       { title: 'Agente de empleo IA', body: 'Escanea portales de forma programada y te muestra los puestos con mayor coincidencia.' },
+      { title: 'Extensión de autocompletado (extra)', body: 'Acelera los formularios en los principales portales cuando el portal lo permite.' },
     ],
   },
   showcase: {
@@ -622,9 +622,9 @@ export const es: Dictionary = {
   },
   toolkit: {
     kicker: 'Tu kit completo',
-    title: 'Todo lo que necesitas después del autocompletado',
+    title: 'Todo lo que tu búsqueda necesita',
     subtitle:
-      'AplicoCV es más que un rellenador de formularios: es un asistente de carrera con IA que te ayuda a postularte mejor y a preparar entrevistas.',
+      'AplicoCV es una plataforma de carrera con IA: adapta tu CV a cada puesto, escribe tus cartas, responde preguntas, te prepara para entrevistas y hace el seguimiento. La extensión de autocompletado es un extra que acelera los formularios cuando puede.',
     items: [
       { title: 'CV optimizado', body: 'Reescribe tu experiencia con la fórmula X-Y-Z y un puntaje ATS al instante — siempre fiel a tu trayectoria real.' },
       { title: 'Simulador ATS', body: 'Mira exactamente cómo el software lee tu CV frente a una oferta, con las palabras clave que debes agregar.' },
@@ -688,12 +688,12 @@ export const es: Dictionary = {
     ],
   },
   finalCta: {
-    title: 'Deja de llenar el mismo formulario.',
-    subtitle: 'Únete a quienes buscan empleo en LATAM y más allá y se postulan en un clic. Gratis para empezar — sin tarjeta.',
+    title: 'Deja de reescribir tu CV para cada empleo.',
+    subtitle: 'Únete a quienes buscan empleo en LATAM y más allá y dejan que la IA adapte su CV, escriba sus cartas y los prepare para la entrevista. Gratis para empezar — sin tarjeta.',
     cta: 'Comenzar gratis →',
   },
   footer: {
-    tagline: 'Postúlate a cada empleo que encaje — en un clic. Autocompletado, adaptación y seguimiento con IA.',
+    tagline: 'Tu copiloto de búsqueda laboral con IA — un CV adaptado a cada puesto, cartas, preparación de entrevistas y seguimiento.',
     emailPlaceholder: 'Tu correo',
     subscribe: 'Suscribirse',
     subscribed: 'Abriendo tu correo para confirmar…',
@@ -1067,11 +1067,11 @@ export const ptBR: Dictionary = {
     language: 'Idioma',
   },
   hero: {
-    badge: 'Candidaturas com IA',
-    titleLead: 'Candidate-se a toda vaga que combina —',
-    rotating: ['em um clique.', 'sob medida.', 'automaticamente.'],
+    badge: 'Seu copiloto de busca de emprego com IA',
+    titleLead: 'Pare de adaptar seu currículo à mão —',
+    rotating: ['CV para Marketing.', 'CV para Vendas.', 'CV para Produto.', 'CV para Customer Success.'],
     subtitle:
-      'Envie seu currículo uma vez. A AplicoCV o estrutura com IA e preenche automaticamente as candidaturas no LinkedIn, Workday, Indeed e mais 11 portais — adaptadas a cada vaga.',
+      'Envie seu currículo uma vez. A AplicoCV o adapta a cada vaga, escreve suas cartas de apresentação, responde às perguntas do formulário, prepara você para as entrevistas e acompanha suas candidaturas — e a extensão acelera o preenchimento quando o portal permite.',
     ctaPrimary: 'Começar grátis',
     ctaSecondary: 'Veja como funciona',
     note: 'Plano grátis para sempre · Sem cartão de crédito',
@@ -1100,11 +1100,11 @@ export const ptBR: Dictionary = {
   how: {
     kicker: 'Como funciona',
     title: 'Do currículo à candidatura em três passos',
-    subtitle: 'Chega de copiar e colar os mesmos dados em cada formulário.',
+    subtitle: 'Chega de reescrever o mesmo currículo para cada vaga.',
     steps: [
       { title: 'Envie seu currículo uma vez', body: 'Solte um PDF ou DOCX. Nossa IA lê e estrutura todo o seu histórico profissional em segundos.' },
-      { title: 'Instale a extensão', body: 'Adicione a AplicoCV ao Chrome e conecte-a ao seu perfil com um clique — sem dor de cabeça.' },
-      { title: 'Candidate-se em um clique', body: 'Em qualquer portal compatível, clique em preencher. Cada campo é preenchido e adaptado à vaga.' },
+      { title: 'Um currículo para cada vaga', body: 'A IA o adapta a cada vaga — mais uma carta de apresentação e respostas prontas para as perguntas do formulário.' },
+      { title: 'Candidate-se, acompanhe e prepare-se', body: 'Siga cada candidatura no seu quadro e treine para a entrevista. A extensão preenche os formulários quando o portal permite.' },
     ],
   },
   features: {
@@ -1112,12 +1112,12 @@ export const ptBR: Dictionary = {
     title: 'Tudo o que você precisa para se candidatar melhor',
     subtitle: 'Um kit completo — de analisar seu currículo a conquistar a entrevista.',
     items: [
-      { title: 'Preenchimento universal', body: 'Preenche formulários nos principais portais, com um recurso inteligente para os demais.' },
       { title: 'Adaptação de currículo com IA', body: 'Reorganiza e reformula sua experiência para combinar com cada vaga — com honestidade.' },
       { title: 'Pontuação ATS', body: 'Veja o quanto você combina antes de se candidatar, com as palavras-chave que faltam.' },
       { title: 'Cartas de apresentação', body: 'Gere uma carta focada e específica no tom que escolher — em segundos.' },
       { title: 'Acompanhamento de candidaturas', body: 'Um quadro Kanban que segue cada candidatura, do envio à proposta.' },
       { title: 'Agente de vagas IA', body: 'Verifica portais de forma programada e mostra as vagas com maior compatibilidade.' },
+      { title: 'Extensão de preenchimento (bônus)', body: 'Acelera os formulários nos principais portais quando o portal permite.' },
     ],
   },
   showcase: {
@@ -1138,9 +1138,9 @@ export const ptBR: Dictionary = {
   },
   toolkit: {
     kicker: 'Seu kit completo',
-    title: 'Tudo o que você precisa depois do preenchimento',
+    title: 'Tudo o que sua busca precisa',
     subtitle:
-      'A AplicoCV é mais do que um preenchedor de formulários — é um assistente de carreira com IA que ajuda você a se candidatar melhor e a treinar para entrevistas.',
+      'A AplicoCV é uma plataforma de carreira com IA: adapta seu currículo a cada vaga, escreve suas cartas, responde perguntas, prepara você para entrevistas e acompanha tudo. A extensão de preenchimento é um bônus que acelera os formulários quando dá.',
     items: [
       { title: 'Currículo otimizado', body: 'Reescreve sua experiência com a fórmula X-Y-Z e uma pontuação ATS na hora — sempre fiel ao seu histórico real.' },
       { title: 'Simulador ATS', body: 'Veja exatamente como o software lê seu currículo diante de uma vaga, com as palavras-chave a adicionar.' },
@@ -1204,12 +1204,12 @@ export const ptBR: Dictionary = {
     ],
   },
   finalCta: {
-    title: 'Pare de preencher o mesmo formulário.',
-    subtitle: 'Junte-se a quem busca emprego na América Latina e além e se candidata em um clique. Grátis para começar — sem cartão.',
+    title: 'Pare de reescrever seu currículo para cada vaga.',
+    subtitle: 'Junte-se a quem busca emprego na América Latina e além e deixa a IA adaptar seu currículo, escrever suas cartas e preparar suas entrevistas. Grátis para começar — sem cartão.',
     cta: 'Começar grátis →',
   },
   footer: {
-    tagline: 'Candidate-se a toda vaga que combina — em um clique. Preenchimento, adaptação e acompanhamento com IA.',
+    tagline: 'Seu copiloto de busca de emprego com IA — um currículo adaptado a cada vaga, cartas, preparação para entrevistas e acompanhamento.',
     emailPlaceholder: 'Seu e-mail',
     subscribe: 'Inscrever-se',
     subscribed: 'Abrindo seu e-mail para confirmar…',

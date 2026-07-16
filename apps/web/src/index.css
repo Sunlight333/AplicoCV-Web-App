@@ -106,6 +106,65 @@
     background-size: 22px 22px;
   }
 
+  /* Grayish-white paper.
+     A neutral off-white sheet with fine fractal-noise grain multiplied over it, so
+     it reads as paper rather than flat gray. The noise is an inline SVG (no image
+     request, resolution-independent) and `stitchTiles` makes the tile seamless.
+     Kept deliberately low-contrast: white cards must still float above it and body
+     text must stay crisp. Not `background-attachment: fixed` on purpose — that is
+     buggy on iOS Safari, and the stitched tile scrolls seamlessly anyway. */
+  .paper-texture {
+    background-color: #f2f2f0;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='p' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23p)' opacity='0.42'/%3E%3C/svg%3E");
+    background-size: 180px 180px;
+    background-repeat: repeat;
+    background-blend-mode: multiply;
+  }
+
+  /* Soft sheet-light wash: a faint highlight so the paper isn't uniformly flat.
+     Layer as an overlay inside a .paper-texture container. */
+  .paper-sheen {
+    background-image:
+      radial-gradient(55rem 38rem at 12% -6%, rgba(255, 255, 255, 0.9), transparent 62%),
+      radial-gradient(45rem 34rem at 100% 4%, rgba(255, 255, 255, 0.72), transparent 58%);
+  }
+
+  /* ---- Embossed metal lettering ------------------------------------------
+     Type struck into / raised out of the paper. No gradients: the illusion is
+     pure light — a hairline highlight on the top edge and a soft cast shadow
+     below, with one consistent light source (above, slightly left). */
+
+  /* Raised: the headline sits ON the sheet like set metal type. */
+  .emboss-text {
+    color: #22262e;
+    text-shadow:
+      0 -1px 0 rgba(255, 255, 255, 0.9),
+      0 1px 0 rgba(255, 255, 255, 0.35),
+      0 2px 1px rgba(11, 20, 38, 0.16),
+      0 4px 8px rgba(11, 20, 38, 0.10);
+  }
+
+  /* Struck INTO the paper — used for the accent word so it contrasts with the
+     raised lead line and the eye reads a real relief, not a colour change. */
+  .deboss-text {
+    color: #0a74f0;
+    text-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.85),
+      0 -1px 1px rgba(11, 20, 38, 0.22);
+  }
+
+  /* Fine hairline rule that fades out — replaces hard section borders. */
+  .rule-fade {
+    height: 1px;
+    background-image: linear-gradient(
+      90deg,
+      transparent,
+      rgba(11, 20, 38, 0.14) 18%,
+      rgba(11, 20, 38, 0.14) 82%,
+      transparent
+    );
+  }
+
   /* Gradient ring/border via a masked pseudo-element. */
   .gradient-ring {
     position: relative;

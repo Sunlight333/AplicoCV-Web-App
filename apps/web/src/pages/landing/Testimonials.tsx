@@ -8,7 +8,7 @@ export function Testimonials() {
   return (
     <section className="mx-auto max-w-6xl px-6 py-24">
       <Reveal className="text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-violet-600">{t.testimonials.kicker}</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">{t.testimonials.kicker}</p>
         <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 sm:text-4xl">{t.testimonials.title}</h2>
         <p className="mt-2 text-xs text-navy-400">{t.testimonials.illustrative}</p>
       </Reveal>

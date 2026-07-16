@@ -10,18 +10,19 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   loading?: boolean
 }
 
-// Raised "elevated depth" buttons: a vertical light→dark gradient reads as an
-// extruded surface, the inset top highlight (in shadow-btn*) is the sheen, and
-// the button presses down (translate-y) on click.
+// Embossed metal buttons: a SOLID fill (no gradient) that reads as an extruded
+// key — a hairline highlight along the top edge, a dark cut along the bottom, and
+// a cast shadow beneath. Pressing flips the cut to the top and collapses the cast
+// shadow, so the key physically travels down into the surface.
 const variants: Record<Variant, string> = {
   primary:
-    'bg-btn-blue text-white shadow-btn hover:shadow-btn-hover active:translate-y-px disabled:bg-electric-300 disabled:bg-none disabled:shadow-none',
+    'bg-electric-500 text-white shadow-emboss hover:shadow-emboss-hover hover:-translate-y-px active:translate-y-0.5 active:shadow-emboss-press disabled:bg-electric-300 disabled:shadow-none disabled:translate-y-0',
   secondary:
-    'bg-btn-navy text-white shadow-btn-dark hover:shadow-elev-3 active:translate-y-px disabled:bg-navy-400 disabled:bg-none disabled:shadow-none',
+    'bg-navy-900 text-white shadow-emboss hover:shadow-emboss-hover hover:-translate-y-px active:translate-y-0.5 active:shadow-emboss-press disabled:bg-navy-400 disabled:shadow-none disabled:translate-y-0',
   ghost:
-    'bg-transparent text-navy-700 hover:bg-navy-100 disabled:text-navy-300',
+    'bg-transparent text-navy-700 hover:bg-navy-900/[0.06] disabled:text-navy-300',
   danger:
-    'bg-btn-red text-white shadow-elev-2 hover:shadow-elev-3 active:translate-y-px disabled:bg-red-300 disabled:bg-none disabled:shadow-none',
+    'bg-red-600 text-white shadow-emboss hover:shadow-emboss-hover hover:-translate-y-px active:translate-y-0.5 active:shadow-emboss-press disabled:bg-red-300 disabled:shadow-none disabled:translate-y-0',
 }
 
 const sizes: Record<Size, string> = {
@@ -36,7 +37,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        'relative inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-[box-shadow,transform,background-color] duration-150',
+        'relative inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-[box-shadow,transform,background-color] duration-150 will-change-transform',
         'focus-visible:ring-2 focus-visible:ring-electric-400 focus-visible:ring-offset-2',
         'disabled:cursor-not-allowed disabled:active:translate-y-0',
         variants[variant],

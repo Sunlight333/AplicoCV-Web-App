@@ -1,4 +1,4 @@
-import { useState, useEffect, type ReactNode } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
@@ -31,8 +31,13 @@ const portals = [
   'We Work Remotely', 'WeRemoto', 'Konzerta',
 ]
 
-// Clean line icons (in gradient tiles). Order matches t.features.items.
-const featureIconNames: IconName[] = ['bolt', 'sparkles', 'ats', 'document', 'applications', 'rocket']
+// Clean line icons in embossed metal tiles. Order matches t.features.items —
+// CV tailoring leads and the autofill extension ('bolt') is last, as a bonus.
+const featureIconNames: IconName[] = ['sparkles', 'ats', 'document', 'applications', 'rocket', 'bolt']
+// One hue per feature so the grid reads as six distinct tools at a glance —
+// a full spectrum, deliberately without purple. The bonus (autofill) sits in
+// neutral steel-navy so it reads as the extra it now is.
+const featureTones = ['brand', 'teal', 'emerald', 'amber', 'rose', 'navy'] as const
 
 const stepNumbers = ['01', '02', '03']
 const statValues = [14, 300, 21, 95]
@@ -40,7 +45,8 @@ const statSuffix = ['', '+', 'h', '%']
 
 /* --------------------------------------------------------- decorative bits --- */
 
-/** Slowly rotating concentric gradient rings — an ambient depth accent. */
+/** Slowly rotating concentric rings — an ambient depth accent, scribed into the
+ *  sheet as hairlines rather than painted as a gradient. */
 function RingAccent({ className = '' }: { className?: string }) {
   return (
     <motion.svg
@@ -49,16 +55,11 @@ function RingAccent({ className = '' }: { className?: string }) {
       fill="none"
       aria-hidden
       animate={{ rotate: 360 }}
-      transition={{ duration: 80, repeat: Infinity, ease: 'linear' }}
+      transition={{ duration: 90, repeat: Infinity, ease: 'linear' }}
     >
-      <defs>
-        <linearGradient id="ring-accent" x1="0" y1="0" x2="400" y2="400" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#3392ff" /><stop offset="0.5" stopColor="#8f6cff" /><stop offset="1" stopColor="#1fbef0" />
-        </linearGradient>
-      </defs>
-      <circle cx="200" cy="200" r="70" stroke="url(#ring-accent)" strokeWidth="1.25" opacity="0.55" />
-      <circle cx="200" cy="200" r="120" stroke="url(#ring-accent)" strokeWidth="1.25" opacity="0.4" strokeDasharray="2 8" />
-      <circle cx="200" cy="200" r="175" stroke="url(#ring-accent)" strokeWidth="1.25" opacity="0.22" />
+      <circle cx="200" cy="200" r="70" stroke="#0b1426" strokeWidth="1" opacity="0.10" />
+      <circle cx="200" cy="200" r="120" stroke="#0b1426" strokeWidth="1" opacity="0.08" strokeDasharray="2 8" />
+      <circle cx="200" cy="200" r="175" stroke="#0b1426" strokeWidth="1" opacity="0.06" />
     </motion.svg>
   )
 }
@@ -85,6 +86,119 @@ function FloatingChip({
       className={`flex items-center gap-2 rounded-full border border-white/70 bg-white/80 px-3.5 py-2 text-sm font-semibold text-navy-800 shadow-card-hover backdrop-blur-md ${className}`}
     >
       {children}
+    </motion.div>
+  )
+}
+
+/**
+ * Hero media: shows ONLY the vertical product video, in a portrait 9:16 frame.
+ * It autoplays muted (the only way browsers allow autoplay), with an unmute button
+ * so audio is available. It never loops — when it ends it holds on the final frame,
+ * and a replay button appears. Clicking the video toggles play/pause.
+ */
+function HeroMedia() {
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [playing, setPlaying] = useState(false)
+  const [muted, setMuted] = useState(true)
+
+  useEffect(() => {
+    const v = videoRef.current
+    if (!v) return
+    v.muted = true
+    const onPlay = () => setPlaying(true)
+    const onPause = () => setPlaying(false)
+    const onEnded = () => setPlaying(false) // holds the last frame; no loop
+    v.addEventListener('playing', onPlay)
+    v.addEventListener('pause', onPause)
+    v.addEventListener('ended', onEnded)
+    v.play().catch(() => {}) // muted autoplay
+    return () => {
+      v.removeEventListener('playing', onPlay)
+      v.removeEventListener('pause', onPause)
+      v.removeEventListener('ended', onEnded)
+    }
+  }, [])
+
+  const togglePlay = () => {
+    const v = videoRef.current
+    if (!v) return
+    if (v.ended) {
+      v.currentTime = 0 // replay from the start
+      v.play().catch(() => {})
+    } else if (v.paused) {
+      v.play().catch(() => {})
+    } else {
+      v.pause()
+    }
+  }
+
+  const toggleMute = () => {
+    const v = videoRef.current
+    if (!v) return
+    const next = !v.muted
+    v.muted = next
+    setMuted(next)
+    if (!next && v.paused && !v.ended) v.play().catch(() => {}) // unmuting resumes
+  }
+
+  return (
+    <motion.div
+      className="relative mx-auto w-full max-w-[300px] sm:max-w-[340px]"
+      animate={{ y: [0, -14, 0] }}
+      transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+    >
+      {/* Portrait 9:16 frame sized to the vertical video so nothing is cropped.
+          Machined-metal bezel: a hairline highlight on the top edge, a dark cut
+          below, and a deep cast shadow — the video sits in it like a screen in a
+          milled case. */}
+      <div
+        className="relative w-full overflow-hidden rounded-[1.75rem] bg-black p-[3px] shadow-[inset_0_1px_0_rgba(255,255,255,0.5),0_2px_2px_rgba(11,20,38,0.10),0_28px_50px_-18px_rgba(11,20,38,0.45),0_60px_90px_-40px_rgba(11,20,38,0.35)] ring-1 ring-navy-900/10"
+        style={{ aspectRatio: '720 / 1280' }}
+      >
+        <video
+          ref={videoRef}
+          src="/hero/hero-app.mp4"
+          autoPlay
+          muted
+          playsInline
+          preload="auto"
+          onClick={togglePlay}
+          className="absolute inset-0 h-full w-full cursor-pointer object-cover"
+        />
+
+        {/* Sound toggle (audio is included; starts muted to allow autoplay) */}
+        <button
+          type="button"
+          onClick={toggleMute}
+          aria-label={muted ? 'Unmute' : 'Mute'}
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/45 text-white backdrop-blur transition-colors hover:bg-black/65"
+        >
+          <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+            <path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor" />
+            {muted ? (
+              <path d="m16 9 5 5m0-5-5 5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+            ) : (
+              <path d="M15.5 8.5a5 5 0 0 1 0 7M18 6a9 9 0 0 1 0 12" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" />
+            )}
+          </svg>
+        </button>
+
+        {/* Center play / replay button — shown only while the video is paused or ended */}
+        {!playing && (
+          <button
+            type="button"
+            onClick={togglePlay}
+            aria-label="Play video"
+            className="group absolute inset-0 flex items-center justify-center"
+          >
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-white/85 text-electric-600 shadow-elev-4 backdrop-blur transition-transform group-hover:scale-110">
+              <svg viewBox="0 0 24 24" className="ml-1 h-7 w-7" fill="currentColor" aria-hidden="true">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            </span>
+          </button>
+        )}
+      </div>
     </motion.div>
   )
 }
@@ -156,13 +270,11 @@ function Hero() {
   const artY = useTransform(scrollY, [0, 600], [0, -40])
 
   return (
-    <section className="relative overflow-hidden pt-36 pb-28 sm:pt-44">
-      {/* Ambient background: soft brand blobs + masked dotted grid */}
+    <section className="relative overflow-hidden pt-32 pb-20 sm:pt-40 sm:pb-24">
+      {/* The sheet is the background. No colour blobs, no mesh — just the paper and
+          a whisper of grid that fades out, so the embossed type carries the page. */}
       <motion.div style={{ y: glowY }} className="pointer-events-none absolute inset-0 -z-10">
-        <div className="absolute left-1/2 top-[-4rem] h-[680px] w-[680px] -translate-x-1/2 rounded-full bg-electric-100/50 blur-[130px]" />
-        <div className="absolute right-[8%] top-24 h-72 w-72 rounded-full bg-violet-100/60 blur-[110px]" />
-        <div className="absolute left-[6%] top-40 h-64 w-64 rounded-full bg-cyan-100/50 blur-[110px]" />
-        <div className="absolute inset-0 grid-pattern opacity-[0.45] [mask-image:radial-gradient(ellipse_at_top,black,transparent_70%)]" />
+        <div className="absolute inset-0 grid-pattern opacity-[0.22] [mask-image:radial-gradient(ellipse_at_top,black,transparent_65%)]" />
       </motion.div>
 
       <div className="mx-auto grid max-w-6xl items-center gap-16 px-6 lg:grid-cols-[1.05fr_1fr]">
@@ -173,7 +285,7 @@ function Hero() {
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="group inline-flex items-center gap-2 rounded-full border border-navy-200 bg-white/70 px-3.5 py-1.5 text-xs font-semibold text-navy-600 shadow-sm backdrop-blur"
+            className="group inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/60 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-steel-600 shadow-emboss-card backdrop-blur-md transition-colors hover:bg-white/80"
           >
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-electric-400 opacity-75" />
@@ -187,10 +299,15 @@ function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.08 }}
-            className="mt-6 text-[2.7rem] font-extrabold leading-[1.05] tracking-tight text-navy-900 sm:text-[4rem]"
+            className="mt-7 font-display text-[2.5rem] leading-[1.06] tracking-[-0.015em] sm:text-[3.5rem]"
           >
-            <span className="block">{t.hero.titleLead}</span>
-            <span className="mt-1 block text-gradient">
+            {/* Lead line: regular weight, struck in metal. The old design shouted
+                (extrabold 4rem); here the SERIF carries the voice, so the weight
+                can drop and the line can breathe. */}
+            <span className="emboss-text block font-medium">{t.hero.titleLead}</span>
+            {/* Accent line: italic — the calligraphic note — debossed in blue and a
+                touch larger, so the eye lands on the promise, not the setup. */}
+            <span className="deboss-text mt-2 block font-semibold italic sm:text-[3.9rem]">
               <Typewriter key={t.hero.rotating.join('|')} words={[...t.hero.rotating]} />
             </span>
           </motion.h1>
@@ -199,7 +316,7 @@ function Hero() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.18 }}
-            className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-navy-500 lg:mx-0"
+            className="mx-auto mt-6 max-w-xl text-[1.0625rem] leading-[1.7] text-steel-600 lg:mx-0"
           >
             {t.hero.subtitle}
           </motion.p>
@@ -212,7 +329,7 @@ function Hero() {
           >
             <MagneticButton strength={0.4}>
               <Link to="/register">
-                <Button size="lg" className="rounded-full shadow-glow">{t.hero.ctaPrimary}</Button>
+                <Button size="lg" className="rounded-full">{t.hero.ctaPrimary}</Button>
               </Link>
             </MagneticButton>
             <a href="#how">
@@ -253,14 +370,14 @@ function Hero() {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* organic blob glow behind the subject */}
-          <div className="pointer-events-none absolute inset-0 -z-10 mx-auto h-[88%] w-[88%] translate-y-6 rounded-[42%_58%_56%_44%/45%_42%_58%_55%] bg-brand-gradient opacity-25 blur-[70px]" />
-          {/* rotating ring accent */}
-          <RingAccent className="pointer-events-none absolute -right-12 -top-10 -z-10 h-72 w-72 opacity-70" />
+          {/* Scribed ring accent — hairlines on the sheet, no colour wash. */}
+          <RingAccent className="pointer-events-none absolute -right-12 -top-10 -z-10 h-72 w-72" />
 
-          {/* Enfoque 2.0: the interactive intake is the hero — visitors act from
-              second 0 (paste CV → instant ATS score + matches), then subscribe. */}
-          <IntakeWidget />
+          {/* The product video is the hero: it shows the platform doing the work
+              (adapting the CV, letters, interview prep) in a few seconds. The
+              interactive intake still lets visitors act — it now lives in its own
+              "try it free" section right below the fold (see <TryItFree />). */}
+          <HeroMedia />
 
           {/* floating portal chips (brand names are language-neutral) */}
           <FloatingChip className="absolute -left-3 top-8" delay={0.9}>
@@ -278,17 +395,40 @@ function Hero() {
 function LogoStrip() {
   const t = useT()
   return (
-    <section className="border-y border-navy-100 bg-white py-10">
-      <p className="mb-7 text-center text-xs font-semibold uppercase tracking-widest text-navy-400">
+    // No hard border band: two hairlines that fade at the edges, so the strip is
+    // scribed into the sheet instead of stacked on it as another slab. The marquee
+    // also fades out at both ends rather than being clipped mid-word.
+    <section className="relative py-14">
+      <div className="rule-fade absolute inset-x-0 top-0" />
+      <p className="mb-8 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-steel-500">
         {t.logoStrip.heading}
       </p>
-      <Marquee durationSec={38}>
-        {portals.map((p) => (
-          <span key={p} className="whitespace-nowrap px-6 text-lg font-semibold text-navy-300">
-            {p}
-          </span>
-        ))}
-      </Marquee>
+      <div className="[mask-image:linear-gradient(90deg,transparent,black_10%,black_90%,transparent)]">
+        <Marquee durationSec={38}>
+          {portals.map((p) => (
+            <span key={p} className="whitespace-nowrap px-7 text-lg font-medium text-steel-400">
+              {p}
+            </span>
+          ))}
+        </Marquee>
+      </div>
+      <div className="rule-fade absolute inset-x-0 bottom-0" />
+    </section>
+  )
+}
+
+/**
+ * "Try it free" — the interactive intake (paste CV → instant ATS score + matching
+ * roles). It was the hero in Enfoque 2.0; now the product video leads and this sits
+ * right below the fold, so visitors can still act on the first screen without the
+ * form competing with the video for attention. The widget carries its own copy.
+ */
+function TryItFree() {
+  return (
+    <section className="relative mx-auto max-w-6xl px-6 py-24">
+      <Reveal className="mx-auto max-w-xl">
+        <IntakeWidget />
+      </Reveal>
     </section>
   )
 }
@@ -296,10 +436,10 @@ function LogoStrip() {
 function HowItWorks() {
   const t = useT()
   return (
-    <section id="how" className="relative mx-auto max-w-6xl px-6 py-28">
+    <section id="how" className="relative mx-auto max-w-6xl px-6 py-32">
       <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-electric-600">{t.how.kicker}</p>
-        <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 sm:text-[2.6rem]">{t.how.title}</h2>
+        <h2 className="mt-3 font-display text-3xl font-medium tracking-tight text-navy-900 sm:text-[2.6rem]">{t.how.title}</h2>
         <p className="mt-4 text-navy-500">{t.how.subtitle}</p>
       </Reveal>
 
@@ -310,7 +450,7 @@ function HowItWorks() {
           whileInView={{ scaleX: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 1, ease: 'easeInOut' }}
-          className="absolute left-0 right-0 top-10 hidden h-px origin-left bg-gradient-to-r from-electric-200 via-violet-200 to-cyan-200 md:block"
+          className="rule-fade absolute left-0 right-0 top-10 hidden origin-left md:block"
         />
         {t.how.steps.map((s, i) => (
           <Reveal key={s.title}>
@@ -319,7 +459,7 @@ function HowItWorks() {
               transition={{ type: 'spring', stiffness: 300, damping: 20 }}
               className="relative h-full rounded-2xl border border-navy-100/70 bg-white p-7 shadow-elev-2"
             >
-              <div className="sheen-top relative flex h-12 w-12 items-center justify-center rounded-xl bg-brand-gradient text-lg font-bold text-white shadow-tile">
+              <div className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-navy-900 font-display text-lg font-semibold text-white shadow-emboss">
                 {stepNumbers[i]}
               </div>
               <h3 className="mt-5 text-xl font-semibold text-navy-900">{s.title}</h3>
@@ -335,29 +475,40 @@ function HowItWorks() {
 function Features() {
   const t = useT()
   return (
-    <section id="features" className="relative overflow-hidden py-28">
-      {/* soft aurora backdrop (new asset) */}
+    <section id="features" className="relative overflow-hidden py-36">
+      {/* Aurora backdrop, kept — but the source asset is lavender, which the brief
+          rules out. Rather than drop the artwork, we strip its colour and re-tint it
+          with the brand blue: grayscale + a `color` blend keeps every wisp and fold
+          of the original while guaranteeing no purple. (A plain hue-rotate was tried
+          and rejected — it dragged the image's blues into green.) */}
       <img
         src="/backgrounds/section-aurora.png"
         alt=""
-        className="absolute inset-0 h-full w-full object-cover"
         loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover [filter:grayscale(1)]"
       />
-      <div className="absolute inset-0 bg-white/30" />
+      <div className="absolute inset-0 bg-electric-500 opacity-[0.55] [mix-blend-mode:color]" />
+      {/* Washed back so the paper still reads through and the embossed cards keep
+          their contrast — the aurora is atmosphere, not the subject. */}
+      <div className="absolute inset-0 bg-[#f2f2f0]/50" />
+      <div className="rule-fade absolute inset-x-0 top-0" />
       <div className="relative mx-auto max-w-6xl px-6">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <p className="text-sm font-semibold uppercase tracking-widest text-violet-600">{t.features.kicker}</p>
-          <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 sm:text-[2.6rem]">{t.features.title}</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-electric-600">{t.features.kicker}</p>
+          <h2 className="mt-3 font-display text-3xl font-medium tracking-tight text-navy-900 sm:text-[2.6rem]">{t.features.title}</h2>
           <p className="mt-4 text-navy-500">{t.features.subtitle}</p>
         </Reveal>
 
         <RevealGroup className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {t.features.items.map((f, i) => (
             <Reveal key={f.title}>
-              <TiltCard className="group relative h-full overflow-hidden rounded-2xl border border-navy-100/70 bg-white p-7 shadow-elev-2 transition-shadow hover:shadow-elev-4">
-                {/* hover glow wash */}
-                <div className="pointer-events-none absolute -right-10 -top-10 h-32 w-32 rounded-full bg-brand-gradient opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-20" />
-                <IconTile name={featureIconNames[i]} size="lg" className="transition-transform duration-300 group-hover:-rotate-3" />
+              <TiltCard className="group relative h-full overflow-hidden rounded-2xl bg-white/90 p-7 ring-1 ring-navy-900/[0.05] shadow-emboss-card backdrop-blur-sm transition-[box-shadow,transform] duration-300 hover:-translate-y-1 hover:shadow-emboss-card-hover">
+                <IconTile
+                  name={featureIconNames[i]}
+                  size="lg"
+                  tone={featureTones[i]}
+                  className="transition-transform duration-300 group-hover:-rotate-3"
+                />
                 <h3 className="relative mt-5 text-lg font-semibold text-navy-900">{f.title}</h3>
                 <p className="relative mt-1.5 text-sm leading-relaxed text-navy-500">{f.body}</p>
               </TiltCard>
@@ -378,12 +529,11 @@ function Showcase() {
     { k: 'Kubernetes', ok: false },
   ]
   return (
-    <section className="mx-auto max-w-6xl px-6 py-28">
+    <section className="mx-auto max-w-6xl px-6 py-24">
       <div className="grid items-center gap-14 lg:grid-cols-2">
         <Reveal direction="right">
           <div className="relative">
             {/* floating gradient ring frame around the card */}
-            <div className="pointer-events-none absolute -inset-3 -z-10 rounded-[1.8rem] bg-brand-gradient opacity-15 blur-2xl" />
             <motion.div
               animate={{ y: [0, -10, 0] }}
               transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
@@ -422,7 +572,7 @@ function Showcase() {
         <Reveal direction="left">
           <div className="lg:pl-4">
             <p className="text-sm font-semibold uppercase tracking-widest text-cyan-600">{t.showcase.kicker}</p>
-            <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 sm:text-[2.6rem]">{t.showcase.title}</h2>
+            <h2 className="mt-3 font-display text-3xl font-medium tracking-tight text-navy-900 sm:text-[2.6rem]">{t.showcase.title}</h2>
             <p className="mt-4 text-navy-500">{t.showcase.body}</p>
             <ul className="mt-6 space-y-3">
               {t.showcase.bullets.map((b) => (
@@ -452,14 +602,14 @@ function Toolkit() {
     <section className="mx-auto max-w-6xl px-6 py-28">
       <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-electric-600">{t.toolkit.kicker}</p>
-        <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 sm:text-[2.6rem]">{t.toolkit.title}</h2>
+        <h2 className="mt-3 font-display text-3xl font-medium tracking-tight text-navy-900 sm:text-[2.6rem]">{t.toolkit.title}</h2>
         <p className="mt-4 text-navy-500">{t.toolkit.subtitle}</p>
       </Reveal>
 
       <RevealGroup className="mt-16 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {t.toolkit.items.map((item, i) => (
           <Reveal key={item.title}>
-            <TiltCard className="h-full rounded-2xl border border-navy-100/70 bg-white p-7 shadow-elev-2 transition-shadow hover:shadow-elev-4">
+            <TiltCard className="h-full rounded-2xl border border-navy-100/70 bg-white p-7 shadow-emboss-card transition-[box-shadow,transform] duration-300 hover:-translate-y-1 hover:shadow-emboss-card-hover">
               <IconTile name={toolkitIconNames[i]} size="lg" />
               <h3 className="mt-5 text-lg font-semibold text-navy-900">{item.title}</h3>
               <p className="mt-1.5 text-sm leading-relaxed text-navy-500">{item.body}</p>
@@ -480,18 +630,13 @@ function Ring({ score, label }: { score: number; label: string }) {
       <svg viewBox="0 0 110 110" className="h-full w-full -rotate-90">
         <circle cx="55" cy="55" r={r} fill="none" stroke="#e8ecf6" strokeWidth="10" />
         <motion.circle
-          cx="55" cy="55" r={r} fill="none" stroke="url(#ring-grad)" strokeWidth="10" strokeLinecap="round"
+          cx="55" cy="55" r={r} fill="none" stroke="#0a74f0" strokeWidth="10" strokeLinecap="round"
           strokeDasharray={c}
           initial={{ strokeDashoffset: c }}
           whileInView={{ strokeDashoffset: c - (score / 100) * c }}
           viewport={{ once: true }}
           transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1] }}
         />
-        <defs>
-          <linearGradient id="ring-grad" x1="0" y1="0" x2="110" y2="110" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#3392ff" /><stop offset="0.5" stopColor="#8f6cff" /><stop offset="1" stopColor="#1fbef0" />
-          </linearGradient>
-        </defs>
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-2xl font-extrabold text-navy-900 tabular-nums">{Math.round(n)}</span>
@@ -504,16 +649,18 @@ function Ring({ score, label }: { score: number; label: string }) {
 function StatBand() {
   const t = useT()
   return (
-    <section className="relative overflow-hidden py-24">
-      {/* immersive dark aurora background (new asset) */}
+    // A slab of dark metal set into the sheet, lit by the blue "digital horizon"
+    // render. Kept on a navy base so the band stays solid if the image is slow, and
+    // the inset hairlines read as the cut where the slab meets the paper.
+    <section className="relative overflow-hidden bg-navy-900 py-24 shadow-[inset_0_1px_0_rgba(255,255,255,0.10),inset_0_-1px_0_rgba(255,255,255,0.06)]">
       <img
         src="/backgrounds/landing-hero-bg.png"
         alt=""
-        className="absolute inset-0 h-full w-full object-cover"
         loading="lazy"
+        className="absolute inset-0 h-full w-full object-cover"
       />
       <div className="absolute inset-0 bg-navy-900/55" />
-      <div className="absolute inset-0 grid-pattern opacity-10" />
+      <div className="absolute inset-0 grid-pattern opacity-[0.07]" />
       <RevealGroup className="relative mx-auto grid max-w-5xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
         {t.stats.items.map((s, i) => (
           <Reveal key={s.label} className="text-center">
@@ -531,7 +678,7 @@ function StatNumber({ value, suffix }: { value: number; suffix?: string }) {
   return (
     <p className="text-4xl font-extrabold tracking-tight text-white tabular-nums drop-shadow sm:text-5xl">
       {Math.round(n)}
-      <span className="text-gradient">{suffix}</span>
+      <span className="text-electric-400">{suffix}</span>
     </p>
   )
 }
@@ -546,10 +693,10 @@ function Pricing() {
   const monthly = pricing.data?.plans.find((p) => p.id === 'monthly')?.price ?? 17
   const features = t.pricing.premium.features
   return (
-    <section id="pricing" className="mx-auto max-w-5xl px-6 py-28">
+    <section id="pricing" className="mx-auto max-w-5xl px-6 py-36">
       <Reveal className="mx-auto max-w-2xl text-center">
         <p className="text-sm font-semibold uppercase tracking-widest text-cyan-600">{t.pricing.kicker}</p>
-        <h2 className="mt-3 text-3xl font-bold tracking-tight text-navy-900 sm:text-[2.6rem]">{t.pricing.title}</h2>
+        <h2 className="mt-3 font-display text-3xl font-medium tracking-tight text-navy-900 sm:text-[2.6rem]">{t.pricing.title}</h2>
         <p className="mt-4 text-navy-500">{t.pricing.subtitle}</p>
       </Reveal>
 
@@ -573,8 +720,8 @@ function Pricing() {
         </Reveal>
 
         <Reveal direction="left">
-          <div className="gradient-ring relative flex h-full flex-col rounded-2xl bg-white p-8 shadow-glow">
-            <span className="inline-flex w-fit rounded-full bg-brand-gradient px-3 py-1 text-xs font-semibold text-white">
+          <div className="relative flex h-full flex-col rounded-2xl bg-white p-8 shadow-emboss-card-hover ring-1 ring-electric-500/25">
+            <span className="inline-flex w-fit rounded-full bg-electric-500 px-3 py-1 text-xs font-semibold text-white shadow-emboss">
               {t.pricing.mostPopular}
             </span>
             <h3 className="mt-3 font-semibold text-navy-900">Monthly</h3>
@@ -611,28 +758,22 @@ function Check() {
 function FinalCta() {
   const t = useT()
   return (
-    <section className="px-6 pb-28">
+    <section className="px-6 pb-32 pt-8">
       <Reveal>
-        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2.5rem] bg-navy-900 px-8 py-16 text-center shadow-glow sm:px-16 sm:py-24">
+        {/* A single machined slab of dark metal pressed onto the sheet: one solid
+            fill, a hairline top highlight, and a deep cast shadow. */}
+        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[2.5rem] bg-navy-900 px-8 py-16 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_30px_60px_-24px_rgba(11,20,38,0.55)] sm:px-16 sm:py-24">
           <div className="pointer-events-none absolute inset-0">
-            <motion.div
-              animate={{ x: [0, 30, 0], y: [0, -20, 0] }}
-              transition={{ duration: 12, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute left-1/4 top-0 h-80 w-80 rounded-full bg-electric-500/30 blur-[110px]"
-            />
-            <motion.div
-              animate={{ x: [0, -30, 0], y: [0, 20, 0] }}
-              transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute bottom-0 right-1/4 h-80 w-80 rounded-full bg-violet-500/30 blur-[110px]"
-            />
-            <div className="absolute inset-0 grid-pattern opacity-10" />
+            <div className="absolute inset-0 grid-pattern opacity-[0.07]" />
           </div>
           <div className="relative">
-            <h2 className="text-3xl font-bold tracking-tight text-white sm:text-5xl">{t.finalCta.title}</h2>
-            <p className="mx-auto mt-4 max-w-xl text-navy-200">{t.finalCta.subtitle}</p>
+            <h2 className="font-display text-3xl font-medium tracking-tight text-white sm:text-[2.9rem]">
+              {t.finalCta.title}
+            </h2>
+            <p className="mx-auto mt-5 max-w-xl leading-relaxed text-navy-200">{t.finalCta.subtitle}</p>
             <MagneticButton className="mt-10" strength={0.45}>
               <Link to="/register">
-                <Button size="lg" className="rounded-full shadow-glow">{t.finalCta.cta}</Button>
+                <Button size="lg" className="rounded-full">{t.finalCta.cta}</Button>
               </Link>
             </MagneticButton>
           </div>
@@ -646,11 +787,15 @@ function FinalCta() {
 
 export default function LandingPage() {
   return (
-    <div className="overflow-x-hidden bg-white">
+    // Grayish-white paper sheet. The white cards/sections above it read as floating
+    // on paper; the sheen adds a soft light wash so the sheet isn't flat.
+    <div className="paper-texture relative overflow-x-hidden">
+      <div className="paper-sheen pointer-events-none fixed inset-0 -z-10" aria-hidden />
       <ScrollProgress />
       <Nav />
       <main>
         <Hero />
+        <TryItFree />
         <LogoStrip />
         <HowItWorks />
         <Features />

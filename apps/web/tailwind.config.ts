@@ -58,9 +58,26 @@ export default {
           800: '#0c4f6b',
           900: '#0f425a',
         },
+        // Neutral steel — the "metal" of the embossed surfaces. Warm-gray so it
+        // sits naturally on the paper background.
+        steel: {
+          50: '#f7f7f6',
+          100: '#ececeb',
+          200: '#dcdcda',
+          300: '#c3c3c0',
+          400: '#9c9c99',
+          500: '#76766f',
+          600: '#5a5a55',
+          700: '#45453f',
+          800: '#2f2f2b',
+          900: '#1d1d1a',
+        },
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
+        // Display face for headlines — high-contrast serif with a calligraphic
+        // italic. Used sparingly (hero + section titles), never for body copy.
+        display: ['"Playfair Display"', 'Georgia', 'serif'],
       },
       borderRadius: {
         '4xl': '2rem',
@@ -83,17 +100,38 @@ export default {
         tile: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 14px -4px rgba(10,116,240,0.45)',
         'inner-top': 'inset 0 1px 0 rgba(255,255,255,0.6)',
         glow: '0 0 0 1px rgba(51,146,255,0.18), 0 12px 40px -8px rgba(51,146,255,0.45)',
-        'glow-violet': '0 0 0 1px rgba(143,108,255,0.2), 0 12px 40px -8px rgba(115,65,255,0.4)',
+        'glow-violet': '0 0 0 1px rgba(51,146,255,0.2), 0 12px 40px -8px rgba(10,116,240,0.4)',
+
+        // ---- Embossed metal system -------------------------------------------
+        // Depth comes from LIGHT, not gradients: a crisp highlight on the top edge,
+        // a dark cut on the bottom edge, and a soft cast shadow. Light is always
+        // from above, so every raised element agrees on one light source.
+        // Raised solid surface (buttons, tiles).
+        emboss:
+          'inset 0 1px 0 rgba(255,255,255,0.30), inset 0 -2px 0 rgba(11,20,38,0.22), 0 1px 1px rgba(11,20,38,0.10), 0 8px 18px -6px rgba(11,20,38,0.28)',
+        'emboss-hover':
+          'inset 0 1px 0 rgba(255,255,255,0.38), inset 0 -2px 0 rgba(11,20,38,0.22), 0 2px 3px rgba(11,20,38,0.12), 0 14px 26px -8px rgba(11,20,38,0.34)',
+        // Pressed: the cut flips to the top and the cast shadow collapses.
+        'emboss-press':
+          'inset 0 2px 3px rgba(11,20,38,0.30), inset 0 -1px 0 rgba(255,255,255,0.18), 0 1px 1px rgba(11,20,38,0.10)',
+        // Raised paper/white card sitting on the sheet.
+        'emboss-card':
+          'inset 0 1px 0 rgba(255,255,255,0.9), 0 1px 1px rgba(11,20,38,0.05), 0 10px 24px -10px rgba(11,20,38,0.22), 0 28px 56px -24px rgba(11,20,38,0.20)',
+        'emboss-card-hover':
+          'inset 0 1px 0 rgba(255,255,255,0.95), 0 2px 3px rgba(11,20,38,0.06), 0 18px 38px -12px rgba(11,20,38,0.28), 0 44px 80px -28px rgba(11,20,38,0.26)',
+        // Debossed: stamped INTO the sheet (inputs, wells, inset panels).
+        deboss:
+          'inset 0 2px 4px rgba(11,20,38,0.10), inset 0 -1px 0 rgba(255,255,255,0.85)',
       },
       backgroundImage: {
-        'brand-gradient': 'linear-gradient(135deg, #0a74f0 0%, #7341ff 52%, #1fbef0 100%)',
-        // Vertical light→dark for extruded 3D buttons.
+        // NOTE: the landing page no longer uses these — it is built on the flat
+        // paper + embossed-metal system above. They remain for the rest of the app
+        // (billing, rewards, guide, auth…), now purple-free: blue → cyan only.
+        'brand-gradient': 'linear-gradient(135deg, #0a74f0 0%, #1fbef0 100%)',
         'btn-blue': 'linear-gradient(180deg, #3a9bff 0%, #0a74f0 100%)',
         'btn-navy': 'linear-gradient(180deg, #1d2d52 0%, #0b1426 100%)',
         'btn-red': 'linear-gradient(180deg, #f4584f 0%, #dc2626 100%)',
-        // Soft pastel tile for light icon tiles.
-        'tile-soft': 'linear-gradient(145deg, #e8f3ff 0%, #f3f0ff 100%)',
-        // Top sheen overlay for glossy surfaces.
+        'tile-soft': 'linear-gradient(145deg, #e8f3ff 0%, #e6fbff 100%)',
         sheen: 'linear-gradient(180deg, rgba(255,255,255,0.5) 0%, rgba(255,255,255,0) 45%)',
       },
       keyframes: {

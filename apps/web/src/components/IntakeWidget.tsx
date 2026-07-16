@@ -93,7 +93,7 @@ export function IntakeWidget() {
   }
 
   return (
-    <div className="rounded-2xl border border-navy-100 bg-white/90 p-6 shadow-elev-2 backdrop-blur">
+    <div className="rounded-2xl bg-white/90 p-6 ring-1 ring-navy-900/[0.06] shadow-emboss-card backdrop-blur">
       {!result ? (
         <>
           <label className="text-sm font-semibold text-navy-900">{c.label}</label>
@@ -102,14 +102,14 @@ export function IntakeWidget() {
             value={cv}
             onChange={(e) => setCv(e.target.value)}
             placeholder={c.placeholder}
-            className="mt-2 w-full resize-none rounded-xl border border-navy-200 bg-navy-50/50 p-3 text-sm outline-none placeholder:text-navy-300 focus:border-electric-400 focus:bg-white focus:ring-2 focus:ring-electric-400/30"
+            className="mt-2 w-full resize-none rounded-xl bg-steel-50 ring-1 ring-inset ring-navy-900/[0.08] shadow-deboss p-3 text-sm outline-none placeholder:text-navy-300 focus:border-electric-400 focus:bg-white focus:ring-2 focus:ring-electric-400/30"
           />
           <input
             value={role}
             onChange={(e) => setRole(e.target.value)}
             placeholder={c.rolePh}
             aria-label={c.role}
-            className="mt-3 w-full rounded-xl border border-navy-200 bg-navy-50/50 px-3 py-2.5 text-sm outline-none placeholder:text-navy-300 focus:border-electric-400 focus:bg-white focus:ring-2 focus:ring-electric-400/30"
+            className="mt-3 w-full rounded-xl bg-steel-50 ring-1 ring-inset ring-navy-900/[0.08] shadow-deboss px-3 py-2.5 text-sm outline-none placeholder:text-navy-300 focus:border-electric-400 focus:bg-white focus:ring-2 focus:ring-electric-400/30"
           />
           <Button className="mt-4 w-full rounded-full" loading={loading} disabled={!cv.trim() && !role.trim()} onClick={analyze}>
             {loading ? c.analyzing : c.analyze}
