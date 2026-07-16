@@ -233,8 +233,11 @@ async def achievements_apply(
         row.data = data
         await db.commit()
 
+    # Report the real re-score. This used to be max(after, before), so the number could
+    # never go down — an "improvement" was guaranteed by arithmetic rather than earned,
+    # which is exactly the kind of number a user would later find out was meaningless.
     after, _ = teaser_service.ats_quicklook(llm_service._cv_to_text(data))
-    return AchievementApplyOut(added=added, atsBefore=before, atsAfter=max(after, before))
+    return AchievementApplyOut(added=added, atsBefore=before, atsAfter=after)
 
 
 @router.post("/ai/cover-letter-pro", response_model=CoverLetterOut)

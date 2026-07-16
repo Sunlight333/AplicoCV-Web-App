@@ -21,7 +21,7 @@ const COPY = {
     finish: 'Finish',
     q: (i: number, n: number) => `Question ${i} of ${n}`,
     doneTitle: 'Practice complete',
-    doneSub: 'Nothing was recorded or stored — that was just for you. Run it again anytime.',
+    doneSub: 'Your voice and answers were never recorded — no microphone is used. Only the questions are saved, so you can revisit the session. Run it again anytime.',
     again: 'Practice again',
     noVoice: 'Your browser can’t speak the question aloud, so it’s shown below.',
   },
@@ -34,7 +34,7 @@ const COPY = {
     finish: 'Finalizar',
     q: (i: number, n: number) => `Pregunta ${i} de ${n}`,
     doneTitle: 'Práctica completa',
-    doneSub: 'No se grabó ni guardó nada — fue solo para ti. Repítela cuando quieras.',
+    doneSub: 'Tu voz y tus respuestas nunca se grabaron — no se usa micrófono. Solo se guardan las preguntas para que puedas repasar la sesión. Repítela cuando quieras.',
     again: 'Practicar de nuevo',
     noVoice: 'Tu navegador no puede leer la pregunta en voz alta, así que se muestra abajo.',
   },
@@ -47,7 +47,7 @@ const COPY = {
     finish: 'Finalizar',
     q: (i: number, n: number) => `Pergunta ${i} de ${n}`,
     doneTitle: 'Prática concluída',
-    doneSub: 'Nada foi gravado ou armazenado — foi só para você. Repita quando quiser.',
+    doneSub: 'Sua voz e suas respostas nunca foram gravadas — nenhum microfone é usado. Apenas as perguntas são salvas, para você rever a sessão. Repita quando quiser.',
     again: 'Praticar de novo',
     noVoice: 'Seu navegador não consegue falar a pergunta, então ela aparece abaixo.',
   },
@@ -81,6 +81,10 @@ export function SpokenInterview({
     timerRef.current = null
   }
 
+  // Holds the latest `advance` so the timer can move the round on without being
+  // re-created every question (which would restart the countdown).
+  const advanceRef = useRef<() => void>(() => {})
+
   const startTimer = useCallback(() => {
     clearTimer()
     setRemaining(ANSWER_SECONDS)
@@ -88,6 +92,10 @@ export function SpokenInterview({
       setRemaining((r) => {
         if (r <= 1) {
           clearTimer()
+          // Time's up → go to the next question automatically, "until the round is
+          // complete". It used to stop at 0:00 and wait for a click, which is not a
+          // rehearsal — a real interviewer moves on.
+          setTimeout(() => advanceRef.current(), 0)
           return 0
         }
         return r - 1
@@ -139,6 +147,7 @@ export function SpokenInterview({
       setIdx((i) => i + 1)
     }
   }
+  advanceRef.current = advance
 
   if (finished) {
     return (

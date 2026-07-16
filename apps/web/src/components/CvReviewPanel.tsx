@@ -23,6 +23,7 @@ const COPY = {
     keywords: 'Add these ATS keywords',
     improve: 'How to reach a 10',
     offer: 'Want help identifying achievements for your roles?',
+    targetRole: 'Target role', targetRolePh: 'Role you are aiming for (optional) — e.g. Commercial Manager',
     getAchievements: 'Suggest achievements',
     loadingAch: 'Thinking…',
     pick: 'Pick the achievements that fit — you can edit them later in your profile.',
@@ -41,6 +42,7 @@ const COPY = {
     keywords: 'Agrega estas palabras clave ATS',
     improve: 'Cómo llegar a un 10',
     offer: '¿Quieres ayuda para identificar logros en tus puestos?',
+    targetRole: 'Puesto objetivo', targetRolePh: 'Puesto al que apuntas (opcional) — ej. Gerente Comercial',
     getAchievements: 'Sugerir logros',
     loadingAch: 'Pensando…',
     pick: 'Elige los logros que apliquen — luego puedes editarlos en tu perfil.',
@@ -59,6 +61,7 @@ const COPY = {
     keywords: 'Adicione estas palavras-chave ATS',
     improve: 'Como chegar a um 10',
     offer: 'Quer ajuda para identificar conquistas nos seus cargos?',
+    targetRole: 'Cargo desejado', targetRolePh: 'Cargo que você busca (opcional) — ex. Gerente Comercial',
     getAchievements: 'Sugerir conquistas',
     loadingAch: 'Pensando…',
     pick: 'Escolha as conquistas que se aplicam — depois você edita no seu perfil.',
@@ -76,6 +79,7 @@ export function CvReviewPanel() {
   const [roles, setRoles] = useState<AchievementRole[] | null>(null)
   const [picked, setPicked] = useState<Record<string, boolean>>({})
   const [loading, setLoading] = useState<'' | 'review' | 'ach' | 'apply'>('')
+  const [targetRole, setTargetRole] = useState('')
 
   const runReview = async () => {
     setLoading('review')
@@ -90,7 +94,7 @@ export function CvReviewPanel() {
   const getAch = async () => {
     setLoading('ach')
     try {
-      setRoles(await suggestAchievements())
+      setRoles(await suggestAchievements(targetRole.trim() || undefined))
     } finally {
       setLoading('')
     }
@@ -113,7 +117,11 @@ export function CvReviewPanel() {
       toast(c.done(res.atsBefore, res.atsAfter))
       setRoles(null)
       setPicked({})
-      setReview((r) => (r ? { ...r, score: res.atsAfter } : r))
+      // Re-run the recruiter review rather than patching its score with the one the
+      // apply endpoint returns: that number comes from a different (heuristic) scale,
+      // so writing it into the recruiter's score showed two scales as one figure. A
+      // fresh review keeps the displayed score honest and on a single scale.
+      setReview(await reviewCv())
     } finally {
       setLoading('')
     }
@@ -148,6 +156,17 @@ export function CvReviewPanel() {
           {!roles ? (
             <div className="mt-6 rounded-xl border border-navy-100 bg-navy-50/50 p-4">
               <p className="text-sm font-medium text-navy-800">{c.offer}</p>
+              {/* The achievements must be the ones typical for the job being TARGETED,
+                  not for the titles already on the CV — so ask which role we're aiming
+                  at and pass it through. Optional: blank falls back to the CV's own
+                  titles, which is the old behaviour. */}
+              <input
+                value={targetRole}
+                onChange={(e) => setTargetRole(e.target.value)}
+                placeholder={c.targetRolePh}
+                aria-label={c.targetRole}
+                className="mt-3 w-full rounded-lg border border-navy-200 bg-white px-3 py-2 text-sm outline-none placeholder:text-navy-300 focus:border-electric-400 focus:ring-2 focus:ring-electric-400/30"
+              />
               <Button className="mt-3 rounded-full" variant="secondary" loading={loading === 'ach'} onClick={getAch}>
                 {loading === 'ach' ? c.loadingAch : c.getAchievements}
               </Button>
