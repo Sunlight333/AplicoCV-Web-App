@@ -23,10 +23,34 @@ def trial_ends_at(user: User) -> datetime:
     return created + timedelta(days=settings.trial_days)
 
 
+def subscription_expires_at(user: User) -> datetime | None:
+    """End of the current paid period, or None if no expiry was recorded.
+
+    Stored in User.preferences (JSON) rather than a column: production creates tables
+    with `create_all` and runs no Alembic (see db.py), so a new column would not exist
+    on the live database. This mirrors how stripeCustomerId/planId are already kept.
+    """
+    raw = (user.preferences or {}).get("planExpiresAt")
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(raw))
+    except (TypeError, ValueError):
+        return None
+    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+
+
 def premium_active(user: User) -> bool:
-    """Premium features are unlocked for paying users and during the free trial."""
+    """Premium is unlocked for paying users (until their period ends) and during trial.
+
+    A subscription must LAPSE: previously any `plan == "premium"` was permanent, so a
+    single one-off MercadoPago payment bought premium forever and 'weekly'/'monthly'
+    meant nothing. Accounts with no recorded expiry stay active — that keeps existing
+    paying users from being locked out by this change.
+    """
     if user.plan == "premium":
-        return True
+        expires = subscription_expires_at(user)
+        return expires is None or datetime.now(timezone.utc) < expires
     return datetime.now(timezone.utc) < trial_ends_at(user)
 
 

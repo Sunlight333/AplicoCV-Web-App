@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.db import get_db
-from app.deps import get_current_user
+from app.deps import get_current_user, subscription_expires_at
 from app.models import User
 from app import pricing
 from app.schemas import CheckoutInput, CheckoutOut, PlanOut, ReconcileOut
@@ -124,6 +125,82 @@ def _resolve_order(payment: dict) -> tuple[str | None, int | None, str | None]:
     return meta.get("kind"), (int(credits) if credits else None), plan_id
 
 
+# How long each plan entitles the user to, once paid.
+_PLAN_DAYS = {"weekly": 7, "monthly": 30}
+
+# Hints that a payer is in Latin America, from the region/location intake we already
+# collect. Kept lowercase and accent-free; matched as substrings.
+_LATAM_PAYER_HINTS = (
+    "latam", "latin", "south_america", "south america", "sudamerica", "latinoamerica",
+    "chile", "argentina", "brasil", "brazil", "mexico", "colombia", "peru", "uruguay",
+    "bolivia", "paraguay", "ecuador", "venezuela", "costa rica", "panama", "guatemala",
+    "santiago", "buenos aires", "bogota", "lima", "sao paulo", "cdmx",
+)
+
+
+def _is_latam_payer(user: User) -> bool:
+    """Best available signal for where this user pays from.
+
+    We have no billing-country field, so we reuse the region/location intake the user
+    already gave (plus an explicit billingCountry if one is ever set). Only used to
+    pick a rail; it never changes what they're charged in USD terms.
+    """
+    prefs = user.preferences or {}
+    explicit = str(prefs.get("billingCountry") or "").strip().lower()
+    if explicit:
+        return any(h in explicit for h in _LATAM_PAYER_HINTS)
+    blob = " ".join(
+        [
+            *(prefs.get("locations") or []),
+            *(prefs.get("remoteRegions") or []),
+            *(prefs.get("onsiteLocations") or []),
+            str(prefs.get("country") or ""),
+        ]
+    ).lower()
+    return any(h in blob for h in _LATAM_PAYER_HINTS)
+
+
+def _provider_for(user: User) -> str:
+    """Which rail bills THIS user.
+
+    Provider choice used to be a global switch, so enabling Lemon Squeezy for the USA
+    would have pushed every LATAM user to USD and made MercadoPago dead code. The
+    client needs both at once: MercadoPago (local currency) for LATAM, an MoR rail for
+    the USA. With only one rail configured we simply use it.
+    """
+    ls, mp = settings.lemonsqueezy_enabled, settings.mercadopago_enabled
+    if ls and mp:
+        return "mercadopago" if _is_latam_payer(user) else "lemonsqueezy"
+    if ls:
+        return "lemonsqueezy"
+    if mp:
+        return "mercadopago"
+    if settings.stripe_enabled:
+        return "stripe"
+    return "stub"
+
+
+def _grant_period(user: User, plan_id: str | None, *, days: int | None = None) -> None:
+    """Grant premium for ONE paid period, extending from whatever is left.
+
+    Every payment path funnels through here so premium always carries an end date.
+    Previously `user.plan = "premium"` was set with no expiry anywhere, so a single
+    one-off MercadoPago charge bought premium permanently and the weekly/monthly
+    distinction was decorative. Renewals extend from the current expiry (not from
+    "now"), so paying early never silently burns the days already bought.
+    """
+    span = days if days is not None else _PLAN_DAYS.get(plan_id or "", 30)
+    now = datetime.now(timezone.utc)
+    current = subscription_expires_at(user)
+    base = current if (current and current > now) else now
+    prefs = dict(user.preferences or {})
+    if plan_id:
+        prefs["planId"] = plan_id
+    prefs["planExpiresAt"] = (base + timedelta(days=span)).isoformat()
+    user.plan = "premium"
+    user.preferences = prefs  # reassign so SQLAlchemy detects the JSON change
+
+
 async def _fulfill(
     db: AsyncSession, user: User, kind: str | None, credits: int | None,
     plan_id: str | None, payment_id: str,
@@ -140,9 +217,7 @@ async def _fulfill(
         # land in ONE transaction — otherwise a crash between them double-grants on retry.
         credit_service.grant_pending(db, acc, int(credits), f"purchase_{plan_id or 'credits'}")
     else:
-        user.plan = "premium"
-        if plan_id:
-            user.preferences = {**(user.preferences or {}), "planId": plan_id}
+        _grant_period(user, plan_id)
     grants = dict(acc.grants or {})
     grants["mp_payments"] = processed + [payment_id]
     acc.grants = grants  # reassign so SQLAlchemy detects the JSON change
@@ -152,11 +227,12 @@ async def _fulfill(
 
 @router.get("/plans", response_model=list[PlanOut])
 async def plans(user: User = Depends(get_current_user)) -> list[PlanOut]:
-    """The two subscription plans for the Plans screen. Prices are shown in the
-    LATAM local currency for MercadoPago payers (converted from the USD base); the
-    worldwide rail charges USD. `current` marks the plan the subscriber is on."""
+    """The two subscription plans for the Plans screen. Prices are shown in the currency
+    of the rail that will actually bill THIS user — LATAM payers see local currency via
+    MercadoPago, everyone else USD via Lemon Squeezy — so the price on screen matches the
+    price charged. `current` marks the plan the subscriber is on."""
     current_id = (user.preferences or {}).get("planId") if user.plan == "premium" else None
-    currency = pricing.active_currency()
+    currency = pricing.currency_for_provider(_provider_for(user))
     return [
         PlanOut(
             **p,
@@ -193,9 +269,11 @@ async def checkout(
     db: AsyncSession = Depends(get_db),
 ) -> CheckoutOut:
     """
-    Start a subscription for the chosen plan (`weekly` or `monthly`). With Stripe
-    configured this creates a Checkout Session and returns its hosted URL; in stub
-    mode we immediately upgrade the user so the demo flow completes.
+    Start a recurring subscription for the chosen plan (`weekly` or `monthly`).
+
+    The rail is chosen PER USER (see _provider_for): LATAM payers go to MercadoPago in
+    local currency, everyone else to Lemon Squeezy (Merchant of Record) in USD, so both
+    markets can be served at the same time.
     """
     plan = next(
         (p for p in _PLANS if p["id"] == body.plan and p["kind"] == "subscription"),
@@ -204,7 +282,9 @@ async def checkout(
     if not plan:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown subscription plan.")
 
-    if settings.lemonsqueezy_enabled:
+    provider = _provider_for(user)
+
+    if provider == "lemonsqueezy":
         variant = lemonsqueezy_service.variant_for(plan["id"])
         if not variant:
             raise HTTPException(
@@ -225,19 +305,41 @@ async def checkout(
             )
         return CheckoutOut(url=url)
 
-    if settings.mercadopago_enabled:
-        url = await _mp_preference(
-            user,
-            title=f"AplicoCV {plan['name']}",
-            price=pricing.price_in(plan["id"]),
-            metadata={"kind": "subscription", "plan_id": plan["id"]},
-            success_qs="upgraded=1",
-        )
+    if provider == "mercadopago":
+        # Recurring subscription (Preapproval) — NOT one-off Checkout Pro. The plans are
+        # sold as weekly/monthly with automatic renewal; a Checkout Pro preference charges
+        # once, which previously granted premium forever for a single payment.
+        currency = pricing.currency_for_provider("mercadopago")
+        try:
+            url, preapproval_id = await mercadopago_service.create_preapproval(
+                plan_id=plan["id"],
+                reason=f"AplicoCV {plan['name']}",
+                amount=pricing.price_in(plan["id"], currency),
+                currency_id=currency,
+                payer_email=user.email,
+                external_reference=user.id,
+                back_url=f"{settings.frontend_url}/settings/billing?upgraded=1",
+            )
+        except Exception:
+            raise HTTPException(
+                status.HTTP_502_BAD_GATEWAY, detail="Could not start the MercadoPago subscription."
+            )
+        # Remember the subscription id so the webhook can verify it and the user can
+        # cancel it later. Access is granted only once MercadoPago confirms it.
+        user.preferences = {
+            **(user.preferences or {}),
+            "mpPreapprovalId": preapproval_id,
+            "planId": plan["id"],
+            "subProvider": "mercadopago",
+        }
+        await db.commit()
         return CheckoutOut(url=url)
 
-    if not settings.stripe_enabled:
-        user.plan = "premium"
-        user.preferences = {**(user.preferences or {}), "planId": plan["id"]}
+    if provider == "stub":
+        # Dev/demo stub: no provider configured, so nothing was charged. Still grant a
+        # BOUNDED period — an unbounded grant here would hand out permanent premium for
+        # free if this were ever reached with every provider unset.
+        _grant_period(user, plan["id"])
         await db.commit()
         return CheckoutOut(url=f"{settings.frontend_url}/settings/billing?upgraded=1")
 
@@ -348,7 +450,7 @@ async def webhook(
                         db, acc, int(meta["credits"]), "purchase_credits"
                     )
                 else:
-                    user.plan = "premium"
+                    _grant_period(user, meta.get("plan_id"))
                     if customer_id:
                         user.preferences = {
                             **(user.preferences or {}), "stripeCustomerId": customer_id
@@ -394,8 +496,65 @@ async def mercadopago_webhook(
         except Exception:
             pass
 
-    # Ignore non-payment topics (e.g. merchant_order) — only payments fulfill.
-    if topic and "payment" not in str(topic):
+    topic_s = str(topic or "")
+
+    # --- Recurring subscription lifecycle (Preapproval) ----------------------
+    # These topics carry a SUBSCRIPTION id, not a payment id, so they must be handled
+    # before the payment path (which would otherwise call /v1/payments with the wrong
+    # id). Everything is re-fetched from MercadoPago — never trust the notification.
+    if "subscription_preapproval" in topic_s:
+        if not payment_id:
+            return {"received": True}
+        try:
+            sub = await mercadopago_service.get_preapproval(str(payment_id))
+        except Exception:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Could not verify subscription")
+        user = await db.get(User, sub.get("external_reference") or "")
+        if not user:
+            return {"received": True}
+        sub_status = sub.get("status")
+        if sub_status == "authorized":
+            # First authorisation: the payer approved the recurrence.
+            _grant_period(user, (user.preferences or {}).get("planId"))
+            await db.commit()
+        elif sub_status in {"cancelled", "paused"}:
+            # Do NOT revoke here: the period they already paid for runs to its end, and
+            # premium_active() lapses on planExpiresAt. We only stop the renewal.
+            user.preferences = {**(user.preferences or {}), "mpSubStatus": sub_status}
+            await db.commit()
+        return {"received": True}
+
+    if "subscription_authorized_payment" in topic_s:
+        # One recurring charge against a subscription — i.e. a renewal.
+        if not payment_id:
+            return {"received": True}
+        try:
+            charge = await mercadopago_service.get_authorized_payment(str(payment_id))
+        except Exception:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Could not verify renewal")
+        if charge.get("status") not in {"processed", "approved"}:
+            return {"received": True}
+        try:
+            sub = await mercadopago_service.get_preapproval(str(charge.get("preapproval_id") or ""))
+        except Exception:
+            return {"received": True}
+        user = await db.get(User, sub.get("external_reference") or "")
+        if not user:
+            return {"received": True}
+        # Idempotent: each renewal charge id is recorded once (webhooks retry).
+        acc = await credit_service.get_account(db, user.id)
+        processed_r = list((acc.grants or {}).get("mp_payments") or [])
+        if str(payment_id) in processed_r:
+            return {"received": True}
+        _grant_period(user, (user.preferences or {}).get("planId"))
+        grants = dict(acc.grants or {})
+        grants["mp_payments"] = processed_r + [str(payment_id)]
+        acc.grants = grants
+        await db.commit()
+        return {"received": True}
+
+    # Ignore other non-payment topics (e.g. merchant_order) — only payments fulfill.
+    if topic and "payment" not in topic_s:
         return {"received": True}
     if not payment_id:
         return {"received": True}
@@ -500,11 +659,21 @@ async def lemonsqueezy_webhook(
     portal_url = ((attrs.get("urls") or {}).get("customer_portal")) if isinstance(attrs.get("urls"), dict) else None
 
     if event in _LS_ACTIVE_EVENTS and (status_ in _LS_ACTIVE_STATUS or status_ is None):
+        _grant_period(user, plan_id or (user.preferences or {}).get("planId"))
         prefs = dict(user.preferences or {})
-        prefs["planId"] = plan_id or prefs.get("planId")
         if portal_url:
             prefs["lsPortalUrl"] = portal_url
-        user.plan = "premium"
+        prefs["subProvider"] = "lemonsqueezy"
+        # Lemon Squeezy is authoritative about when this period ends — prefer its own
+        # renews_at (next charge) or ends_at (set once cancelled) over our plan-length
+        # estimate, so our access window always matches what they actually bill.
+        ls_end = attrs.get("renews_at") or attrs.get("ends_at")
+        if ls_end:
+            try:
+                dt = datetime.fromisoformat(str(ls_end).replace("Z", "+00:00"))
+                prefs["planExpiresAt"] = (dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)).isoformat()
+            except (TypeError, ValueError):
+                pass  # keep the _grant_period estimate
         user.preferences = prefs
         await db.commit()
     elif event in _LS_INACTIVE_EVENTS or status_ in _LS_INACTIVE_STATUS:

@@ -49,15 +49,32 @@ def supported_currencies() -> list[str]:
     return sorted(PER_USD)
 
 
-def active_currency() -> str:
-    """The currency prices are shown/charged in. Lemon Squeezy (worldwide) wins when
-    configured — its store currency — otherwise the MercadoPago (LATAM) currency.
-    Falls back to a currency we can convert so we never emit an unconverted amount."""
-    if settings.lemonsqueezy_enabled:
+def currency_for_provider(provider: str) -> str:
+    """The currency a given rail bills in.
+
+    Currency has to follow the RAIL, not a global setting: with both rails live, a
+    LATAM payer is charged by MercadoPago in local currency while a US payer is
+    charged by Lemon Squeezy in USD — at the same time. Falls back to a currency we
+    can convert so an unconverted amount is never emitted.
+    """
+    if provider == "lemonsqueezy":
         cur = (settings.lemonsqueezy_currency or "USD").upper()
         return cur if cur in PER_USD else "USD"
-    cur = (settings.mercadopago_currency or "CLP").upper()
-    return cur if cur in PER_USD else "CLP"
+    if provider == "mercadopago":
+        cur = (settings.mercadopago_currency or "CLP").upper()
+        return cur if cur in PER_USD else "CLP"
+    return "USD"  # stripe/stub price in the USD base
+
+
+def active_currency() -> str:
+    """Default display currency when there is no user in context (the public
+    catalogue). Per-user billing should use currency_for_provider() with the rail
+    chosen for that user."""
+    if settings.lemonsqueezy_enabled:
+        return currency_for_provider("lemonsqueezy")
+    if settings.mercadopago_enabled:
+        return currency_for_provider("mercadopago")
+    return "USD"
 
 
 def is_zero_decimal(currency: str) -> bool:
