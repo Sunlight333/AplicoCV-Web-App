@@ -141,7 +141,7 @@ Describe coverage in plain language instead. Use this cleaned copy:
     you confirm. Your data is used only to autofill your applications and is never
     sold.
 
-    A free AplicoCV account is required. Sign in once and the extension connects
+    An AplicoCV account is required. Sign in once and the extension connects
     to your profile automatically.
 
 Category. Choose Tools.
