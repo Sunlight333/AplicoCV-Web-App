@@ -1,13 +1,16 @@
 """
-Beta AI Job Agent — recommendation generation.
+AI Job Agent — recommendation generation.
 
-Pulls REAL live postings from the free Remotive job API, filtered by the user's
-target role and scored against their skills. Falls back to role-tailored portal
-search links if the API is unavailable, so "Go apply" is always a working link.
+Pulls REAL live postings from every free (no-key) job API we can read, ranks them
+against the user's CV with the LLM (falling back to a keyword heuristic), and adds
+role-tailored portal search links so there is always somewhere to go. The search runs
+server-side on a schedule, so the shortlist is waiting in the panel without the user
+having a session open.
 """
 
 from __future__ import annotations
 
+import asyncio
 import re
 from urllib.parse import quote_plus
 
@@ -16,8 +19,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Profile, Recommendation, User
+from app.services import llm_service
 
+# Free, keyless job feeds. Each is optional: a dead feed is skipped, never fatal.
 REMOTIVE_URL = "https://remotive.com/api/remote-jobs"
+REMOTEOK_URL = "https://remoteok.com/api"
+ARBEITNOW_URL = "https://www.arbeitnow.com/api/job-board-api"
+JOBICY_URL = "https://jobicy.com/api/v2/remote-jobs"
+
+# Keep the board a shortlist: newer batches accumulate, the oldest rows are trimmed.
+MAX_BOARD = 40
 
 
 # LATAM signals in a free-text location / region string (accent-insensitive-ish).
@@ -165,29 +176,111 @@ def _score(title: str, skills: list[str], description: str = "") -> int:
     return int(min(97, 60 + ratio * 38))
 
 
+def _strip_html(s: str, limit: int = 2000) -> str:
+    return re.sub(r"<[^>]+>", " ", s or "")[:limit]
+
+
+def _mini_summary(description: str | None, limit: int = 160) -> str | None:
+    """A one-line "what this job is" for the copilot table — the client asked each row
+    to carry a mini summary, and previously only the first search link had any note."""
+    text = re.sub(r"\s+", " ", _strip_html(description or "", 600)).strip()
+    if not text:
+        return None
+    sentence = re.split(r"(?<=[.!?])\s", text)[0]
+    out = sentence if len(sentence) <= limit else text[:limit].rsplit(" ", 1)[0] + "…"
+    return out or None
+
+
+async def _fetch_remotive(client: httpx.AsyncClient, role: str) -> list[dict]:
+    res = await client.get(REMOTIVE_URL, params={"search": role, "limit": 20})
+    res.raise_for_status()
+    return [
+        {
+            "title": j.get("title"), "company": j.get("company_name") or "Company",
+            "portal": "Remotive", "url": j.get("url"),
+            "description": _strip_html(j.get("description")),
+        }
+        for j in res.json().get("jobs", [])[:12]
+    ]
+
+
+async def _fetch_remoteok(client: httpx.AsyncClient, role: str) -> list[dict]:
+    # RemoteOK's feed is unfiltered; the first element is a legal notice, not a job.
+    res = await client.get(REMOTEOK_URL, headers={"User-Agent": "AplicoCV/1.0"})
+    res.raise_for_status()
+    rows = [r for r in res.json() if isinstance(r, dict) and r.get("position")]
+    needle = (role or "").lower()
+    hits = [r for r in rows if needle in f"{r.get('position','')} {' '.join(r.get('tags') or [])}".lower()]
+    return [
+        {
+            "title": r.get("position"), "company": r.get("company") or "Company",
+            "portal": "RemoteOK", "url": r.get("url") or r.get("apply_url"),
+            "description": _strip_html(r.get("description")),
+        }
+        for r in (hits or rows)[:12]
+    ]
+
+
+async def _fetch_arbeitnow(client: httpx.AsyncClient, role: str) -> list[dict]:
+    res = await client.get(ARBEITNOW_URL)
+    res.raise_for_status()
+    needle = (role or "").lower()
+    rows = res.json().get("data", []) or []
+    hits = [r for r in rows if needle in f"{r.get('title','')} {' '.join(r.get('tags') or [])}".lower()]
+    return [
+        {
+            "title": r.get("title"), "company": r.get("company_name") or "Company",
+            "portal": "Arbeitnow", "url": r.get("url"),
+            "description": _strip_html(r.get("description")),
+        }
+        for r in (hits or rows)[:12]
+    ]
+
+
+async def _fetch_jobicy(client: httpx.AsyncClient, role: str) -> list[dict]:
+    res = await client.get(JOBICY_URL, params={"count": 20})
+    res.raise_for_status()
+    needle = (role or "").lower()
+    rows = res.json().get("jobs", []) or []
+    hits = [r for r in rows if needle in str(r.get("jobTitle", "")).lower()]
+    return [
+        {
+            "title": r.get("jobTitle"), "company": r.get("companyName") or "Company",
+            "portal": "Jobicy", "url": r.get("url"),
+            "description": _strip_html(r.get("jobDescription")),
+        }
+        for r in (hits or rows)[:12]
+    ]
+
+
 async def _live_jobs(role: str, skills: list[str]) -> list[dict]:
-    try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            res = await client.get(REMOTIVE_URL, params={"search": role, "limit": 8})
-            res.raise_for_status()
-            jobs = res.json().get("jobs", [])[:5]
-    except Exception:
-        return []
-    out = []
-    for j in jobs:
-        url = j.get("url")
-        title = j.get("title")
-        if not url or not title:
-            continue
-        desc = re.sub(r"<[^>]+>", " ", j.get("description") or "")[:2000]
-        out.append({
-            "title": title,
-            "company": j.get("company_name") or "Company",
-            "portal": "Remotive",
-            "url": url,
-            "score": _score(title, skills, desc),
-            "note": None,
-        })
+    """Real postings from every source we can read without a key.
+
+    Previously this was Remotive alone, capped at 5 — so a "daily shortlist of ~20"
+    was never more than a handful of real jobs padded with search links. Sources are
+    fetched concurrently and each is isolated: one flaky feed must not empty the panel.
+    """
+    sources = (_fetch_remotive, _fetch_remoteok, _fetch_arbeitnow, _fetch_jobicy)
+    out: list[dict] = []
+    async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
+        results = await asyncio.gather(
+            *(fn(client, role) for fn in sources), return_exceptions=True
+        )
+    for res in results:
+        if isinstance(res, Exception):
+            continue  # a dead feed is not a failed scan
+        for j in res:
+            if not j.get("url") or not j.get("title"):
+                continue
+            out.append({
+                "title": j["title"],
+                "company": j["company"],
+                "portal": j["portal"],
+                "url": j["url"],
+                "description": j.get("description") or "",
+                "score": _score(j["title"], skills, j.get("description") or ""),
+                "note": None,
+            })
     return out
 
 
@@ -240,12 +333,24 @@ async def autonomous_apply_for_user(db: AsyncSession, user: User) -> int:
 
 
 async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
-    """Replace this user's recommendations with a fresh, preference-tailored scan."""
+    """Add a fresh, preference-tailored batch to this user's shortlist.
+
+    The sweep no longer wipes the board: it used to delete every prior recommendation,
+    so each run threw away yesterday's shortlist (and anything the user hadn't got to
+    yet) instead of accumulating a daily batch. We keep what's there, skip URLs already
+    listed, and trim the oldest once the board grows past MAX_BOARD.
+    """
     existing = (
-        await db.execute(select(Recommendation).where(Recommendation.user_id == user.id))
+        await db.execute(
+            select(Recommendation)
+            .where(Recommendation.user_id == user.id)
+            .order_by(Recommendation.created_at.desc())
+        )
     ).scalars().all()
-    for r in existing:
-        await db.delete(r)
+    existing_urls = {r.job_url for r in existing}
+    # Trim the tail so the board stays a shortlist rather than growing forever.
+    for stale in existing[MAX_BOARD:]:
+        await db.delete(stale)
 
     prefs = user.preferences or {}
     prof = (
@@ -261,8 +366,18 @@ async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
     skills = pdata.get("skills") or []
 
     wants_remote, _wants_onsite, _bucket = _derive_targeting(prefs)
-    # Remotive lists remote roles, so only pull it for users open to remote.
+    # These feeds list remote roles, so only pull them for users open to remote.
     jobs: list[dict] = await _live_jobs(role, skills) if wants_remote else []
+
+    # Rank the REAL postings against the CV with the LLM. Search links are excluded:
+    # they are queries, not jobs, and carry no score at all.
+    ranked = await llm_service.rank_jobs(pdata, jobs)
+    for i, j in enumerate(jobs):
+        if i in ranked:
+            j["score"] = ranked[i]
+            j["scoredBy"] = "ai"
+    jobs.sort(key=lambda j: j["score"], reverse=True)
+
     jobs += _search_links(role, location, prefs)
     # Dedupe by URL and cap to a daily shortlist (client's "up to ~20" target).
     seen: set[str] = set()
@@ -270,6 +385,8 @@ async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
 
     created: list[Recommendation] = []
     for job in jobs:
+        if job["url"] in existing_urls:
+            continue  # already on the board from an earlier sweep
         rec = Recommendation(
             user_id=user.id,
             job_title=job["title"][:200],
@@ -277,7 +394,9 @@ async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
             portal=job["portal"],
             match_score=job["score"],
             job_url=job["url"],
-            strategic_note=job["note"],
+            # A one-line "why this" for the copilot table. Real postings get the first
+            # sentence of the posting itself; links keep their own note.
+            strategic_note=job.get("note") or _mini_summary(job.get("description")),
         )
         db.add(rec)
         created.append(rec)

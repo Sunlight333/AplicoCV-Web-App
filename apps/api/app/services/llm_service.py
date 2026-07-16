@@ -219,6 +219,44 @@ async def super_cv(
     return await _real_super_cv(profile, target_role, jd, cv_text, language, focus)
 
 
+async def rank_jobs(profile: dict[str, Any], jobs: list[dict[str, Any]]) -> dict[int, int]:
+    """Score how well each posting matches THIS CV: {job index -> 0-100}.
+
+    The client's differentiator is a shortlist "ordered by compatibility with your CV",
+    which a substring count of skill words cannot honestly claim to be. One batched
+    call ranks the whole scan (cheap and bounded), and anything the model doesn't
+    return simply keeps its heuristic score — so a bad LLM day degrades the ordering
+    rather than emptying the panel.
+    """
+    if settings.resolved_llm_provider == "stub" or not jobs:
+        return {}
+    listing = "\n".join(
+        f"{i}. {j.get('title','')} @ {j.get('company','')} :: {(j.get('description') or '')[:400]}"
+        for i, j in enumerate(jobs[:25])
+    )
+    try:
+        res = await _chat_json(
+            "You are a recruiter matching a candidate to job postings. For EACH posting, "
+            "score 0-100 how well THIS candidate's real experience, seniority and skills fit "
+            "it — be discriminating: most postings are not a strong fit, and only a genuinely "
+            "close match should exceed 85. Return JSON {scores: [{index: int, score: int}]} "
+            "covering every posting you were given.",
+            f"CANDIDATE CV:\n{_cv_to_text(profile)[:3500]}\n\nPOSTINGS:\n{listing[:6000]}",
+            task="rank_jobs",
+        )
+        out: dict[int, int] = {}
+        for row in res.get("scores") or []:
+            try:
+                i, s = int(row.get("index")), int(row.get("score"))
+            except (TypeError, ValueError):
+                continue
+            if 0 <= i < len(jobs):
+                out[i] = max(0, min(100, s))
+        return out
+    except Exception:
+        return {}
+
+
 async def personal_analysis(
     profile: dict[str, Any], language: str | None = None
 ) -> dict[str, Any]:

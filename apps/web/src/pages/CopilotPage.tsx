@@ -148,6 +148,12 @@ export default function CopilotPage() {
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-semibold text-navy-900">{r.jobTitle}</p>
                       <p className="truncate text-xs text-navy-400">{r.company} · {r.portal}</p>
+                      {/* The mini summary the client asked every row to carry: what the
+                          job actually is, so the table can be scanned without opening
+                          each posting. Previously only ReadyCard showed any note. */}
+                      {r.strategicNote && (
+                        <p className="mt-0.5 line-clamp-2 text-xs text-navy-500">{r.strategicNote}</p>
+                      )}
                     </div>
                     <Badge tone={r.matchScore >= 65 ? 'info' : 'neutral'}>{r.matchScore}% {c.match}</Badge>
                     <a href={r.jobUrl} target="_blank" rel="noreferrer" className="text-sm font-medium text-electric-600 hover:underline">
