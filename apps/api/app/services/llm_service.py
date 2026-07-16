@@ -179,11 +179,15 @@ async def score_ats_match(
 
 
 async def generate_cover_letter(
-    job_description: str, profile: dict[str, Any], tone: str, language: str | None = None
+    job_description: str,
+    profile: dict[str, Any],
+    tone: str,
+    language: str | None = None,
+    focus: str | None = None,
 ) -> str:
     if settings.resolved_llm_provider == "stub":
         return _stub_cover_letter(job_description, profile, tone)
-    return await _real_cover_letter(job_description, profile, tone, language)
+    return await _real_cover_letter(job_description, profile, tone, language, focus)
 
 
 async def tailor_profile(
@@ -208,10 +212,11 @@ async def super_cv(
     jd: str | None,
     cv_text: str | None,
     language: str | None = None,
+    focus: str | None = None,
 ) -> dict[str, Any]:
     if settings.resolved_llm_provider == "stub":
         return _stub_super_cv(profile, target_role, jd, cv_text)
-    return await _real_super_cv(profile, target_role, jd, cv_text, language)
+    return await _real_super_cv(profile, target_role, jd, cv_text, language, focus)
 
 
 async def personal_analysis(
@@ -622,15 +627,22 @@ async def _real_ats(
 
 
 async def _real_cover_letter(
-    jd: str, profile: dict[str, Any], tone: str, language: str | None = None
+    jd: str, profile: dict[str, Any], tone: str, language: str | None = None, focus: str | None = None
 ) -> str:
+    # The letter has to accompany the CV VERSION the person chose, so it argues from the
+    # same angle rather than from the master profile alone.
+    focus_line = (
+        f"\nCV FOCUS: {focus}. The candidate is applying with their {focus}-focused CV, so "
+        f"argue from that angle and echo its emphasis."
+        if focus else ""
+    )
     try:
         return _clean_cv_text(await _chat_text(
             f"Write a focused 250-350 word cover letter in a {tone} tone. Avoid generic "
             "openers. Use only facts from the profile. Write CLEAN, PASTE-READY plain text: "
             "NO markdown, NO asterisks or heading symbols, no emojis. Write the ENTIRE letter "
             "in ONE language only (the requested language); never mix languages.",
-            f"Job description:\n{jd[:4000]}\n\nProfile:\n{json.dumps(profile)[:4000]}",
+            f"Job description:\n{jd[:4000]}{focus_line}\n\nProfile:\n{json.dumps(profile)[:4000]}",
             task="cover_letter",
             language=language,
         ))
@@ -811,8 +823,16 @@ def _clean_cv_text(text: str) -> str:
     return t.strip()
 
 
-async def _real_super_cv(profile, target_role, jd, cv_text, language=None):  # type: ignore[no-untyped-def]
+async def _real_super_cv(profile, target_role, jd, cv_text, language=None, focus=None):  # type: ignore[no-untyped-def]
     source = cv_text or _cv_to_text(profile)
+    # The chosen industry focus decides which of the person's real experience is
+    # foregrounded, so the same history can yield a "CV for Marketing" and a "CV for
+    # Sales" that read very differently — the client's core promise.
+    focus_line = (
+        f"\nINDUSTRY FOCUS: {focus}. Lead with the experience, wording and keywords that a "
+        f"{focus} hiring manager looks for; keep everything truthful and invent nothing."
+        if focus else ""
+    )
     try:
         res = await _chat_json(
             "You are a senior FAANG recruiter. Rewrite the CV for the target role using the X-Y-Z "
@@ -824,7 +844,8 @@ async def _real_super_cv(profile, target_role, jd, cv_text, language=None):  # t
             "bullets. Write the ENTIRE CV in ONE language only (the requested language); never mix "
             "languages. Return JSON {cvText: plain-text string, atsScore: integer 0-100, gaps: array "
             "of missing-keyword strings}.",
-            f"TARGET ROLE: {target_role}\nJOB DESCRIPTION: {jd or '(none provided)'}\n\nCV SOURCE:\n{source[:7000]}",
+            f"TARGET ROLE: {target_role}{focus_line}\nJOB DESCRIPTION: {jd or '(none provided)'}"
+            f"\n\nCV SOURCE:\n{source[:7000]}",
             task="super_cv",
             language=language,
         )

@@ -282,6 +282,10 @@ class JobDescriptionInput(BaseModel):
 class CoverLetterInput(BaseModel):
     jobDescription: str
     tone: Literal["professional", "warm", "direct"] = "professional"
+    # The letter must accompany the CV VERSION the person chose, so it carries the same
+    # focus/angle rather than being written against the master profile alone.
+    focus: CvFocus | None = None
+    focusOther: str | None = None
     language: str | None = None
 
 
@@ -289,10 +293,22 @@ class CoverLetterOut(BaseModel):
     text: str
 
 
+# The industry "focus" a CV can be built for. The client asks the user to choose the
+# angle (commercial, marketing, consulting, engineering…) so they can keep one CV per
+# target profile. Free text is still allowed via `focusOther`.
+CvFocus = Literal[
+    "commercial", "marketing", "product", "consulting", "engineering",
+    "operations", "finance", "customer_success", "data", "hr", "general",
+]
+
+
 class SuperCvInput(BaseModel):
     targetRole: str
+    jobUrl: str | None = None  # paste the offer's link; the server fetches the posting
     jobDescription: str | None = None
     cvText: str | None = None  # paste an alternative CV; else use the system profile
+    focus: CvFocus | None = None  # industry angle to build the CV around
+    focusOther: str | None = None  # free-text focus when the presets don't fit
     language: str | None = None
 
 

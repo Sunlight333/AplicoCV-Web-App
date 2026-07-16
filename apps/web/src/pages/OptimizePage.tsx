@@ -46,11 +46,20 @@ const SAL: Record<Locale, SalaryCopy> = {
   },
 }
 
+// The industry angles a CV can be built around, mirroring CvFocus on the API. The
+// client's examples were commercial / marketing / consulting / engineering.
+const FOCUS_OPTIONS = [
+  { id: 'commercial' }, { id: 'marketing' }, { id: 'product' }, { id: 'consulting' },
+  { id: 'engineering' }, { id: 'operations' }, { id: 'finance' },
+  { id: 'customer_success' }, { id: 'data' }, { id: 'hr' },
+] as const
+
 interface OptCopy {
   title: string; subtitle: string; viewDocs: string
   superTitle: string; superDesc: string
   whichCv: string; useSaved: string; useSavedSub: string; pasteOther: string; pasteOtherSub: string; pasteLabel: string
   targetRole: string; targetRolePh: string; jd: string; jdPh: string; warning: string; generate: string
+  jobUrl: string; jobUrlPh: string; focus: string; focusNames: Record<string, string>
   resultTitle: string; missing: string; copy: string; downloadPdf: string
   superToast: string; genError: string; copied: string
   letterTitle: string; letterDesc: string; company: string; companyPh: string; role: string; rolePh: string
@@ -63,6 +72,9 @@ const COPY: Record<Locale, OptCopy> = {
     superTitle: 'Optimized CV (ATS)', superDesc: 'A senior recruiter rewrites your experience with the X-Y-Z formula, with gap analysis and ATS optimization.',
     whichCv: 'Which CV?', useSaved: 'Use my saved profile', useSavedSub: 'Your profile from “Profile”', pasteOther: 'Paste another CV', pasteOtherSub: 'For this application only', pasteLabel: 'Paste CV text',
     targetRole: 'Target role *', targetRolePh: 'e.g. Senior Frontend Engineer', jd: 'Job description (optional, recommended)', jdPh: 'Paste the posting’s requirements and responsibilities…',
+    jobUrl: 'Job link (optional)', jobUrlPh: 'Paste the offer’s URL — we read the posting for you',
+    focus: 'Build this CV for…',
+    focusNames: { commercial: 'Commercial', marketing: 'Marketing', product: 'Product', consulting: 'Consulting', engineering: 'Engineering', operations: 'Operations', finance: 'Finance', customer_success: 'Customer Success', data: 'Data', hr: 'People / HR' },
     warning: '⚠️ The AI uses only the facts in your CV — it will not invent roles or companies.', generate: 'Generate optimized CV',
     resultTitle: 'Your optimized CV', missing: 'Missing keywords:', copy: 'Copy', downloadPdf: 'Download PDF',
     superToast: 'Optimized CV generated 🎉', genError: 'Could not generate', copied: 'Copied to clipboard',
@@ -75,6 +87,9 @@ const COPY: Record<Locale, OptCopy> = {
     superTitle: 'CV optimizado (ATS)', superDesc: 'Un reclutador senior reescribe tu experiencia con la fórmula X-Y-Z, con análisis de brechas y optimización ATS.',
     whichCv: '¿Qué CV?', useSaved: 'Usar mi perfil guardado', useSavedSub: 'Tu perfil de “Perfil”', pasteOther: 'Pegar otro CV', pasteOtherSub: 'Solo para esta postulación', pasteLabel: 'Pega el texto del CV',
     targetRole: 'Puesto objetivo *', targetRolePh: 'ej. Ingeniero Frontend Senior', jd: 'Descripción del empleo (opcional, recomendado)', jdPh: 'Pega los requisitos y responsabilidades de la oferta…',
+    jobUrl: 'Enlace de la oferta (opcional)', jobUrlPh: 'Pega el link de la oferta — leemos la publicación por ti',
+    focus: 'Arma este CV con enfoque en…',
+    focusNames: { commercial: 'Comercial', marketing: 'Marketing', product: 'Producto', consulting: 'Consultoría', engineering: 'Ingeniería', operations: 'Operaciones', finance: 'Finanzas', customer_success: 'Customer Success', data: 'Datos', hr: 'RR. HH.' },
     warning: '⚠️ La IA usa solo los hechos de tu CV — no inventará puestos ni empresas.', generate: 'Generar CV optimizado',
     resultTitle: 'Tu CV optimizado', missing: 'Palabras clave faltantes:', copy: 'Copiar', downloadPdf: 'Descargar PDF',
     superToast: 'CV optimizado generado 🎉', genError: 'No se pudo generar', copied: 'Copiado al portapapeles',
@@ -87,6 +102,9 @@ const COPY: Record<Locale, OptCopy> = {
     superTitle: 'Currículo otimizado (ATS)', superDesc: 'Um recrutador sênior reescreve sua experiência com a fórmula X-Y-Z, com análise de lacunas e otimização ATS.',
     whichCv: 'Qual currículo?', useSaved: 'Usar meu perfil salvo', useSavedSub: 'Seu perfil de “Perfil”', pasteOther: 'Colar outro currículo', pasteOtherSub: 'Apenas para esta candidatura', pasteLabel: 'Cole o texto do currículo',
     targetRole: 'Cargo desejado *', targetRolePh: 'ex. Engenheiro Frontend Sênior', jd: 'Descrição da vaga (opcional, recomendado)', jdPh: 'Cole os requisitos e responsabilidades da vaga…',
+    jobUrl: 'Link da vaga (opcional)', jobUrlPh: 'Cole o link da vaga — lemos o anúncio para você',
+    focus: 'Monte este currículo com foco em…',
+    focusNames: { commercial: 'Comercial', marketing: 'Marketing', product: 'Produto', consulting: 'Consultoria', engineering: 'Engenharia', operations: 'Operações', finance: 'Finanças', customer_success: 'Customer Success', data: 'Dados', hr: 'RH' },
     warning: '⚠️ A IA usa apenas os fatos do seu currículo — não vai inventar cargos ou empresas.', generate: 'Gerar currículo otimizado',
     resultTitle: 'Seu currículo otimizado', missing: 'Palavras-chave ausentes:', copy: 'Copiar', downloadPdf: 'Baixar PDF',
     superToast: 'Currículo otimizado gerado 🎉', genError: 'Não foi possível gerar', copied: 'Copiado para a área de transferência',
@@ -103,6 +121,8 @@ export default function OptimizePage() {
   const c = useCopy(COPY)
   const sc = useCopy(SAL)
   const [targetRole, setTargetRole] = useState('')
+  const [jobUrl, setJobUrl] = useState('')
+  const [focus, setFocus] = useState('')
   const [jobDescription, setJobDescription] = useState('')
   const [source, setSource] = useState<'system' | 'paste'>('system')
   const [cvText, setCvText] = useState('')
@@ -131,6 +151,8 @@ export default function OptimizePage() {
     mutationFn: () =>
       generateSuperCv({
         targetRole: targetRole.trim(),
+        jobUrl: jobUrl.trim() || undefined,
+        focus: focus || undefined,
         jobDescription: jobDescription.trim() || undefined,
         cvText: source === 'paste' ? cvText.trim() || undefined : undefined,
       }),
@@ -208,6 +230,34 @@ export default function OptimizePage() {
           )}
 
           <Input label={c.targetRole} placeholder={c.targetRolePh} value={targetRole} onChange={(e) => setTargetRole(e.target.value)} />
+
+          {/* Paste the offer's LINK: the server fetches the posting, so the user does
+              not have to copy the description by hand. */}
+          <Input label={c.jobUrl} placeholder={c.jobUrlPh} value={jobUrl} onChange={(e) => setJobUrl(e.target.value)} />
+
+          {/* Industry focus — one CV per target profile ("CV for Marketing", "CV for
+              Sales"…). Presets, because the client asked the user to CHOOSE the angle
+              rather than have to describe it. */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-navy-700">{c.focus}</label>
+            <div className="flex flex-wrap gap-2">
+              {FOCUS_OPTIONS.map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFocus(focus === f.id ? '' : f.id)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${
+                    focus === f.id
+                      ? 'bg-electric-500 text-white shadow-emboss'
+                      : 'bg-white text-navy-600 ring-1 ring-inset ring-navy-900/10 hover:bg-navy-50'
+                  }`}
+                >
+                  {c.focusNames[f.id] ?? f.id}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <TextArea label={c.jd} rows={5} placeholder={c.jdPh} value={jobDescription} onChange={(e) => setJobDescription(e.target.value)} />
 
           <div className="rounded-lg bg-amber-50 p-3 text-xs text-amber-700">{c.warning}</div>

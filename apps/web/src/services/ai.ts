@@ -19,10 +19,14 @@ export async function generateSuperCv(input: {
   targetRole: string
   jobDescription?: string
   cvText?: string
+  /** Paste the offer's link — the server fetches the posting itself. */
+  jobUrl?: string
+  /** Industry angle to build this CV version around (one CV per target profile). */
+  focus?: string
 }): Promise<SuperCvResult> {
   if (env.useMocks) {
     await delay(1200)
-    return { cvText: `# Optimized CV\n**${input.targetRole}**\n\n- Accomplished X, measured by Y, by doing Z.`, atsScore: 88, gaps: ['Kubernetes', 'Terraform'], documentId: 'mock' }
+    return { cvText: `Optimized CV\n${input.targetRole}\n\n- Accomplished X, measured by Y, by doing Z.`, atsScore: 88, gaps: ['Kubernetes', 'Terraform'], documentId: 'mock' }
   }
   return api.post<SuperCvResult>('/ai/super-cv', { ...input, language: currentLocale() })
 }

@@ -91,8 +91,9 @@ async def generate_cover_letter(
 ) -> CoverLetterOut:
     await _charge(db, user.id, "cover_letter")
     profile = await _profile_data(db, user.id)
+    focus = (body.focusOther or "").strip() or (body.focus if body.focus != "general" else None)
     text = await llm_service.generate_cover_letter(
-        body.jobDescription, profile, body.tone, body.language
+        body.jobDescription, profile, body.tone, body.language, focus
     )
     db.add(CoverLetter(user_id=user.id, tone=body.tone, text=text))
     await db.commit()
@@ -107,15 +108,26 @@ async def super_cv(
 ) -> SuperCvOut:
     await _charge(db, user.id, "super_cv")
     profile = await _profile_data(db, user.id)
+    # Paste the offer's LINK and we fetch the posting ourselves — the client's flow is
+    # "the user pastes the link of an offer and the system builds the CV for it".
+    # A pasted description still wins if both are given.
+    jd = await job_fetch_service.job_text_or_fallback(body.jobUrl, body.jobDescription)
+    focus = (body.focusOther or "").strip() or (body.focus if body.focus != "general" else None)
     result = await llm_service.super_cv(
-        profile, body.targetRole, body.jobDescription, body.cvText, body.language
+        profile, body.targetRole, jd or None, body.cvText, body.language, focus
     )
+    # Label the saved version by its focus so the library reads as one CV per target
+    # profile ("CV for Marketing", "CV for Sales"…), which is what it is for.
+    label = f"{body.targetRole} · {focus}" if focus else body.targetRole
     doc = Document(
         user_id=user.id,
-        filename=f"Optimized CV — {body.targetRole}",
+        filename=f"Optimized CV — {label}",
         path="",
         kind="optimized_cv",
-        parsed={"text": result["cvText"], "ats": result["atsScore"], "role": body.targetRole},
+        parsed={
+            "text": result["cvText"], "ats": result["atsScore"],
+            "role": body.targetRole, "focus": focus, "jobUrl": body.jobUrl,
+        },
     )
     db.add(doc)
     await db.commit()
