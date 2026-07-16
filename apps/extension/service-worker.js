@@ -82,6 +82,38 @@ async function getPortalConfigs() {
   }
 }
 
+/**
+ * Persist one answered application question so future forms fill it instantly and for
+ * free. This is what makes the extension "improve over time from the cases where it
+ * previously failed": until now the FAQ store was only ever written by hand on the FAQ
+ * page, and answers produced on real forms were discarded.
+ *
+ * Fire-and-forget and deliberately quiet: remembering must never break a fill. It
+ * de-duplicates against the existing store (the API has no upsert), so re-answering the
+ * same question updates it instead of piling up near-identical rows.
+ */
+async function rememberAnswer(question, answer) {
+  const q = String(question || '').trim()
+  const a = String(answer || '').trim()
+  if (!q || !a || q.length > 300) return
+  try {
+    const existing = await apiFetch('/faq')
+    const norm = (s) => String(s || '').toLowerCase().trim()
+    const hit = (Array.isArray(existing) ? existing : []).find((f) => norm(f.question) === norm(q))
+    if (hit) {
+      if (norm(hit.answer) === norm(a)) return // already stored, nothing to do
+      await apiFetch(`/faq/${encodeURIComponent(hit.id)}`, {
+        method: 'PUT',
+        body: JSON.stringify({ question: q, answer: a }),
+      })
+      return
+    }
+    await apiFetch('/faq', { method: 'POST', body: JSON.stringify({ question: q, answer: a }) })
+  } catch {
+    /* never let a failed save interrupt the autofill */
+  }
+}
+
 async function getPortalConfig(url) {
   const portal = detectPortal(url)
   if (!portal) return null
@@ -172,6 +204,11 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
               }),
             })
             sendResponse({ answer: res.answer })
+            // Remember it, so the next form with this question is filled instantly and
+            // for free from the FAQ store. Without this the extension never learned:
+            // the store was only ever populated by hand on the FAQ page, so the same
+            // question cost an AI round-trip on every single application forever.
+            if (res.answer && msg.fieldLabel) rememberAnswer(msg.fieldLabel, res.answer)
           } catch (err) {
             sendResponse({ error: String(err) })
           }
@@ -202,6 +239,13 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
           } catch {
             sendResponse({ faq: [] })
           }
+          break
+        }
+        case 'REMEMBER_ANSWER': {
+          // The user edited/confirmed an answer on a real form — keep it so the next
+          // application with the same question fills straight from the FAQ store.
+          rememberAnswer(msg.question, msg.answer)
+          sendResponse({ ok: true })
           break
         }
         case 'GET_CREDITS': {

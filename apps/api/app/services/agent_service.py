@@ -80,6 +80,40 @@ def _portal_catalog(q: str, loc: str) -> list[dict]:
          "modes": {"remote", "onsite"}, "buckets": {"usa", "global"}},
         {"portal": "Computrabajo", "url": f"https://www.computrabajo.com/empleos-de-{q}",
          "modes": {"onsite"}, "buckets": {"latam"}},
+        # --- The rest of the portals the client asked us to cover -------------
+        # USA / global
+        {"portal": "Google Jobs", "url": f"https://www.google.com/search?q={q}+jobs&ibp=htl;jobs",
+         "modes": {"remote", "onsite"}, "buckets": {"latam", "usa", "global"}},
+        {"portal": "ZipRecruiter", "url": f"https://www.ziprecruiter.com/jobs-search?search={q}{locq_l}",
+         "modes": {"remote", "onsite"}, "buckets": {"usa", "global"}},
+        {"portal": "USAJobs", "url": f"https://www.usajobs.gov/Search/Results?k={q}",
+         "modes": {"onsite"}, "buckets": {"usa"}},
+        {"portal": "FlexJobs", "url": f"https://www.flexjobs.com/search?search={q}",
+         "modes": {"remote"}, "buckets": {"usa", "global"}},
+        {"portal": "Remote.co", "url": f"https://remote.co/remote-jobs/search/?search_keywords={q}",
+         "modes": {"remote"}, "buckets": {"usa", "global"}},
+        {"portal": "RemoteOK", "url": f"https://remoteok.com/remote-{q}-jobs",
+         "modes": {"remote"}, "buckets": {"latam", "usa", "global"}},
+        # Freelance marketplaces
+        {"portal": "Upwork", "url": f"https://www.upwork.com/nx/search/jobs/?q={q}",
+         "modes": {"remote"}, "buckets": {"latam", "usa", "global"}},
+        {"portal": "Fiverr", "url": f"https://www.fiverr.com/search/gigs?query={q}",
+         "modes": {"remote"}, "buckets": {"latam", "usa", "global"}},
+        # LATAM
+        {"portal": "WeRemoto", "url": f"https://weremoto.com/trabajos?search={q}",
+         "modes": {"remote"}, "buckets": {"latam"}},
+        {"portal": "Laborum", "url": f"https://www.laborum.cl/empleos-busqueda-{q}.html",
+         "modes": {"remote", "onsite"}, "buckets": {"latam"}},
+        {"portal": "ZonaJobs", "url": f"https://www.zonajobs.com.ar/empleos-busqueda-{q}.html",
+         "modes": {"remote", "onsite"}, "buckets": {"latam"}},
+        {"portal": "Bumeran", "url": f"https://www.bumeran.com.mx/empleos-busqueda-{q}.html",
+         "modes": {"remote", "onsite"}, "buckets": {"latam"}},
+        {"portal": "Chiletrabajos", "url": f"https://www.chiletrabajos.cl/trabajos?q={q}",
+         "modes": {"onsite"}, "buckets": {"latam"}},
+        {"portal": "InfoJobs Brasil", "url": f"https://www.infojobs.com.br/empregos.aspx?palabra={q}",
+         "modes": {"remote", "onsite"}, "buckets": {"latam"}},
+        {"portal": "Konzerta", "url": f"https://www.konzerta.com/empleos-busqueda-{q}.html",
+         "modes": {"remote", "onsite"}, "buckets": {"latam"}},
     ]
 
 
