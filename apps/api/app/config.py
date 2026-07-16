@@ -129,8 +129,12 @@ class Settings(BaseSettings):
     alpha_apply_threshold: int = 85  # min match score to auto-queue
 
     # ---- Free trial -------------------------------------------------------
-    # Every new account gets full Premium access for this many days from signup.
-    trial_days: int = 7
+    # Enfoque 2.0 is subscription-only ("pago desde el inicio, sin funciones
+    # gratuitas") — so there is NO trial by default: 0 days. This used to be 7, and
+    # premium_active() honours the trial, so every new account silently received a
+    # week of full premium through the API and the extension.
+    # Set TRIAL_DAYS to a positive number to re-enable a trial for a campaign.
+    trial_days: int = 0
 
     # ---- Error monitoring (Sentry) ----------------------------------------
     sentry_dsn: str = ""

@@ -123,9 +123,11 @@ async function runAutofill() {
         jobDescription: state.jd || undefined,
       },
     })
-    // Surface the free-plan monthly cap instead of silently not tracking it.
+    // Say why tracking didn't happen rather than failing silently. There is no free
+    // monthly cap any more (subscription-only), so a 402 here means the subscription
+    // is not active.
     if (track?.error && /402/.test(String(track.error))) {
-      $('status').textContent = `Filled ${n} field${n === 1 ? '' : 's'} ✓ — free monthly limit reached; upgrade to keep tracking.`
+      $('status').textContent = `Filled ${n} field${n === 1 ? '' : 's'} ✓ — subscribe to track your applications.`
     }
   }
 }

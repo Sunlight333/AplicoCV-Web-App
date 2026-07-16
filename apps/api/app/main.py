@@ -17,7 +17,6 @@ from app.routers import (
     auth,
     billing,
     credentials,
-    credits,
     documents,
     faq,
     insights,
@@ -27,7 +26,6 @@ from app.routers import (
     profiles,
     public,
     recommendations,
-    referrals,
     users,
 )
 from app.seed import seed
@@ -124,9 +122,13 @@ for r in (
     operations.router,
     public.router,
     agent.router,
-    credits.router,
+    # credits.router and referrals.router are intentionally NOT mounted: Enfoque 2.0 is
+    # subscription-only, "sin funciones gratuitas ni compra por consumo" and without the
+    # rewards mechanics. The token UI was retired earlier, but these endpoints stayed
+    # live — daily check-in streaks, claimable tasks and referral credits are exactly
+    # the mechanics the client excluded. The modules remain in the tree so the history
+    # (and CreditAccount, which still backs webhook idempotency) is intact.
     faq.router,
-    referrals.router,
     insights.router,
     apply.router,
     monitoring.router,

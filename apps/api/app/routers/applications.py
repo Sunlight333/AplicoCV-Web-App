@@ -12,9 +12,6 @@ from app.db import get_db
 from app.deps import get_current_user, premium_active
 from app.models import Application, AutofillEvent, User
 
-# Free plan: a fixed number of automatic applications per calendar month
-# (non-accumulable). Premium/trial users are unlimited. (Client feedback Phase 5.2.)
-FREE_MONTHLY_APPLICATIONS = 15
 from app.schemas import (
     ApplicationCreate,
     ApplicationOut,
@@ -102,7 +99,8 @@ async def stats(
         interviews=interviews,
         minutesSaved=minutes_saved,
         applicationsThisMonth=this_month,
-        monthlyLimit=None if premium_active(user) else FREE_MONTHLY_APPLICATIONS,
+        # Subscription-only: no metered allowance, so no limit to report.
+        monthlyLimit=None,
     )
 
 
@@ -131,37 +129,20 @@ async def record_autofill_event(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-async def _monthly_application_count(db: AsyncSession, user_id: str) -> int:
-    """How many applications the user has recorded in the current calendar month."""
-    rows = (
-        await db.execute(select(Application).where(Application.user_id == user_id))
-    ).scalars().all()
-    now = datetime.now(timezone.utc)
-    count = 0
-    for r in rows:
-        at = r.applied_at if r.applied_at.tzinfo else r.applied_at.replace(tzinfo=timezone.utc)
-        if at.year == now.year and at.month == now.month:
-            count += 1
-    return count
-
-
 @router.post("", response_model=ApplicationOut, status_code=status.HTTP_201_CREATED)
 async def create_application(
     body: ApplicationCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ApplicationOut:
-    # Enforce the free monthly application limit (premium/trial users are unlimited).
+    # Subscription-only: there is no free allowance to meter. This used to let any
+    # account log 15 applications a month and then say "upgrade to Pro" — a free tier
+    # by another name. An active subscription is now simply required.
     if not premium_active(user):
-        used = await _monthly_application_count(db, user.id)
-        if used >= FREE_MONTHLY_APPLICATIONS:
-            raise HTTPException(
-                status.HTTP_402_PAYMENT_REQUIRED,
-                detail=(
-                    f"Free plan limit reached: {FREE_MONTHLY_APPLICATIONS} automatic "
-                    "applications per month. Upgrade to Pro for unlimited applications."
-                ),
-            )
+        raise HTTPException(
+            status.HTTP_402_PAYMENT_REQUIRED,
+            detail="An active subscription is required.",
+        )
     app = Application(
         user_id=user.id,
         job_url=body.jobUrl,
