@@ -480,14 +480,22 @@ class GhostRecruiterOut(BaseModel):
 
 
 class SalaryInput(BaseModel):
-    role: str
+    role: str = ""
     region: str | None = None
+    # Paste the offer's link (or its text) and the role/region are read from the
+    # posting itself — the client's flow is "paste the link and see the reference
+    # salary for that kind of role".
+    jobUrl: str | None = None
+    jobDescription: str | None = None
     language: str | None = None
 
 
 class SalaryInsightsOut(BaseModel):
     role: str
     estimatedRange: str
+    # A concrete number to ask for — the client asked for "a suggestion of what number
+    # to apply with", not just a band.
+    suggestedAsk: str = ""
     currency: str = "USD"
     negotiationPoints: list[str]
     marketNote: str

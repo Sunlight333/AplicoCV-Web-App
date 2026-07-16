@@ -1352,9 +1352,13 @@ async def _real_salary(
     try:
         res = await _chat_json(
             f"You advise on compensation for a {role} role{(' in ' + region) if region else ''}. "
-            "Return JSON {role:string, estimatedRange:string, currency:string, "
+            "Return JSON {role:string, estimatedRange:string, suggestedAsk:string, currency:string, "
             "negotiationPoints:[3 strings], marketNote:string}. Base the range on the candidate's "
-            "seniority and the role/region.",
+            "seniority and the role/region. `suggestedAsk` is the single concrete figure you would "
+            "actually ask for, inside the range, given this candidate's seniority. Quote amounts in "
+            "the local currency of the region when one is given, otherwise USD, and set `currency` "
+            "to that ISO code. Always frame the range as an orientative reference, never a promise "
+            "— every company sets its own budget.",
             _cv_to_text(profile)[:3500],
             task="salary_insights",
             language=language,
@@ -1362,6 +1366,7 @@ async def _real_salary(
         return {
             "role": _s(res.get("role")) or role,
             "estimatedRange": _s(res.get("estimatedRange")),
+            "suggestedAsk": _s(res.get("suggestedAsk")),
             "currency": _s(res.get("currency")) or "USD",
             "negotiationPoints": _as_list(res.get("negotiationPoints")),
             "marketNote": _s(res.get("marketNote")),

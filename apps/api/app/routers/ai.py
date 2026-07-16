@@ -305,10 +305,35 @@ async def salary_insights(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> SalaryInsightsOut:
-    """Phase 3.3 — Job Copilot: salary range + negotiation guidance."""
+    """Job Copilot: reference salary range + a suggested ask + negotiation guidance.
+
+    Accepts the offer's LINK: the posting is fetched and used as the role context, so
+    pasting only a URL no longer prices the literal string the caller happened to send.
+    """
     await _charge(db, user.id, "salary_insights")
     profile = await _profile_data(db, user.id)
-    result = await llm_service.salary_insights(profile, body.role, body.region, body.language)
+    role = (body.role or "").strip()
+    region = (body.region or "").strip()
+    if body.jobUrl or body.jobDescription:
+        posting = await job_fetch_service.job_text_or_fallback(body.jobUrl, body.jobDescription)
+        if posting:
+            # The posting's first meaningful line is its title; fall back to the role
+            # the caller sent if the fetch came back empty. The rest of the posting is
+            # passed as region context so the model can price it locally.
+            first = next((ln.strip() for ln in posting.splitlines() if ln.strip()), "")
+            role = (first[:120] or role)
+            if not region:
+                region = posting[:400]
+    if not region:
+        # No region given and nothing in the posting: fall back to where the candidate
+        # is, so the range lands in their local market rather than defaulting to USD.
+        region = ((profile.get("personal") or {}).get("location") or "").strip()
+    if not role:
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="Provide a role, a job description, or the offer's link.",
+        )
+    result = await llm_service.salary_insights(profile, role, region or None, body.language)
     return SalaryInsightsOut(**result)
 
 

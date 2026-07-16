@@ -369,6 +369,8 @@ export async function getGhostRecruiter(input: {
 export interface SalaryInsights {
   role: string
   estimatedRange: string
+  /** A concrete figure to ask for, inside the range. */
+  suggestedAsk: string
   currency: string
   negotiationPoints: string[]
   marketNote: string
@@ -376,14 +378,18 @@ export interface SalaryInsights {
 
 /** Phase 3.3 — Job Copilot: salary + negotiation guidance (15 credits). */
 export async function getSalaryInsights(input: {
-  role: string
+  role?: string
   region?: string
+  /** Paste the offer's link — the server reads the posting to price the right role. */
+  jobUrl?: string
+  jobDescription?: string
 }): Promise<SalaryInsights> {
   if (env.useMocks) {
     await delay(800)
     return {
-      role: input.role,
+      role: input.role ?? 'this role',
       estimatedRange: '$110k–$150k',
+      suggestedAsk: '$135k',
       currency: 'USD',
       negotiationPoints: ['Anchor to the top of the range with measurable wins.', 'Negotiate total comp, not just base.'],
       marketNote: 'Estimate from seniority and role; verify against a live benchmark.',

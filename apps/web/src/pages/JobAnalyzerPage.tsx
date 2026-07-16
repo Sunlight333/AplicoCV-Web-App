@@ -26,7 +26,7 @@ interface AnalyzerCopy {
   missing: string; overqualified: string; atsPass: string; atsFail: string
   ghost: string; verdictApply: string; verdictCaution: string; verdictSkip: string; betterFit: string
   scam: string; riskLow: string; riskMed: string; riskHigh: string
-  salaryTitle: string; salaryHint: string; negotiation: string
+  salaryTitle: string; salaryHint: string; negotiation: string; suggestedAsk: string
 }
 
 const COPY: Record<Locale, AnalyzerCopy> = {
@@ -37,7 +37,7 @@ const COPY: Record<Locale, AnalyzerCopy> = {
     missing: 'Add these keywords', overqualified: 'You may be overqualified', atsPass: 'Likely passes ATS', atsFail: 'May not pass ATS',
     ghost: 'Ghost recruiter', verdictApply: 'Apply', verdictCaution: 'Apply with caution', verdictSkip: 'Skip this one', betterFit: 'Better fit',
     scam: 'Scam check', riskLow: 'Low risk', riskMed: 'Medium risk', riskHigh: 'High risk',
-    salaryTitle: 'Expected salary', salaryHint: 'Reference range for this role — a guide for your ask, not a guarantee.', negotiation: 'Negotiation points',
+    salaryTitle: 'Expected salary', salaryHint: 'Reference range for this role — a guide for your ask, not a guarantee.', negotiation: 'Negotiation points', suggestedAsk: 'Suggested ask:',
   },
   es: {
     title: 'Analizador de empleo', subtitle: 'Pega una oferta (o su enlace) para ver tus probabilidades reales, si vale la pena postular y si parece una estafa.',
@@ -46,7 +46,7 @@ const COPY: Record<Locale, AnalyzerCopy> = {
     missing: 'Agrega estas palabras clave', overqualified: 'Podrías estar sobrecalificado', atsPass: 'Probablemente pasa el ATS', atsFail: 'Puede no pasar el ATS',
     ghost: 'Reclutador fantasma', verdictApply: 'Postular', verdictCaution: 'Postular con cautela', verdictSkip: 'Mejor omitir', betterFit: 'Mejor opción',
     scam: 'Verificación de estafa', riskLow: 'Riesgo bajo', riskMed: 'Riesgo medio', riskHigh: 'Riesgo alto',
-    salaryTitle: 'Salario esperado', salaryHint: 'Rango de referencia para este puesto — una guía para tu pretensión, no una garantía.', negotiation: 'Puntos de negociación',
+    salaryTitle: 'Salario esperado', salaryHint: 'Rango de referencia para este puesto — una guía para tu pretensión, no una garantía.', negotiation: 'Puntos de negociación', suggestedAsk: 'Pretensión sugerida:',
   },
   'pt-BR': {
     title: 'Analisador de vagas', subtitle: 'Cole uma vaga (ou o link) para ver suas chances reais, se vale a pena se candidatar e se parece golpe.',
@@ -55,7 +55,7 @@ const COPY: Record<Locale, AnalyzerCopy> = {
     missing: 'Adicione estas palavras-chave', overqualified: 'Você pode estar superqualificado', atsPass: 'Provavelmente passa no ATS', atsFail: 'Pode não passar no ATS',
     ghost: 'Recrutador fantasma', verdictApply: 'Candidatar-se', verdictCaution: 'Candidatar-se com cautela', verdictSkip: 'Melhor pular', betterFit: 'Melhor opção',
     scam: 'Verificação de golpe', riskLow: 'Risco baixo', riskMed: 'Risco médio', riskHigh: 'Risco alto',
-    salaryTitle: 'Salário esperado', salaryHint: 'Faixa de referência para esta vaga — um guia para sua pretensão, não uma garantia.', negotiation: 'Pontos de negociação',
+    salaryTitle: 'Salário esperado', salaryHint: 'Faixa de referência para esta vaga — um guia para sua pretensão, não uma garantia.', negotiation: 'Pontos de negociação', suggestedAsk: 'Pretensão sugerida:',
   },
 }
 
@@ -86,14 +86,14 @@ export default function JobAnalyzerPage() {
   const analyze = useMutation({
     mutationFn: async () => {
       const ref = { jobDescription: jd.trim() || undefined, jobUrl: url.trim() || undefined }
-      // Derive a role for the salary reference from the posting's first line (the
-      // backend blends it with the user's profile).
-      const role = jd.trim().split('\n')[0]?.slice(0, 80) || 'this role'
+      // Salary gets the same reference as its siblings — the LINK included. It used to
+      // receive only the pasted text's first line, so pasting just a URL priced the
+      // literal string "this role".
       const [p, g, s, sal] = await Promise.all([
         getPredictiveScore(ref),
         getGhostRecruiter(ref),
         checkScam({ jobDescription: ref.jobDescription, jobUrl: ref.jobUrl }),
-        getSalaryInsights({ role }).catch(() => null),
+        getSalaryInsights(ref).catch(() => null),
       ])
       return { p, g, s, sal }
     },
@@ -165,11 +165,25 @@ export default function JobAnalyzerPage() {
 
           {salary && (
             <Card className="p-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-3">
                 <h2 className="font-semibold text-navy-900">{c.salaryTitle}</h2>
-                <Badge tone="success">{salary.estimatedRange}</Badge>
+                {/* The currency was returned by the API but never shown, so a range in
+                    CLP looked like USD. Show it next to the range. */}
+                <Badge tone="success">
+                  {salary.estimatedRange}{salary.currency ? ` ${salary.currency}` : ''}
+                </Badge>
               </div>
-              <p className="mt-1 text-xs text-navy-400">{c.salaryHint}</p>
+              {/* The concrete number to ask for — the client asked for a suggestion,
+                  not just a band. Still framed as orientative by the hint below. */}
+              {salary.suggestedAsk && (
+                <p className="mt-3 rounded-lg bg-electric-50 px-3 py-2 text-sm text-navy-700">
+                  {c.suggestedAsk}{' '}
+                  <span className="font-semibold text-navy-900">
+                    {salary.suggestedAsk}{salary.currency ? ` ${salary.currency}` : ''}
+                  </span>
+                </p>
+              )}
+              <p className="mt-2 text-xs text-navy-400">{c.salaryHint}</p>
               {salary.negotiationPoints.length > 0 && (
                 <div className="mt-4">
                   <p className="text-sm font-semibold text-navy-700">{c.negotiation}</p>
