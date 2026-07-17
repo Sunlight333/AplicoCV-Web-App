@@ -6,7 +6,6 @@ import { getPublicPricing } from '@/services/billing'
 import { formatMoney } from '@/lib/money'
 import { currentLocale } from '@/lib/locale'
 import { Logo } from '@/components/Logo'
-import { IntakeWidget } from '@/components/IntakeWidget'
 import { Button } from '@/components/ui/Button'
 import { IconTile } from '@/components/ui/IconTile'
 import { type IconName } from '@/components/ui/Icon'
@@ -252,7 +251,7 @@ function Nav() {
             <Button variant="ghost">{t.nav.signIn}</Button>
           </Link>
           <MagneticButton>
-            <Link to="/register">
+            <Link to="/comenzar">
               <Button className="rounded-full">{t.nav.getStarted}</Button>
             </Link>
           </MagneticButton>
@@ -328,7 +327,7 @@ function Hero() {
             className="mt-9 flex flex-col items-center gap-3 sm:flex-row lg:justify-start"
           >
             <MagneticButton strength={0.4}>
-              <Link to="/register">
+              <Link to="/comenzar">
                 <Button size="lg" className="rounded-full">{t.hero.ctaPrimary}</Button>
               </Link>
             </MagneticButton>
@@ -418,16 +417,33 @@ function LogoStrip() {
 }
 
 /**
- * "Try it free" — the interactive intake (paste CV → instant ATS score + matching
- * roles). It was the hero in Enfoque 2.0; now the product video leads and this sits
- * right below the fold, so visitors can still act on the first screen without the
- * form competing with the video for attention. The widget carries its own copy.
+ * "Start the conversation" — the entry point to the conversational funnel. The old
+ * paste-CV widget (score → account → pay) was replaced per the client's Enfoque 2.0
+ * direction: the visitor should interact first — answer a few questions, feel
+ * understood, see real matches — and only then create an account and subscribe. So
+ * this section now invites them into that flow instead of front-loading a form.
  */
-function TryItFree() {
+function StartFunnel() {
+  const t = useT()
   return (
     <section className="relative mx-auto max-w-6xl px-6 py-24">
-      <Reveal className="mx-auto max-w-xl">
-        <IntakeWidget />
+      <Reveal className="mx-auto max-w-2xl">
+        <div className="relative overflow-hidden rounded-[2rem] bg-white/90 p-10 text-center shadow-emboss-card ring-1 ring-navy-900/[0.05] backdrop-blur sm:p-14">
+          <span className="inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/70 px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-steel-600 shadow-emboss-card">
+            <span className="h-1.5 w-1.5 rounded-full bg-electric-500" />
+            {t.hero.badge}
+          </span>
+          <h2 className="mt-6 font-display text-3xl font-medium tracking-tight text-navy-900 sm:text-[2.6rem]">
+            {t.tryIt.title}
+          </h2>
+          <p className="mx-auto mt-4 max-w-md text-navy-500">{t.tryIt.subtitle}</p>
+          <MagneticButton className="mt-8 inline-block" strength={0.4}>
+            <Link to="/comenzar">
+              <Button size="lg" className="rounded-full">{t.tryIt.cta}</Button>
+            </Link>
+          </MagneticButton>
+          <p className="mt-4 text-xs text-navy-400">{t.tryIt.note}</p>
+        </div>
       </Reveal>
     </section>
   )
@@ -583,7 +599,7 @@ function Showcase() {
               ))}
             </ul>
             <MagneticButton className="mt-8 inline-block" strength={0.35}>
-              <Link to="/register">
+              <Link to="/comenzar">
                 <Button className="rounded-full">{t.showcase.cta}</Button>
               </Link>
             </MagneticButton>
@@ -713,7 +729,7 @@ function Pricing() {
                 <li key={f} className="flex gap-2"><Check /> {f}</li>
               ))}
             </ul>
-            <Link to="/register" className="mt-8 block">
+            <Link to="/comenzar" className="mt-8 block">
               <Button variant="secondary" className="w-full rounded-full">{t.pricing.premium.cta}</Button>
             </Link>
           </div>
@@ -736,7 +752,7 @@ function Pricing() {
               ))}
             </ul>
             <MagneticButton className="mt-8 w-full">
-              <Link to="/register" className="block">
+              <Link to="/comenzar" className="block">
                 <Button className="w-full rounded-full">{t.pricing.premium.cta}</Button>
               </Link>
             </MagneticButton>
@@ -772,7 +788,7 @@ function FinalCta() {
             </h2>
             <p className="mx-auto mt-5 max-w-xl leading-relaxed text-navy-200">{t.finalCta.subtitle}</p>
             <MagneticButton className="mt-10" strength={0.45}>
-              <Link to="/register">
+              <Link to="/comenzar">
                 <Button size="lg" className="rounded-full">{t.finalCta.cta}</Button>
               </Link>
             </MagneticButton>
@@ -795,7 +811,7 @@ export default function LandingPage() {
       <Nav />
       <main>
         <Hero />
-        <TryItFree />
+        <StartFunnel />
         <LogoStrip />
         <HowItWorks />
         <Features />

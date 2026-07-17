@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout'
 import { FullPageLoader } from '@/components/FullPageLoader'
 
 const LandingPage = lazy(() => import('@/pages/LandingPage'))
+const FunnelPage = lazy(() => import('@/pages/funnel/FunnelPage'))
 const LoginPage = lazy(() => import('@/pages/auth/LoginPage'))
 const RegisterPage = lazy(() => import('@/pages/auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/ForgotPasswordPage'))
@@ -55,6 +56,10 @@ export function App() {
       <Routes>
           {/* Public */}
           <Route path="/" element={<LandingPage />} />
+          {/* Conversational onboarding funnel — the new entry experience (Enfoque 2.0).
+              Interact first, create the account and pay at the end. */}
+          <Route path="/comenzar" element={<FunnelPage />} />
+          <Route path="/start" element={<FunnelPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />

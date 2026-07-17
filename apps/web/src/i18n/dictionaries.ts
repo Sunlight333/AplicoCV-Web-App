@@ -27,6 +27,12 @@ export const en = {
     ctaSecondary: 'See how it works',
     note: 'Free forever plan · No credit card required',
   },
+  tryIt: {
+    title: 'Let’s find your next job together',
+    subtitle: 'Answer a few quick questions and we’ll search live postings for you — see your real matches before you sign up.',
+    cta: 'Start now',
+    note: 'Takes about 2 minutes · No credit card to start',
+  },
   mockup: {
     title: 'Application form',
     subtitle: 'Senior Frontend Engineer · Acme Inc.',
@@ -560,6 +566,12 @@ export const es: Dictionary = {
     ctaSecondary: 'Ver cómo funciona',
     note: 'Plan gratis para siempre · Sin tarjeta de crédito',
   },
+  tryIt: {
+    title: 'Encontremos juntos tu próximo trabajo',
+    subtitle: 'Respondé unas preguntas rápidas y buscamos ofertas reales por vos — mirá tus coincidencias antes de registrarte.',
+    cta: 'Empezar ahora',
+    note: 'Toma unos 2 minutos · Sin tarjeta para empezar',
+  },
   mockup: {
     title: 'Formulario de postulación',
     subtitle: 'Ingeniero Frontend Senior · Acme Inc.',
@@ -1075,6 +1087,12 @@ export const ptBR: Dictionary = {
     ctaPrimary: 'Começar grátis',
     ctaSecondary: 'Veja como funciona',
     note: 'Plano grátis para sempre · Sem cartão de crédito',
+  },
+  tryIt: {
+    title: 'Vamos encontrar seu próximo emprego juntos',
+    subtitle: 'Responda algumas perguntas rápidas e buscamos vagas reais para você — veja suas combinações antes de se cadastrar.',
+    cta: 'Começar agora',
+    note: 'Leva cerca de 2 minutos · Sem cartão para começar',
   },
   mockup: {
     title: 'Formulário de candidatura',
