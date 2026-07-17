@@ -168,13 +168,16 @@ function StepView(props: ViewProps) {
 
 /** The copilot's avatar — the brand mark in a lit metal disc. Gives the funnel a
  *  consistent "someone is guiding me" presence the reference's cold cards lack. */
-function CopilotAvatar({ size = 36 }: { size?: number }) {
+function CopilotAvatar({ size = 40 }: { size?: number }) {
+  // The brand mark is a glossy blue/purple glyph on a light ground, so it reads
+  // cleanly on a white disc — NOT crammed small into a dark circle (which made it
+  // look broken). The logo fills most of the disc with a hair of padding.
   return (
     <span
-      className="flex flex-none items-center justify-center rounded-full bg-navy-900 shadow-emboss ring-1 ring-white/20"
+      className="flex flex-none items-center justify-center overflow-hidden rounded-full bg-white shadow-emboss-card ring-1 ring-navy-900/[0.08]"
       style={{ height: size, width: size }}
     >
-      <img src="/logo.png" alt="" className="h-1/2 w-1/2 object-contain" draggable={false} />
+      <img src="/logo.png" alt="AplicoCV" className="h-[82%] w-[82%] object-contain" draggable={false} />
     </span>
   )
 }
@@ -892,8 +895,11 @@ function Paywall({ locale, preview }: ViewProps) {
 /* --------------------------------------------------------------- shared bits --- */
 
 function ContinueBar({ disabled, onClick, locale }: { disabled?: boolean; onClick: () => void; locale: string }) {
+  // Inline (not a sticky painted band): a fixed #f2f2f0 fill never matched the
+  // textured paper and showed as a lighter rectangle. The button just follows the
+  // options with breathing room.
   return (
-    <div className="sticky bottom-0 mt-6 -mx-5 bg-gradient-to-t from-[#f2f2f0] via-[#f2f2f0]/95 to-transparent px-5 pb-5 pt-4">
+    <div className="mt-8">
       <Button size="lg" className="w-full rounded-full" disabled={disabled} onClick={onClick}>
         {tr(UI.continue, locale)}
       </Button>
