@@ -149,6 +149,8 @@ function StepView(props: ViewProps) {
       return <Interstitial {...props} step={step} />
     case 'testimonial':
       return <Testimonial {...props} step={step} />
+    case 'reflect':
+      return <Reflect {...props} step={step} />
     case 'upload':
       return <CvUpload {...props} />
     case 'matching':
@@ -164,15 +166,69 @@ function StepView(props: ViewProps) {
 
 /* --------------------------------------------------------------- questions --- */
 
-function Question({ title, sub }: { title: string; sub?: string }) {
+/** The copilot's avatar — the brand mark in a lit metal disc. Gives the funnel a
+ *  consistent "someone is guiding me" presence the reference's cold cards lack. */
+function CopilotAvatar({ size = 36 }: { size?: number }) {
+  return (
+    <span
+      className="flex flex-none items-center justify-center rounded-full bg-navy-900 shadow-emboss ring-1 ring-white/20"
+      style={{ height: size, width: size }}
+    >
+      <img src="/logo.png" alt="" className="h-1/2 w-1/2 object-contain" draggable={false} />
+    </span>
+  )
+}
+
+/** A line "spoken" by the copilot — a small chat bubble beside the avatar. */
+function CopilotSay({ text }: { text: string }) {
+  if (!text) return null
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="mb-4 flex items-start gap-2.5"
+    >
+      <CopilotAvatar />
+      <span className="mt-0.5 rounded-2xl rounded-tl-sm bg-white px-3.5 py-2 text-[13.5px] font-medium text-navy-700 shadow-emboss-card ring-1 ring-navy-900/[0.05]">
+        {text}
+      </span>
+    </motion.div>
+  )
+}
+
+function Question({ title, sub, say }: { title: string; sub?: string; say?: string }) {
   return (
     <div className="mb-6 mt-2">
+      {say && <CopilotSay text={say} />}
       <h1 className="font-display text-[1.7rem] font-medium leading-tight tracking-tight text-navy-900">
         {title}
       </h1>
       {sub && <p className="mt-2 text-[15px] text-steel-600">{sub}</p>}
     </div>
   )
+}
+
+/** The line the copilot says above a question: the step's own `copilot()` if set,
+ *  otherwise a warm, chapter-appropriate default so every question feels guided. */
+function DEFAULT_SAY(chapter: Step['chapter']): Localized {
+  switch (chapter) {
+    case 'current':
+      return L('Let’s start with where you are today.', 'Empecemos por dónde estás hoy.', 'Vamos começar por onde você está hoje.')
+    case 'seeking':
+      return L('Now, what are you aiming for?', 'Ahora, ¿a qué apuntás?', 'Agora, o que você busca?')
+    case 'experience':
+      return L('Tell me about your background.', 'Contame de tu experiencia.', 'Conte sobre sua experiência.')
+    case 'help':
+      return L('This helps me work smarter for you.', 'Esto me ayuda a trabajar mejor para vos.', 'Isto me ajuda a trabalhar melhor para você.')
+    case 'finish':
+      return L('Almost done — a couple more.', 'Ya casi — un par más.', 'Quase lá — mais alguns.')
+  }
+}
+
+function sayFor(step: Step, answers: Record<string, unknown>, locale: string): string {
+  if ('copilot' in step && step.copilot) return step.copilot(answers, locale)
+  return tr(DEFAULT_SAY(step.chapter), locale)
 }
 
 function OptionRow({
@@ -229,7 +285,7 @@ function SingleSelect({ step, locale, answers, setAnswer, onNext }: ViewProps & 
   }
   return (
     <div>
-      <Question title={tr(step.question, locale)} sub={step.sub && tr(step.sub, locale)} />
+      <Question title={tr(step.question, locale)} sub={step.sub && tr(step.sub, locale)} say={sayFor(step, answers, locale)} />
       <div className="space-y-3">
         {step.options.map((opt) => (
           <OptionRow
@@ -255,7 +311,7 @@ function MultiSelect({ step, locale, answers, setAnswer, onNext }: ViewProps & {
   const canContinue = current.length >= (step.min ?? 1)
   return (
     <div>
-      <Question title={tr(step.question, locale)} sub={tr(step.sub ?? UI.selectAll, locale)} />
+      <Question title={tr(step.question, locale)} sub={tr(step.sub ?? UI.selectAll, locale)} say={sayFor(step, answers, locale)} />
       <div className="space-y-3">
         {step.options.map((opt) => (
           <OptionRow
@@ -321,7 +377,7 @@ function SalarySlider({ step, locale, answers, setAnswer, onNext }: ViewProps & 
   }), [])
   return (
     <div>
-      <Question title={tr(step.question, locale)} />
+      <Question title={tr(step.question, locale)} say={sayFor(step, answers, locale)} />
       <div className="rounded-3xl bg-white p-6 shadow-emboss-card ring-1 ring-navy-900/[0.05]">
         {/* value */}
         <div className="mb-5 text-center">
@@ -376,7 +432,7 @@ function CountrySelect({ step, locale, answers, setAnswer, onNext }: ViewProps &
   }
   return (
     <div>
-      <Question title={tr(step.question, locale)} sub={step.sub && tr(step.sub, locale)} />
+      <Question title={tr(step.question, locale)} sub={step.sub && tr(step.sub, locale)} say={sayFor(step, answers, locale)} />
       <input
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -433,6 +489,39 @@ function Testimonial({ step, locale, onNext }: ViewProps & { step: Extract<Step,
         <p className="text-xs text-steel-500">{tr(step.role, locale)}</p>
       </div>
       <div className="mt-10 w-full">
+        <Button size="lg" className="w-full rounded-full" onClick={onNext}>
+          {tr(UI.continue, locale)}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+function Reflect({ step, locale, answers, onNext }: ViewProps & { step: Extract<Step, { kind: 'reflect' }> }) {
+  const { emoji, title, body, stat } = step.build(answers, locale)
+  return (
+    <div className="flex min-h-[64vh] flex-col justify-center">
+      {/* The copilot delivers this one personally — avatar + a card built from the
+          user's own answers. */}
+      <div className="mb-5 flex items-center gap-2.5">
+        <CopilotAvatar size={40} />
+        <div>
+          <p className="text-sm font-semibold text-navy-900">{tr(L('Your copilot', 'Tu copiloto', 'Seu copiloto'), locale)}</p>
+          <p className="text-[11px] text-steel-400">{tr(L('reading your answers…', 'leyendo tus respuestas…', 'lendo suas respostas…'), locale)}</p>
+        </div>
+      </div>
+      <motion.div
+        initial={{ opacity: 0, y: 14 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="rounded-3xl bg-white p-7 shadow-emboss-card ring-1 ring-navy-900/[0.05]"
+      >
+        <div className="text-4xl">{emoji}</div>
+        {stat && <p className="deboss-text mt-4 font-display text-5xl font-semibold leading-none">{stat}</p>}
+        <h1 className="mt-4 font-display text-[1.55rem] font-medium leading-tight tracking-tight text-navy-900">{title}</h1>
+        <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-steel-600">{body}</p>
+      </motion.div>
+      <div className="mt-8">
         <Button size="lg" className="w-full rounded-full" onClick={onNext}>
           {tr(UI.continue, locale)}
         </Button>
@@ -585,6 +674,7 @@ function ProgressRing({ value }: { value: number }) {
 
 function Success({ locale, preview, onNext }: ViewProps) {
   const count = preview?.count ?? 0
+  const live = preview?.live ?? false
   const n = useCountUp(count)
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center text-center">
@@ -600,7 +690,9 @@ function Success({ locale, preview, onNext }: ViewProps) {
         {tr(L('Success', 'Éxito', 'Sucesso'), locale)}
       </p>
       <h1 className="mt-2 font-display text-[2rem] font-medium leading-tight tracking-tight text-navy-900">
-        {tr(L('We found', 'Encontramos', 'Encontramos'), locale)}{' '}
+        {/* "about" when the count is the estimate fallback — never claim an exact
+            live number we didn't actually compute. */}
+        {tr(live ? L('We found', 'Encontramos', 'Encontramos') : L('We found around', 'Encontramos cerca de', 'Encontramos cerca de'), locale)}{' '}
         <span className="deboss-text">{Math.round(n).toLocaleString()}</span>{' '}
         {tr(L('jobs that match your profile', 'trabajos que coinciden con tu perfil', 'vagas que combinam com seu perfil'), locale)}
       </h1>
@@ -692,13 +784,6 @@ function Paywall({ locale, preview }: ViewProps) {
     { id: 'monthly', name: L('1 Month', '1 Mes', '1 Mês'), price: monthly, interval: 'month', perDayDivisor: 30, popular: true },
   ]
   const [chosen, setChosen] = useState('monthly')
-  const [secs, setSecs] = useState(10 * 60)
-  useEffect(() => {
-    const t = window.setInterval(() => setSecs((s) => (s > 0 ? s - 1 : 0)), 1000)
-    return () => window.clearInterval(t)
-  }, [])
-  const mm = String(Math.floor(secs / 60)).padStart(2, '0')
-  const ss = String(secs % 60).padStart(2, '0')
 
   const proceed = () => {
     try {
@@ -720,11 +805,10 @@ function Paywall({ locale, preview }: ViewProps) {
 
   return (
     <div className="py-4">
-      {/* countdown */}
+      {/* Honest framing — a real launch price, not a fake casino countdown. */}
       <div className="mx-auto mb-5 flex w-fit items-center gap-2 rounded-full bg-electric-50 px-4 py-1.5 text-sm font-semibold text-electric-700 ring-1 ring-electric-200">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-electric-500" />
-        {tr(L('Your discount ends in', 'Tu descuento termina en', 'Seu desconto termina em'), locale)}{' '}
-        <span className="tabular-nums">{mm}:{ss}</span>
+        <span className="h-2 w-2 rounded-full bg-electric-500" />
+        {tr(L('Launch pricing · cancel anytime', 'Precio de lanzamiento · cancelá cuando quieras', 'Preço de lançamento · cancele quando quiser'), locale)}
       </div>
 
       <h1 className="text-center font-display text-[1.9rem] font-medium leading-tight tracking-tight text-navy-900">

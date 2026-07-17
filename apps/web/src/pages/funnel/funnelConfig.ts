@@ -11,6 +11,8 @@
 // matching → success → account → paywall. Numbers we show are meant to be REAL
 // (wired to the live search), not fabricated — that is our differentiator.
 
+import { COUNTRIES } from './countries'
+
 export type Locale = 'en' | 'es' | 'pt-BR'
 
 /** A string localised to the three supported locales. */
@@ -41,11 +43,21 @@ export const CHAPTER_LABEL: Record<Chapter, Localized> = {
   finish: L('Almost there', 'Ya casi', 'Quase lá'),
 }
 
+/** The answers collected so far — a flat map keyed by each step's `saveTo`. */
+export type Answers = Record<string, unknown>
+
 // ---- Step shapes -----------------------------------------------------------
 
 interface Base {
   id: string
   chapter: Chapter
+  // Adaptive branching: when present and it returns false, the step is skipped.
+  // This is how the funnel stays short and relevant — e.g. US work-authorization
+  // questions never show to a LATAM user. The reference asks everyone everything.
+  condition?: (a: Answers) => boolean
+  // A short line the copilot "says" above the question, so the flow reads as a
+  // conversation rather than a form. May adapt to prior answers.
+  copilot?: (a: Answers, locale: string) => string
 }
 
 export type Step =
@@ -99,6 +111,13 @@ export type Step =
       author: string
       role: Localized
     })
+  | (Base & {
+      // Personalized mirror: content is COMPUTED from the user's own answers, so
+      // the screen reflects their exact situation back to them. This is the core of
+      // "make them feel understood" — the reference has nothing like it.
+      kind: 'reflect'
+      build: (a: Answers, locale: string) => { emoji: string; title: string; body: string; stat?: string }
+    })
   | (Base & { kind: 'upload' })
   | (Base & { kind: 'matching' })
   | (Base & { kind: 'success' })
@@ -107,6 +126,37 @@ export type Step =
 
 // Steps that don't count toward the "question progress" bar (terminals + payoff).
 export const TERMINAL_KINDS = new Set(['matching', 'success', 'email', 'paywall'])
+
+// ---- Personalization helpers ----------------------------------------------
+// Small label maps so the copilot lines and the "reflect" screens can speak the
+// user's own answers back to them in natural language.
+
+const STATUS_WORD: Record<string, Localized> = {
+  unemployed: L('between jobs', 'sin empleo', 'sem emprego'),
+  employed: L('working and looking', 'con empleo y buscando', 'empregado e buscando'),
+  freelance: L('freelancing', 'trabajando por tu cuenta', 'como freelancer'),
+  student: L('starting out', 'empezando tu carrera', 'começando a carreira'),
+}
+const TIME_WORD: Record<string, Localized> = {
+  just: L('just getting started', 'recién empezando', 'começando agora'),
+  '1-3': L('at it for a couple of months', 'buscando hace un par de meses', 'buscando há alguns meses'),
+  '3-6': L('searching for months now', 'buscando hace varios meses', 'buscando há vários meses'),
+  '6+': L('been searching a long while', 'buscando hace bastante', 'buscando há bastante tempo'),
+}
+const MODALITY_WORD: Record<string, Localized> = {
+  remote: L('fully remote', 'completamente remoto', 'totalmente remoto'),
+  hybrid: L('hybrid', 'híbrido', 'híbrido'),
+  onsite: L('on-site', 'presencial', 'presencial'),
+}
+
+/** Resolve a stored id to its localized word, or '' if unknown. */
+const word = (map: Record<string, Localized>, id: unknown, locale: string): string =>
+  typeof id === 'string' && map[id] ? tr(map[id], locale) : ''
+
+const countryName = (code: unknown): string => {
+  const c = COUNTRIES.find((x) => x.code === code)
+  return c ? `${c.flag} ${c.name}` : ''
+}
 
 // ---- The funnel ------------------------------------------------------------
 
@@ -117,6 +167,7 @@ export const STEPS: Step[] = [
     chapter: 'current',
     kind: 'single',
     saveTo: 'workStatus',
+    copilot: () => '', // first question — the greeting is shown by the header
     question: L(
       'What’s your current work situation?',
       '¿Cuál es tu situación laboral actual?',
@@ -163,21 +214,41 @@ export const STEPS: Step[] = [
     ],
   },
   {
-    id: 'proof_firstmonth',
+    // Personalized mirror #1 — reads their exact status + search duration back to
+    // them, with empathy calibrated to how long they've been at it.
+    id: 'reflect_current',
     chapter: 'current',
-    kind: 'interstitial',
-    emoji: '📈',
-    stat: L('65%', '65%', '65%'),
-    title: L(
-      'of our members land a job in the first month',
-      'de nuestros miembros consigue trabajo en el primer mes',
-      'dos nossos membros conseguem emprego no primeiro mês',
-    ),
-    body: L(
-      'We’ll help you get there too — with a search that works for you around the clock.',
-      'Te vamos a ayudar a llegar ahí también — con una búsqueda que trabaja por vos todo el día.',
-      'Vamos te ajudar a chegar lá também — com uma busca que trabalha por você o tempo todo.',
-    ),
+    kind: 'reflect',
+    build: (a, locale) => {
+      const status = word(STATUS_WORD, a.workStatus, locale)
+      const time = word(TIME_WORD, a.searchTime, locale)
+      const longSearch = a.searchTime === '3-6' || a.searchTime === '6+'
+      return {
+        emoji: longSearch ? '🤝' : '👋',
+        title: tr(
+          L(
+            `You’re ${status || 'here'} and ${time || 'looking'} — we’ve got you.`,
+            `Estás ${status || 'acá'} y ${time || 'buscando'} — estamos con vos.`,
+            `Você está ${status || 'aqui'} e ${time || 'buscando'} — estamos com você.`,
+          ),
+          locale,
+        ),
+        body: tr(
+          longSearch
+            ? L(
+                'A long search usually isn’t about you — it’s about being buried under hundreds of applicants and filtered out by software. That’s exactly what we fix.',
+                'Una búsqueda larga rara vez es por vos — es quedar sepultado entre cientos de postulantes y filtrado por software. Eso es justo lo que resolvemos.',
+                'Uma busca longa raramente é sobre você — é ficar soterrado entre centenas de candidatos e filtrado por software. É exatamente isso que resolvemos.',
+              )
+            : L(
+                'Great moment to start right. We’ll aim your search where you actually have an edge, so you don’t waste weeks.',
+                'Buen momento para arrancar bien. Vamos a apuntar tu búsqueda donde realmente tenés ventaja, para que no pierdas semanas.',
+                'Ótimo momento para começar certo. Vamos direcionar sua busca onde você realmente tem vantagem, sem perder semanas.',
+              ),
+          locale,
+        ),
+      }
+    },
   },
 
   // ===== Chapter 2 — what you want ========================================
@@ -254,8 +325,41 @@ export const STEPS: Step[] = [
     sub: L(
       'We use this to match roles open in your region.',
       'Lo usamos para encontrar roles abiertos en tu región.',
-      'Usamos isso para encontrar vagas abertas na sua região.',
+      'Usamos isso para encontrar vagas abertas na sua región.',
     ),
+  },
+  {
+    // Branching: only US-based users get the work-authorization question. A LATAM
+    // user never sees it — that's a concrete way we're smarter than the reference,
+    // which asks everyone about US visas regardless of where they live.
+    id: 'us_auth',
+    chapter: 'seeking',
+    kind: 'single',
+    saveTo: 'usAuth',
+    condition: (a) => a.country === 'US',
+    question: L('What’s your US work authorization?', '¿Cuál es tu autorización para trabajar en EE. UU.?', 'Qual é a sua autorização para trabalhar nos EUA?'),
+    options: [
+      { id: 'citizen', label: L('Citizen / permanent resident', 'Ciudadano / residente permanente', 'Cidadão / residente permanente') },
+      { id: 'visa', label: L('Valid work visa', 'Visa de trabajo válida', 'Visto de trabalho válido') },
+      { id: 'student', label: L('Student authorization (OPT/CPT)', 'Autorización de estudiante (OPT/CPT)', 'Autorização de estudante (OPT/CPT)') },
+      { id: 'need_sponsor', label: L('I’ll need sponsorship', 'Necesitaré patrocinio', 'Vou precisar de patrocínio') },
+    ],
+  },
+  {
+    // Branching: skip entirely for on-site seekers.
+    id: 'why_remote',
+    chapter: 'seeking',
+    kind: 'multi',
+    saveTo: 'whyRemote',
+    condition: (a) => a.modality === 'remote' || a.modality === 'hybrid',
+    question: L('What do you value most about remote work?', '¿Qué es lo que más valorás del trabajo remoto?', 'O que você mais valoriza no trabalho remoto?'),
+    options: [
+      { id: 'no_commute', label: L('No commute', 'Sin tiempo de traslado', 'Sem deslocamento') },
+      { id: 'family', label: L('Family / personal needs', 'Necesidades familiares / personales', 'Necessidades familiares / pessoais') },
+      { id: 'more_opportunities', label: L('More opportunities', 'Más oportunidades', 'Mais oportunidades') },
+      { id: 'anywhere', label: L('Work from anywhere', 'Trabajar desde cualquier lugar', 'Trabalhar de qualquer lugar') },
+      { id: 'flexible', label: L('Flexible hours', 'Horario flexible', 'Horário flexível') },
+    ],
   },
   {
     id: 'value_hidden',
@@ -446,6 +550,37 @@ export const STEPS: Step[] = [
       'Rara vez encuentro ofertas que realmente coincidan con mi perfil.',
       'Raramente encontro vagas que realmente combinam com meu perfil.',
     ),
+  },
+  {
+    // Personalized mirror #2 — a crisp read-back of the profile we just built,
+    // right before we go find matches. This is the "you get me" beat.
+    id: 'reflect_profile',
+    chapter: 'finish',
+    kind: 'reflect',
+    build: (a, locale) => {
+      const modality = word(MODALITY_WORD, a.modality, locale)
+      const country = countryName(a.country)
+      const salary = typeof a.minSalary === 'number' ? a.minSalary.toLocaleString() : ''
+      const parts: string[] = []
+      if (modality) parts.push(modality)
+      if (salary) parts.push(`$${salary}+`)
+      if (country) parts.push(country)
+      const line = parts.join(' · ')
+      return {
+        emoji: '🎯',
+        title: tr(L('Here’s your search profile', 'Este es tu perfil de búsqueda', 'Este é o seu perfil de busca'), locale),
+        body:
+          (line ? line + '\n\n' : '') +
+          tr(
+            L(
+              'Now we’ll scan live postings and rank the ones that actually fit — by your skills, not just keywords.',
+              'Ahora vamos a escanear ofertas en vivo y ordenar las que realmente encajan — por tus habilidades, no solo palabras clave.',
+              'Agora vamos escanear vagas ao vivo e ranquear as que realmente combinam — pelas suas habilidades, não só palavras-chave.',
+            ),
+            locale,
+          ),
+      }
+    },
   },
   { id: 'matching', chapter: 'finish', kind: 'matching' },
   { id: 'success', chapter: 'finish', kind: 'success' },
