@@ -36,6 +36,54 @@ function L(en: string, es: string, pt: string): Localized {
   return { en, es, 'pt-BR': pt }
 }
 
+// The funnel used inline emoji for its option chips and value screens. Map each to a
+// real 3D icon — reusing batch-1 icons (/icons/3d) where one already fits, and the new
+// batch-2 icons (/icons/3d-extra) for the rest. Country flags stay as emoji (not mapped),
+// so they fall through to the text glyph.
+const ICON_FOR: Record<string, string> = {
+  '🔍': '/icons/3d/search.png',
+  '💼': '/icons/3d-extra/briefcase.png',
+  '🧑‍💻': '/icons/3d-extra/freelancer.png',
+  '🎓': '/icons/3d-extra/graduation.png',
+  '🚀': '/icons/3d/rocket.png',
+  '👀': '/icons/3d-extra/binoculars.png',
+  '🧭': '/icons/3d-extra/compass.png',
+  '🤝': '/icons/3d-extra/handshake.png',
+  '👋': '/icons/3d-extra/wave.png',
+  '🏠': '/icons/3d-extra/house.png',
+  '🔀': '/icons/3d-extra/shuffle.png',
+  '🏢': '/icons/3d-extra/building.png',
+  '🧊': '/icons/3d-extra/iceberg.png',
+  '✨': '/icons/3d/sparkles.png',
+  '📈': '/icons/3d/trending.png',
+  '📣': '/icons/3d-extra/megaphone.png',
+  '💻': '/icons/3d-extra/laptop.png',
+  '🎨': '/icons/3d-extra/palette.png',
+  '⚙': '/icons/3d/settings.png',
+  '📊': '/icons/3d-extra/analytics.png',
+  '💰': '/icons/3d-extra/money.png',
+  '🧑‍🤝‍🧑': '/icons/3d/referrals.png',
+  '🎧': '/icons/3d-extra/headset.png',
+  '🤖': '/icons/3d-extra/robot.png',
+  '⚡': '/icons/3d/bolt.png',
+  '🎯': '/icons/3d/target.png',
+  '📄': '/icons/3d/document.png',
+  '🎉': '/icons/3d-extra/celebration.png',
+  '✉': '/icons/3d/mail.png',
+}
+
+function iconPath(e: string): string | null {
+  // Strip the emoji variation selector (U+FE0F) so ⚙️/✉️ match their base keys.
+  return ICON_FOR[e] ?? ICON_FOR[e.replace(/️/g, '')] ?? null
+}
+
+/** Render an emoji as its 3D icon when one is mapped, else fall back to the glyph. */
+function EmojiIcon({ e, className }: { e: string; className?: string }) {
+  const p = iconPath(e)
+  if (p) return <img src={p} alt="" draggable={false} className={cn('select-none object-contain', className)} />
+  return <span className={cn('leading-none', className)}>{e}</span>
+}
+
 export default function FunnelPage() {
   const locale = currentLocale()
   const f = useFunnel()
@@ -258,7 +306,7 @@ function OptionRow({
           : 'shadow-emboss-card ring-navy-900/[0.05] hover:shadow-emboss-card-hover',
       )}
     >
-      {emoji && <span className="text-xl leading-none">{emoji}</span>}
+      {emoji && <EmojiIcon e={emoji} className="h-8 w-8 flex-none text-xl" />}
       <span className={cn('flex-1 text-[15px] font-medium', selected ? 'text-navy-900' : 'text-navy-700')}>
         {label}
       </span>
@@ -458,9 +506,9 @@ function Interstitial({ step, locale, onNext }: ViewProps & { step: Extract<Step
         initial={{ scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 220, damping: 16 }}
-        className="flex h-24 w-24 items-center justify-center rounded-3xl bg-white text-5xl shadow-emboss-card ring-1 ring-navy-900/[0.05]"
+        className="flex items-center justify-center"
       >
-        {step.emoji}
+        <EmojiIcon e={step.emoji} className="h-32 w-32 text-6xl" />
       </motion.div>
       {step.stat && (
         <p className="deboss-text mt-8 font-display text-6xl font-semibold leading-none">{tr(step.stat, locale)}</p>
@@ -519,7 +567,7 @@ function Reflect({ step, locale, answers, onNext }: ViewProps & { step: Extract<
         transition={{ duration: 0.4 }}
         className="rounded-3xl bg-white p-7 shadow-emboss-card ring-1 ring-navy-900/[0.05]"
       >
-        <div className="text-4xl">{emoji}</div>
+        <EmojiIcon e={emoji} className="h-16 w-16 text-4xl" />
         {stat && <p className="deboss-text mt-4 font-display text-5xl font-semibold leading-none">{stat}</p>}
         <h1 className="mt-4 font-display text-[1.55rem] font-medium leading-tight tracking-tight text-navy-900">{title}</h1>
         <p className="mt-3 whitespace-pre-line text-[15px] leading-relaxed text-steel-600">{body}</p>
@@ -554,9 +602,12 @@ function CvUpload({ locale, setAnswer, onNext }: ViewProps) {
         onClick={() => inputRef.current?.click()}
         className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-navy-200 bg-white/70 px-6 py-12 text-center transition-colors hover:border-electric-400 hover:bg-white"
       >
-        <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-electric-50 text-2xl text-electric-600 shadow-emboss-card">
-          {name ? '✓' : '📄'}
-        </span>
+        <img
+          src={name ? '/icons/3d/check.png' : '/icons/3d/document.png'}
+          alt=""
+          draggable={false}
+          className="h-16 w-16 select-none object-contain"
+        />
         <span className="text-[15px] font-semibold text-navy-900">
           {name || tr(L('Upload your CV', 'Subí tu CV', 'Envie seu CV'), locale)}
         </span>
@@ -685,9 +736,8 @@ function Success({ locale, preview, onNext }: ViewProps) {
         initial={{ scale: 0.5, rotate: -8, opacity: 0 }}
         animate={{ scale: 1, rotate: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 200, damping: 14 }}
-        className="text-7xl"
       >
-        🎉
+        <img src="/icons/3d-extra/celebration.png" alt="" draggable={false} className="h-28 w-28 select-none object-contain" />
       </motion.div>
       <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.18em] text-electric-600">
         {tr(L('Success', 'Éxito', 'Sucesso'), locale)}
@@ -734,7 +784,7 @@ function EmailCapture({ locale, answers, onNext }: ViewProps) {
   return (
     <div className="flex min-h-[66vh] flex-col justify-center">
       <div className="mb-6 flex justify-center">
-        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-white text-3xl shadow-emboss-card ring-1 ring-navy-900/[0.05]">✉️</span>
+        <img src="/icons/3d/mail.png" alt="" draggable={false} className="h-16 w-16 select-none object-contain" />
       </div>
       <h1 className="text-center font-display text-[1.7rem] font-medium leading-tight tracking-tight text-navy-900">
         {tr(L('Where should we send your job matches?', '¿A qué email te enviamos tus coincidencias?', 'Para qual email enviamos suas vagas?'), locale)}
