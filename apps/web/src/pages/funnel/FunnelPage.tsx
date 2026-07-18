@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/cn'
 import { currentLocale } from '@/lib/locale'
 import { formatMoney } from '@/lib/money'
-import { getPublicPricing } from '@/services/billing'
+import { getPublicPricing, startCheckout } from '@/services/billing'
+import { register } from '@/services/auth'
 import { useQuery } from '@tanstack/react-query'
 import { captureLead, previewMatches, type FunnelPreview } from '@/services/funnel'
 import { useCountUp } from '@/hooks/useCountUp'
@@ -201,6 +202,8 @@ function StepView(props: ViewProps) {
       return <Reflect {...props} step={step} />
     case 'upload':
       return <CvUpload {...props} />
+    case 'register':
+      return <Register {...props} />
     case 'matching':
       return <Matching {...props} />
     case 'success':
@@ -356,7 +359,15 @@ function MultiSelect({ step, locale, answers, setAnswer, onNext }: ViewProps & {
   const current = (answers[step.saveTo] as string[]) ?? []
   const toggle = (opt: Choice) => {
     const set = new Set(current)
-    set.has(opt.id) ? set.delete(opt.id) : set.add(opt.id)
+    if (opt.exclusive) {
+      // "Open to anything": select it alone (clearing the rest), or toggle it off.
+      if (set.has(opt.id)) set.delete(opt.id)
+      else { set.clear(); set.add(opt.id) }
+    } else {
+      set.has(opt.id) ? set.delete(opt.id) : set.add(opt.id)
+      // Choosing a specific option clears any exclusive one.
+      for (const o of step.options) if (o.exclusive) set.delete(o.id)
+    }
     setAnswer(step.saveTo, [...set])
   }
   const canContinue = current.length >= (step.min ?? 1)
@@ -814,6 +825,100 @@ function EmailCapture({ locale, answers, onNext }: ViewProps) {
   )
 }
 
+/* ---------------------------------------------------------- mid-funnel register --- */
+
+function Register({ locale, answers, onNext }: ViewProps) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)
+  const valid = name.trim().length >= 2 && emailOk && password.length >= 8
+
+  const submit = async () => {
+    if (!valid || loading) return
+    setLoading(true)
+    setError('')
+    try {
+      await register({ fullName: name.trim(), email: email.trim(), password })
+      // The lead + prefs adoption happens server-side later; keep the email locally so
+      // the rest of the funnel and the dashboard can pick it up.
+      try {
+        localStorage.setItem('aplicocv.funnel.email', email.trim())
+      } catch {
+        /* ignore */
+      }
+      captureLead(email.trim(), answers)
+      onNext()
+    } catch (e) {
+      setError(
+        typeof e === 'object' && e && /409|exists|regist/i.test(String((e as Error).message))
+          ? tr(L('That email already has an account — try signing in.', 'Ese email ya tiene cuenta — probá iniciar sesión.', 'Esse email já tem conta — tente entrar.'), locale)
+          : tr(L('Could not create your account. Please try again.', 'No pudimos crear tu cuenta. Intentá de nuevo.', 'Não foi possível criar sua conta. Tente novamente.'), locale),
+      )
+      setLoading(false)
+    }
+  }
+
+  const field =
+    'w-full rounded-2xl bg-steel-50 px-4 py-3.5 text-[15px] shadow-deboss outline-none ring-1 ring-inset ring-navy-900/[0.08] placeholder:text-navy-300 focus:ring-2 focus:ring-electric-400/40'
+
+  return (
+    <div className="flex min-h-[64vh] flex-col justify-center">
+      <div className="mb-5 flex items-center gap-2.5">
+        <CopilotAvatar size={40} />
+        <span className="mt-0.5 rounded-2xl rounded-tl-sm bg-white px-3.5 py-2 text-[13.5px] font-medium text-navy-700 shadow-emboss-card ring-1 ring-navy-900/[0.05]">
+          {tr(
+            L(
+              'A couple more questions to switch on your engine — let’s save your progress first.',
+              'Nos quedan un par de preguntas para encender tu motor — primero guardemos tu progreso.',
+              'Faltam algumas perguntas para ligar seu motor — primeiro vamos salvar seu progresso.',
+            ),
+            locale,
+          )}
+        </span>
+      </div>
+      <h1 className="font-display text-[1.7rem] font-medium leading-tight tracking-tight text-navy-900">
+        {tr(L('Save your progress', 'Guardá tu progreso', 'Salve seu progresso')  , locale)}
+      </h1>
+      <p className="mt-2 text-[15px] text-steel-600">
+        {tr(
+          L(
+            'Create your account so nothing is lost. You’ll finish the last questions right after.',
+            'Creá tu cuenta para no perder nada. Terminás las últimas preguntas enseguida.',
+            'Crie sua conta para não perder nada. Você termina as últimas perguntas em seguida.',
+          ),
+          locale,
+        )}
+      </p>
+      <div className="mt-6 space-y-3">
+        <input className={field} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr(L('Full name', 'Nombre completo', 'Nome completo'), locale)} autoComplete="name" />
+        <input className={field} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@email.com" autoComplete="email" />
+        <input
+          className={field}
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && submit()}
+          placeholder={tr(L('Password (8+ characters)', 'Contraseña (8+ caracteres)', 'Senha (8+ caracteres)'), locale)}
+          autoComplete="new-password"
+        />
+      </div>
+      {error && <p className="mt-3 text-center text-sm text-red-600">{error}</p>}
+      <Button size="lg" className="mt-4 w-full rounded-full" loading={loading} disabled={!valid || loading} onClick={submit}>
+        {tr(L('Save & continue', 'Guardar y continuar', 'Salvar e continuar'), locale)}
+      </Button>
+      <p className="mt-3 text-center text-xs text-steel-500">
+        {tr(L('Already have an account?', '¿Ya tenés cuenta?', 'Já tem conta?'), locale)}{' '}
+        <a href="/login?ext=1" className="font-medium text-electric-600 hover:underline">
+          {tr(L('Sign in', 'Iniciá sesión', 'Entrar'), locale)}
+        </a>
+      </p>
+    </div>
+  )
+}
+
 /* ----------------------------------------------------------------- paywall --- */
 
 interface PlanRow {
@@ -826,7 +931,6 @@ interface PlanRow {
 }
 
 function Paywall({ locale, preview }: ViewProps) {
-  const navigate = useNavigate()
   const pricing = useQuery({ queryKey: ['public-pricing'], queryFn: getPublicPricing })
   const cur = pricing.data?.currency ?? 'USD'
   const weekly = pricing.data?.plans.find((p) => p.id === 'weekly')?.price ?? 9
@@ -837,23 +941,36 @@ function Paywall({ locale, preview }: ViewProps) {
     { id: 'monthly', name: L('1 Month', '1 Mes', '1 Mês'), price: monthly, interval: 'month', perDayDivisor: 30, popular: true },
   ]
   const [chosen, setChosen] = useState('monthly')
+  const [paying, setPaying] = useState(false)
 
-  const proceed = () => {
+  const proceed = async () => {
+    if (paying) return
+    setPaying(true)
     try {
       localStorage.setItem('aplicocv.funnel.plan', chosen)
     } catch {
       /* ignore */
     }
-    // Account first, then checkout — the funnel's answers + chosen plan are in
-    // localStorage for the app to adopt after registration.
-    navigate('/register')
+    // The account already exists (created mid-funnel), so charge directly instead of
+    // bouncing to a register page — no lost buyer between "see my matches" and payment.
+    try {
+      await startCheckout(chosen)
+    } catch {
+      setPaying(false)
+    }
   }
 
-  const unlocks: Localized[] = [
-    L('Hidden jobs across 20+ portals', 'Trabajos ocultos en 20+ portales', 'Vagas ocultas em 20+ portais'),
-    L('A CV tailored to every job (ATS)', 'CV adaptado a cada empleo (ATS)', 'CV adaptado a cada vaga (ATS)'),
-    L('One-click apply with auto-fill', 'Postulá en un clic con autocompletado', 'Candidate-se em um clique com preenchimento'),
-    L('AI mock interviews & cover letters', 'Entrevistas con IA y cartas', 'Entrevistas com IA e cartas'),
+  // The full toolkit — surfaced HERE, at the pay decision, because the user may not
+  // remember (or have read) the landing (client feedback 18.07). Each row shows a 3D icon.
+  const unlocks: { icon: string; title: Localized; desc: Localized }[] = [
+    { icon: '/icons/3d/optimize.png', title: L('AI CV tailoring', 'Adaptación de CV con IA', 'Adaptação de CV com IA'), desc: L('Reworked to fit each job — honestly.', 'Reordenado para cada oferta — con honestidad.', 'Reformulado para cada vaga — com honestidade.') },
+    { icon: '/icons/3d/ats.png', title: L('ATS score & simulator', 'Puntaje y simulador ATS', 'Pontuação e simulador ATS'), desc: L('See how the filters read your CV.', 'Mirá cómo los filtros leen tu CV.', 'Veja como os filtros leem seu CV.') },
+    { icon: '/icons/3d/rocket.png', title: L('Autonomous AI job search', 'Buscador de empleos con IA', 'Busca de vagas com IA'), desc: L('Fresh matches lined up every day.', 'Coincidencias nuevas cada día.', 'Novas combinações todo dia.') },
+    { icon: '/icons/3d/pen.png', title: L('Tailored cover letters', 'Cartas de presentación', 'Cartas de apresentação'), desc: L('Focused, in your tone, in seconds.', 'Enfocadas, en tu tono, en segundos.', 'Focadas, no seu tom, em segundos.') },
+    { icon: '/icons/3d/interview.png', title: L('AI mock interviews', 'Entrevistas simuladas con IA', 'Entrevistas simuladas com IA'), desc: L('Rehearse aloud with real feedback.', 'Practicá en voz alta con feedback.', 'Pratique em voz alta com feedback.') },
+    { icon: '/icons/3d-extra/money.png', title: L('Salary & negotiation copilot', 'Copiloto de salario y negociación', 'Copiloto de salário e negociação'), desc: L('A market range and what to ask for.', 'Un rango de mercado y con qué postular.', 'Uma faixa de mercado e quanto pedir.') },
+    { icon: '/icons/3d/applications.png', title: L('Application tracking', 'Seguimiento de postulaciones', 'Acompanhamento de candidaturas'), desc: L('Every application on one board.', 'Todas tus postulaciones en un tablero.', 'Todas as candidaturas em um painel.') },
+    { icon: '/icons/3d/extension.png', title: L('One-click autofill', 'Autocompletado en un clic', 'Preenchimento em um clique'), desc: L('The extension fills the forms for you.', 'La extensión completa los formularios.', 'A extensão preenche os formulários.') },
   ]
 
   return (
@@ -918,7 +1035,7 @@ function Paywall({ locale, preview }: ViewProps) {
         })}
       </div>
 
-      <Button size="lg" className="mt-6 w-full rounded-full" onClick={proceed}>
+      <Button size="lg" className="mt-6 w-full rounded-full" loading={paying} disabled={paying} onClick={proceed}>
         {tr(L('See my job matches', 'Ver mis coincidencias', 'Ver minhas vagas'), locale)}
       </Button>
       <p className="mt-3 text-center text-xs text-steel-500">
@@ -926,14 +1043,17 @@ function Paywall({ locale, preview }: ViewProps) {
       </p>
 
       <div className="mt-8 rounded-2xl bg-white/70 p-5 shadow-emboss-card ring-1 ring-navy-900/[0.05]">
-        <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.16em] text-steel-500">
-          {tr(L('What you’ll unlock', 'Lo que desbloqueás', 'O que você desbloqueia'), locale)}
+        <p className="mb-4 text-[11px] font-semibold uppercase tracking-[0.16em] text-steel-500">
+          {tr(L('Everything you unlock', 'Todo lo que desbloqueás', 'Tudo o que você desbloqueia'), locale)}
         </p>
-        <ul className="space-y-2.5">
-          {unlocks.map((u, i) => (
-            <li key={i} className="flex items-start gap-2.5 text-[15px] text-navy-700">
-              <span className="mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full bg-electric-100 text-[11px] text-electric-600">✓</span>
-              {tr(u, locale)}
+        <ul className="space-y-3.5">
+          {unlocks.map((u) => (
+            <li key={u.icon} className="flex items-start gap-3">
+              <img src={u.icon} alt="" draggable={false} className="h-9 w-9 flex-none select-none object-contain" />
+              <div className="min-w-0">
+                <p className="text-[15px] font-semibold leading-tight text-navy-900">{tr(u.title, locale)}</p>
+                <p className="text-[13px] leading-snug text-steel-500">{tr(u.desc, locale)}</p>
+              </div>
             </li>
           ))}
         </ul>

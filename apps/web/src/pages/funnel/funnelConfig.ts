@@ -29,6 +29,9 @@ export interface Choice {
   id: string
   label: Localized
   emoji?: string
+  // For multi-select: an "open to anything" option that subsumes the rest —
+  // picking it clears the others, and picking any other clears it.
+  exclusive?: boolean
 }
 
 /** The chapters shown in the progress bar, in order. */
@@ -119,12 +122,20 @@ export type Step =
       build: (a: Answers, locale: string) => { emoji: string; title: string; body: string; stat?: string }
     })
   | (Base & { kind: 'upload' })
+  | (Base & {
+      // Mid-funnel account creation ("let's save your progress"). Placed at the
+      // emotional peak so that by the paywall the account already exists and the
+      // user can pay directly. Still shows the progress bar (it's not a terminal).
+      kind: 'register'
+    })
   | (Base & { kind: 'matching' })
   | (Base & { kind: 'success' })
   | (Base & { kind: 'email' })
   | (Base & { kind: 'paywall' })
 
 // Steps that don't count toward the "question progress" bar (terminals + payoff).
+// `register` is deliberately NOT here — the client wants the progress bar (e.g. 78%)
+// to stay visible while the user saves their details, so it counts like a question.
 export const TERMINAL_KINDS = new Set(['matching', 'success', 'email', 'paywall'])
 
 // ---- Personalization helpers ----------------------------------------------
@@ -294,11 +305,16 @@ export const STEPS: Step[] = [
     unit: L('USD/mo', 'USD/mes', 'USD/mês'),
   },
   {
+    // Multi-select (client feedback 18.07): a job seeker can be open to remote AND
+    // hybrid, and this is key input for where the search engine aims — pick-one was
+    // silently narrowing their matches.
     id: 'modality',
     chapter: 'seeking',
-    kind: 'single',
+    kind: 'multi',
     saveTo: 'modality',
-    question: L('What kind of work do you prefer?', '¿Qué modalidad preferís?', 'Qual modalidade você prefere?'),
+    min: 1,
+    question: L('What work styles are you open to?', '¿Qué modalidades estás dispuesto a considerar?', 'Quais modalidades você considera?'),
+    sub: L('Pick every one that works for you', 'Elegí todas las que te sirvan', 'Escolha todas que funcionam para você'),
     options: [
       { id: 'remote', emoji: '🏠', label: L('Fully remote', 'Completamente remoto', 'Totalmente remoto') },
       { id: 'hybrid', emoji: '🔀', label: L('Hybrid', 'Híbrido', 'Híbrido') },
@@ -351,7 +367,10 @@ export const STEPS: Step[] = [
     chapter: 'seeking',
     kind: 'multi',
     saveTo: 'whyRemote',
-    condition: (a) => a.modality === 'remote' || a.modality === 'hybrid',
+    condition: (a) => {
+      const m = a.modality
+      return Array.isArray(m) ? m.includes('remote') || m.includes('hybrid') : m === 'remote' || m === 'hybrid'
+    },
     question: L('What do you value most about remote work?', '¿Qué es lo que más valorás del trabajo remoto?', 'O que você mais valoriza no trabalho remoto?'),
     options: [
       { id: 'no_commute', label: L('No commute', 'Sin tiempo de traslado', 'Sem deslocamento') },
@@ -383,7 +402,7 @@ export const STEPS: Step[] = [
     question: L('Which job categories interest you?', '¿Qué categorías de trabajo te interesan?', 'Quais categorias de trabalho te interessam?'),
     sub: L('Pick as many as you like', 'Elegí las que quieras', 'Escolha quantas quiser'),
     options: [
-      { id: 'any', emoji: '✨', label: L('Open to anything', 'Abierto a cualquier rol', 'Aberto a qualquer cargo') },
+      { id: 'any', emoji: '✨', exclusive: true, label: L('Open to anything', 'Abierto a cualquier rol', 'Aberto a qualquer cargo') },
       { id: 'sales', emoji: '📈', label: L('Sales & partnerships', 'Ventas y alianzas', 'Vendas e parcerias') },
       { id: 'marketing', emoji: '📣', label: L('Marketing & PR', 'Marketing y RR.PP.', 'Marketing e RP') },
       { id: 'software', emoji: '💻', label: L('IT & software', 'TI y software', 'TI e software') },
@@ -499,6 +518,15 @@ export const STEPS: Step[] = [
     ),
   },
   {
+    // Mid-funnel registration (client feedback 18.07). Right after the ×10 hook, at
+    // the emotional peak — framed as "let's save your progress", staying inside the
+    // questionnaire format (progress bar still shows). Creating the account here means
+    // the paywall can charge directly instead of bouncing to a register page.
+    id: 'register',
+    chapter: 'help',
+    kind: 'register',
+  },
+  {
     id: 'testimonial_michael',
     chapter: 'help',
     kind: 'testimonial',
@@ -558,7 +586,9 @@ export const STEPS: Step[] = [
     chapter: 'finish',
     kind: 'reflect',
     build: (a, locale) => {
-      const modality = word(MODALITY_WORD, a.modality, locale)
+      // modality is now a list; join the chosen styles ("remoto / híbrido").
+      const modalityIds = Array.isArray(a.modality) ? (a.modality as string[]) : a.modality ? [a.modality as string] : []
+      const modality = modalityIds.map((id) => word(MODALITY_WORD, id, locale)).filter(Boolean).join(' / ')
       const country = countryName(a.country)
       const salary = typeof a.minSalary === 'number' ? a.minSalary.toLocaleString() : ''
       const parts: string[] = []
@@ -584,6 +614,8 @@ export const STEPS: Step[] = [
   },
   { id: 'matching', chapter: 'finish', kind: 'matching' },
   { id: 'success', chapter: 'finish', kind: 'success' },
-  { id: 'email', chapter: 'finish', kind: 'email' },
+  // The standalone email-capture step is gone — the mid-funnel 'register' step above
+  // already collects the email (and name + password), so the paywall follows success
+  // directly and can charge without a detour.
   { id: 'paywall', chapter: 'finish', kind: 'paywall' },
 ]

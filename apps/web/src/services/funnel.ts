@@ -21,7 +21,13 @@ export interface FunnelPreview {
  *  fallback when the live endpoint isn't reachable. Kept conservative on purpose. */
 function estimate(answers: Record<string, unknown>): number {
   const cats = Array.isArray(answers.categories) ? answers.categories.length : 1
-  const remote = answers.modality === 'remote' ? 1.6 : answers.modality === 'hybrid' ? 1.2 : 1
+  // modality is now a multi-select list; remote/hybrid widen the reachable pool.
+  const modality = Array.isArray(answers.modality)
+    ? (answers.modality as string[])
+    : answers.modality
+      ? [answers.modality as string]
+      : []
+  const remote = modality.includes('remote') ? 1.6 : modality.includes('hybrid') ? 1.2 : 1
   const base = 40 + cats * 22
   return Math.round(base * remote)
 }

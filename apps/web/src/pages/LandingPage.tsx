@@ -1,10 +1,6 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { motion, useScroll, useTransform } from 'framer-motion'
-import { getPublicPricing } from '@/services/billing'
-import { formatMoney } from '@/lib/money'
-import { currentLocale } from '@/lib/locale'
 import { Logo } from '@/components/Logo'
 import { Button } from '@/components/ui/Button'
 import { IconTile } from '@/components/ui/IconTile'
@@ -39,8 +35,10 @@ const featureIconNames: IconName[] = ['sparkles', 'ats', 'document', 'applicatio
 const featureTones = ['brand', 'teal', 'emerald', 'amber', 'rose', 'navy'] as const
 
 const stepNumbers = ['01', '02', '03']
-const statValues = [14, 300, 21, 95]
-const statSuffix = ['', '+', 'h', '%']
+// "Portals supported" (14) dropped per client feedback 18.07 — that metric belongs
+// inside the tool, not on the landing. Keep the 3 that sell the value.
+const statValues = [300, 21, 95]
+const statSuffix = ['+', 'h', '%']
 
 /* --------------------------------------------------------- decorative bits --- */
 
@@ -214,10 +212,11 @@ function Nav() {
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Pricing intentionally removed from the nav (client feedback 18.07): price is
+  // revealed only after the user has felt the experience, never up front.
   const navLinks = [
     { label: t.nav.features, href: '#features' },
     { label: t.nav.how, href: '#how' },
-    { label: t.nav.pricing, href: '#pricing' },
     { label: t.nav.faq, href: '#faq' },
   ]
 
@@ -677,8 +676,9 @@ function StatBand() {
       />
       <div className="absolute inset-0 bg-navy-900/55" />
       <div className="absolute inset-0 grid-pattern opacity-[0.07]" />
-      <RevealGroup className="relative mx-auto grid max-w-5xl grid-cols-2 gap-8 px-6 md:grid-cols-4">
-        {t.stats.items.map((s, i) => (
+      <RevealGroup className="relative mx-auto grid max-w-5xl grid-cols-1 gap-8 px-6 sm:grid-cols-3">
+        {/* Drop the first label ("Portals supported") to match the 3 kept stats. */}
+        {t.stats.items.slice(1).map((s, i) => (
           <Reveal key={s.label} className="text-center">
             <StatNumber value={statValues[i]} suffix={statSuffix[i]} />
             <p className="mt-1 text-sm text-navy-200">{s.label}</p>
@@ -699,77 +699,9 @@ function StatNumber({ value, suffix }: { value: number; suffix?: string }) {
   )
 }
 
-function Pricing() {
-  const t = useT()
-  // Live prices in USD from the public catalogue (weekly / monthly subscription).
-  const pricing = useQuery({ queryKey: ['public-pricing'], queryFn: getPublicPricing })
-  const cur = pricing.data?.currency ?? 'USD'
-  const loc = currentLocale()
-  const weekly = pricing.data?.plans.find((p) => p.id === 'weekly')?.price ?? 9
-  const monthly = pricing.data?.plans.find((p) => p.id === 'monthly')?.price ?? 17
-  const features = t.pricing.premium.features
-  return (
-    <section id="pricing" className="mx-auto max-w-5xl px-6 py-36">
-      <Reveal className="mx-auto max-w-2xl text-center">
-        <p className="text-sm font-semibold uppercase tracking-widest text-cyan-600">{t.pricing.kicker}</p>
-        <h2 className="mt-3 font-display text-3xl font-medium tracking-tight text-navy-900 sm:text-[2.6rem]">{t.pricing.title}</h2>
-        <p className="mt-4 text-navy-500">{t.pricing.subtitle}</p>
-      </Reveal>
-
-      <div className="mx-auto mt-12 grid max-w-3xl gap-6 sm:grid-cols-2">
-        <Reveal direction="right">
-          <div className="flex h-full flex-col rounded-2xl border border-navy-100/70 bg-white p-8 shadow-elev-2">
-            <h3 className="font-semibold text-navy-900">Weekly</h3>
-            <p className="mt-3 text-5xl font-extrabold text-navy-900">
-              {formatMoney(weekly, cur, loc)}
-              <span className="text-base font-medium text-navy-400">{t.pricing.perWeek}</span>
-            </p>
-            <ul className="mt-6 flex-1 space-y-3 text-sm text-navy-600">
-              {features.map((f) => (
-                <li key={f} className="flex gap-2"><Check /> {f}</li>
-              ))}
-            </ul>
-            <Link to="/comenzar" className="mt-8 block">
-              <Button variant="secondary" className="w-full rounded-full">{t.pricing.premium.cta}</Button>
-            </Link>
-          </div>
-        </Reveal>
-
-        <Reveal direction="left">
-          <div className="relative flex h-full flex-col rounded-2xl bg-white p-8 shadow-emboss-card-hover ring-1 ring-electric-500/25">
-            <span className="inline-flex w-fit rounded-full bg-electric-500 px-3 py-1 text-xs font-semibold text-white shadow-emboss">
-              {t.pricing.mostPopular}
-            </span>
-            <h3 className="mt-3 font-semibold text-navy-900">Monthly</h3>
-            <p className="mt-3 text-5xl font-extrabold text-navy-900">
-              {formatMoney(monthly, cur, loc)}
-              <span className="text-base font-medium text-navy-400">{t.pricing.perMonth}</span>
-            </p>
-            <p className="mt-1 text-sm text-navy-400">{t.pricing.billedMonthly}</p>
-            <ul className="mt-6 flex-1 space-y-3 text-sm text-navy-600">
-              {features.map((f) => (
-                <li key={f} className="flex gap-2"><Check /> {f}</li>
-              ))}
-            </ul>
-            <MagneticButton className="mt-8 w-full">
-              <Link to="/comenzar" className="block">
-                <Button className="w-full rounded-full">{t.pricing.premium.cta}</Button>
-              </Link>
-            </MagneticButton>
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
-
-function Check() {
-  return (
-    <span className="mt-0.5 flex h-4 w-4 flex-none items-center justify-center rounded-full bg-electric-100 text-[10px] text-electric-600">
-      ✓
-    </span>
-  )
-}
+// The landing Pricing section was removed per client feedback 18.07 — the price is
+// no longer shown on the landing at all; it's revealed in-funnel, after the user has
+// felt the value. (The plan catalogue still powers the in-funnel paywall.)
 
 function FinalCta() {
   const t = useT()
@@ -819,9 +751,11 @@ export default function LandingPage() {
         <Showcase />
         <StatBand />
         <Testimonials />
-        <Pricing />
-        <Faq />
+        {/* The "Deja de reescribir tu CV — Comenzar gratis" block moved up into the
+            slot the pricing section used to hold (client feedback 18.07). The pricing
+            section is gone from the landing entirely — price is shown later, in-funnel. */}
         <FinalCta />
+        <Faq />
       </main>
       <Footer />
     </div>
