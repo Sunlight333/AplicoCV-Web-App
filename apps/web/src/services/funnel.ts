@@ -65,3 +65,18 @@ export async function captureLead(email: string, answers: Record<string, unknown
     /* never block the funnel on lead capture */
   }
 }
+
+/** Persist the funnel answers on the (now authenticated) account AND apply them to
+ *  the user's job preferences, so the profile lands pre-filled. Best-effort — a
+ *  failure never blocks the funnel; the answers also live in localStorage. */
+export async function adoptFunnel(answers: Record<string, unknown>): Promise<void> {
+  if (env.useMocks) {
+    await delay(150)
+    return
+  }
+  try {
+    await api.post('/users/me/funnel', { answers })
+  } catch {
+    /* best-effort: the raw answers remain in localStorage for a later retry */
+  }
+}

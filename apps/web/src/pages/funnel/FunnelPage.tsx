@@ -9,7 +9,7 @@ import { formatMoney } from '@/lib/money'
 import { getPublicPricing, startCheckout } from '@/services/billing'
 import { register } from '@/services/auth'
 import { useQuery } from '@tanstack/react-query'
-import { captureLead, previewMatches, type FunnelPreview } from '@/services/funnel'
+import { adoptFunnel, captureLead, previewMatches, type FunnelPreview } from '@/services/funnel'
 import { useCountUp } from '@/hooks/useCountUp'
 import {
   CHAPTER_LABEL,
@@ -666,6 +666,10 @@ function Matching({ locale, answers, onNext, setPreview }: ViewProps) {
     }
     raf = window.requestAnimationFrame(tick)
 
+    // By now every question is answered and the account exists (registered mid-funnel),
+    // so re-apply the COMPLETE answer set to the profile while the match runs.
+    adoptFunnel(answers)
+
     previewMatches(answers).then((p) => {
       setPreview(p)
       window.cancelAnimationFrame(raf)
@@ -842,14 +846,16 @@ function Register({ locale, answers, onNext }: ViewProps) {
     setError('')
     try {
       await register({ fullName: name.trim(), email: email.trim(), password })
-      // The lead + prefs adoption happens server-side later; keep the email locally so
-      // the rest of the funnel and the dashboard can pick it up.
       try {
         localStorage.setItem('aplicocv.funnel.email', email.trim())
       } catch {
         /* ignore */
       }
       captureLead(email.trim(), answers)
+      // Save + apply everything answered so far to the new account's profile. The
+      // Matching step re-adopts with the complete answer set once the last questions
+      // are done, so partial data here is fine (both calls are idempotent).
+      adoptFunnel(answers)
       onNext()
     } catch (e) {
       setError(
