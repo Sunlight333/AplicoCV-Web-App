@@ -137,7 +137,7 @@ export default function BlogPage() {
       <Card className="mt-8 flex flex-col items-center gap-2 p-8 text-center">
         <p className="font-semibold text-navy-900">{c.ctaTitle}</p>
         <p className="max-w-md text-sm text-navy-500">{c.ctaBody}</p>
-        <Link to="/register" className="mt-2 text-sm font-semibold text-electric-600 hover:underline">
+        <Link to="/comenzar" className="mt-2 text-sm font-semibold text-electric-600 hover:underline">
           {c.ctaLink}
         </Link>
       </Card>

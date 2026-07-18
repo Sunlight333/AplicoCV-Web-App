@@ -27,7 +27,7 @@ const COPY: Record<Locale, ExtCopy> = {
     download: 'Download the package for manual install →', howTitle: 'How it works',
     ctaTitle: 'Ready to apply in one click?', ctaBtn: 'Create your free account', ctaNote: 'Works on Google Chrome · Free to start',
     perks: [
-      { icon: 'bolt', t: 'One-click autofill', d: 'Fill long forms instantly across 14+ portals.' },
+      { icon: 'bolt', t: 'One-click autofill', d: 'Fill long forms instantly across 20+ portals.' },
       { icon: 'target', t: 'Tailored on the fly', d: 'Toggle a CV tailored to the exact posting.' },
       { icon: 'pen', t: 'Cover letters inline', d: 'Generate and insert a focused letter without leaving the page.' },
       { icon: 'folder', t: 'Auto-tracking', d: 'Every application is logged to your board automatically.' },
@@ -45,7 +45,7 @@ const COPY: Record<Locale, ExtCopy> = {
     download: 'Descargar el paquete para instalación manual →', howTitle: 'Cómo funciona',
     ctaTitle: '¿Listo para postular en un clic?', ctaBtn: 'Crea tu cuenta gratis', ctaNote: 'Funciona en Google Chrome · Gratis para empezar',
     perks: [
-      { icon: 'bolt', t: 'Autocompletado en un clic', d: 'Llena formularios largos al instante en más de 14 portales.' },
+      { icon: 'bolt', t: 'Autocompletado en un clic', d: 'Llena formularios largos al instante en más de 20 portales.' },
       { icon: 'target', t: 'Adaptado al momento', d: 'Activa un CV adaptado a la oferta exacta.' },
       { icon: 'pen', t: 'Cartas integradas', d: 'Genera e inserta una carta enfocada sin salir de la página.' },
       { icon: 'folder', t: 'Seguimiento automático', d: 'Cada postulación se registra en tu tablero automáticamente.' },
@@ -63,7 +63,7 @@ const COPY: Record<Locale, ExtCopy> = {
     download: 'Baixar o pacote para instalação manual →', howTitle: 'Como funciona',
     ctaTitle: 'Pronto para se candidatar em um clique?', ctaBtn: 'Crie sua conta grátis', ctaNote: 'Funciona no Google Chrome · Grátis para começar',
     perks: [
-      { icon: 'bolt', t: 'Preenchimento em um clique', d: 'Preencha formulários longos na hora em mais de 14 portais.' },
+      { icon: 'bolt', t: 'Preenchimento em um clique', d: 'Preencha formulários longos na hora em mais de 20 portais.' },
       { icon: 'target', t: 'Adaptado na hora', d: 'Ative um currículo adaptado à vaga exata.' },
       { icon: 'pen', t: 'Cartas integradas', d: 'Gere e insira uma carta focada sem sair da página.' },
       { icon: 'folder', t: 'Rastreio automático', d: 'Cada candidatura é registrada no seu quadro automaticamente.' },
@@ -121,7 +121,7 @@ export default function ChromeExtensionPage() {
 
       <Card className="mt-12 flex flex-col items-center gap-3 p-8 text-center">
         <p className="font-semibold text-navy-900">{c.ctaTitle}</p>
-        <Link to="/register">
+        <Link to="/comenzar">
           <Button className="rounded-full">{c.ctaBtn}</Button>
         </Link>
         <p className="text-xs text-navy-400">{c.ctaNote}</p>

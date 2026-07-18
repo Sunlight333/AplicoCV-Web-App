@@ -3,10 +3,12 @@ import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { useT } from '@/i18n/I18nProvider'
 
+// Mirrors the extension's built-in portal support (manifest.json content-script hosts).
 const FULL = [
-  'LinkedIn', 'Workday', 'Indeed', 'Glassdoor', 'Greenhouse', 'Lever',
-  'Get on Board', 'Computrabajo', 'Bumeran', 'Zonajobs', 'Laborum', 'Elempleo',
-  'Trabajando.com', 'InfoJobs',
+  'LinkedIn', 'Workday', 'Indeed', 'Get on Board', 'Glassdoor', 'Greenhouse',
+  'Lever', 'Computrabajo', 'Bumeran', 'Zonajobs', 'Laborum', 'Trabajando.com',
+  'InfoJobs', 'RemoteOK', 'We Work Remotely', 'WeRemoto', 'Konzerta', 'ZipRecruiter',
+  'FlexJobs', 'USAJobs', 'Remote.co', 'ChileTrabajos', 'Upwork', 'Fiverr',
 ]
 
 export default function SupportedPortalsPage() {

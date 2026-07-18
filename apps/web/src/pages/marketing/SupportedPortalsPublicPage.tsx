@@ -6,10 +6,13 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { useCopy } from './useCopy'
 
+// The portals the extension has built-in support for (matches manifest.json's
+// content-script host list). Keep in sync when the extension adds a portal.
 const FULL = [
-  'LinkedIn', 'Workday', 'Indeed', 'Glassdoor', 'Greenhouse', 'Lever',
-  'Get on Board', 'Computrabajo', 'Bumeran', 'Zonajobs', 'Laborum', 'Elempleo',
-  'Trabajando.com', 'InfoJobs', 'RemoteOK', 'We Work Remotely',
+  'LinkedIn', 'Workday', 'Indeed', 'Get on Board', 'Glassdoor', 'Greenhouse',
+  'Lever', 'Computrabajo', 'Bumeran', 'Zonajobs', 'Laborum', 'Trabajando.com',
+  'InfoJobs', 'RemoteOK', 'We Work Remotely', 'WeRemoto', 'Konzerta', 'ZipRecruiter',
+  'FlexJobs', 'USAJobs', 'Remote.co', 'ChileTrabajos', 'Upwork', 'Fiverr',
 ]
 
 interface PortalsCopy {
@@ -68,7 +71,7 @@ export default function SupportedPortalsPublicPage() {
       </Card>
 
       <div className="mt-10 text-center">
-        <Link to="/register">
+        <Link to="/comenzar">
           <Button size="lg" className="rounded-full">{c.cta}</Button>
         </Link>
       </div>

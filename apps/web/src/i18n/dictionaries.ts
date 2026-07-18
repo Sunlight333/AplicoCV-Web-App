@@ -25,7 +25,7 @@ export const en = {
       'Upload your CV once. AplicoCV adapts it to every role, writes your cover letters, answers screening questions, preps your interviews and tracks every application — and the extension speeds up the forms when the portal allows it.',
     ctaPrimary: 'Get started free',
     ctaSecondary: 'See how it works',
-    note: 'Free forever plan · No credit card required',
+    note: 'Free to start · No card to try it',
   },
   tryIt: {
     title: 'Let’s find your next job together',
@@ -154,15 +154,15 @@ export const en = {
     title: 'Questions, answered',
     items: [
       { q: 'How does AplicoCV fill out application forms?', a: 'After you upload your CV once, our AI structures your professional data. The Chrome extension then detects form fields on job portals and fills them automatically — matching each field to the right data, even on dynamic single-page sites like LinkedIn and Workday.' },
-      { q: 'Which job portals are supported?', a: 'We ship with built-in support for the major portals including LinkedIn, Workday, Indeed, Glassdoor, Greenhouse, Lever, Get on Board, Computrabajo, Bumeran and more. For any unlisted site, a smart fallback detects and fills standard fields automatically.' },
+      { q: 'Which job portals are supported?', a: 'The extension has built-in support for 20+ major portals — LinkedIn, Workday, Indeed, Glassdoor, Greenhouse, Lever, Get on Board, Computrabajo, Bumeran, Zonajobs, Laborum, Trabajando, RemoteOK, We Work Remotely, ZipRecruiter, USAJobs, Upwork, Fiverr and more. For any unlisted site, a smart fallback detects and fills standard fields automatically.' },
       { q: 'Is my data secure?', a: 'Yes. Your CV and profile are encrypted, portal passwords are stored with strong encryption and never exposed to the browser, and login autofill always asks for your confirmation first. You stay in control.' },
-      { q: 'Do I need to pay to get started?', a: 'No. The Free plan covers profile parsing, autofill on all portals, and 15 applications per month — forever. Upgrade to Premium only when you want unlimited applications and the AI tailoring features.' },
+      { q: 'Do I need to pay?', a: 'AplicoCV is a paid subscription — there is no limited free tier. Going through the experience and seeing your job matches is free; you subscribe when you are ready to unlock the tools and start applying. Simple weekly or monthly plans, cancel anytime.' },
       { q: 'Can the AI tailor my CV to each job?', a: 'On Premium, yes. AplicoCV reorders and reframes your experience to match each job description, surfaces the most relevant achievements, and can generate a focused cover letter — all while staying truthful to your real background.' },
     ],
   },
   finalCta: {
     title: 'Stop rewriting your CV for every job.',
-    subtitle: 'Join job seekers across LATAM and beyond who let AI adapt their CV, write their letters and prep their interviews. Free to start — no card required.',
+    subtitle: 'Join job seekers across LATAM and beyond who let AI adapt their CV, write their letters and prep their interviews. Free to start — subscribe when you see your matches.',
     cta: 'Get started free →',
   },
   footer: {
@@ -173,7 +173,7 @@ export const en = {
     rights: '© 2026 AplicoCV. All rights reserved.',
     getStarted: 'Get started free →',
     columns: {
-      product: { title: 'Product', links: ['Features', 'How it works', 'Pricing', 'Chrome extension'] },
+      product: { title: 'Product', links: ['Features', 'How it works', 'Chrome extension'] },
       company: { title: 'Company', links: ['About', 'Blog', 'Careers', 'Contact'] },
       resources: { title: 'Resources', links: ['Help center', 'Supported portals', 'FAQ', 'Status'] },
       legal: { title: 'Legal', links: ['Privacy', 'Terms', 'Security', 'Cookies'] },
@@ -184,7 +184,7 @@ export const en = {
     highlights: [
       'Upload your CV once — apply everywhere.',
       'AI tailors your profile to every job.',
-      'Autofill across LinkedIn, Workday, Indeed & 11 more.',
+      'Autofill across LinkedIn, Workday, Indeed & 20+ more.',
     ],
     trusted: 'Trusted by job seekers across LATAM and beyond.',
     login: {
@@ -204,7 +204,7 @@ export const en = {
     },
     register: {
       title: 'Create your account',
-      subtitle: 'Free forever. Upgrade anytime.',
+      subtitle: 'Start free — subscribe when you’re ready.',
       fullName: 'Full name',
       email: 'Email',
       password: 'Password',
@@ -564,7 +564,7 @@ export const es: Dictionary = {
       'Sube tu CV una sola vez. AplicoCV lo adapta a cada puesto, escribe tus cartas de presentación, responde las preguntas frecuentes, te prepara para las entrevistas y hace seguimiento de tus postulaciones — y la extensión acelera el llenado cuando el portal lo permite.',
     ctaPrimary: 'Comenzar gratis',
     ctaSecondary: 'Ver cómo funciona',
-    note: 'Plan gratis para siempre · Sin tarjeta de crédito',
+    note: 'Gratis para empezar · Sin tarjeta para probar',
   },
   tryIt: {
     title: 'Encontremos juntos tu próximo trabajo',
@@ -693,15 +693,15 @@ export const es: Dictionary = {
     title: 'Preguntas, respondidas',
     items: [
       { q: '¿Cómo completa AplicoCV los formularios de postulación?', a: 'Después de subir tu CV una vez, nuestra IA estructura tus datos profesionales. La extensión de Chrome detecta los campos en los portales y los completa automáticamente — asignando cada campo al dato correcto, incluso en sitios dinámicos como LinkedIn y Workday.' },
-      { q: '¿Qué portales de empleo son compatibles?', a: 'Incluimos soporte para los principales portales como LinkedIn, Workday, Indeed, Glassdoor, Greenhouse, Lever, Get on Board, Computrabajo, Bumeran y más. Para cualquier sitio no listado, un respaldo inteligente detecta y completa los campos estándar.' },
+      { q: '¿Qué portales de empleo son compatibles?', a: 'La extensión tiene soporte integrado para más de 20 portales — LinkedIn, Workday, Indeed, Glassdoor, Greenhouse, Lever, Get on Board, Computrabajo, Bumeran, Zonajobs, Laborum, Trabajando, RemoteOK, We Work Remotely, ZipRecruiter, USAJobs, Upwork, Fiverr y más. Para cualquier sitio no listado, un respaldo inteligente detecta y completa los campos estándar.' },
       { q: '¿Mis datos están seguros?', a: 'Sí. Tu CV y perfil están cifrados, las contraseñas de los portales se guardan con cifrado fuerte y nunca se exponen al navegador, y el autocompletado de inicio de sesión siempre pide tu confirmación. Tú tienes el control.' },
-      { q: '¿Necesito pagar para empezar?', a: 'No. El plan Gratis incluye análisis de perfil, autocompletado en todos los portales y 15 postulaciones al mes — para siempre. Mejora a Premium solo cuando quieras postulaciones ilimitadas y las funciones de IA.' },
+      { q: '¿Necesito pagar?', a: 'AplicoCV es una suscripción — no hay un plan gratis limitado. Recorrer la experiencia y ver tus coincidencias de empleo es gratis; te suscribes cuando estás listo para desbloquear las herramientas y empezar a postular. Planes simples semanales o mensuales, cancela cuando quieras.' },
       { q: '¿La IA puede adaptar mi CV a cada empleo?', a: 'En Premium, sí. AplicoCV reordena y reformula tu experiencia para cada oferta, destaca los logros más relevantes y puede generar una carta enfocada — siempre siendo fiel a tu trayectoria real.' },
     ],
   },
   finalCta: {
     title: 'Deja de reescribir tu CV para cada empleo.',
-    subtitle: 'Únete a quienes buscan empleo en LATAM y más allá y dejan que la IA adapte su CV, escriba sus cartas y los prepare para la entrevista. Gratis para empezar — sin tarjeta.',
+    subtitle: 'Únete a quienes buscan empleo en LATAM y más allá y dejan que la IA adapte su CV, escriba sus cartas y los prepare para la entrevista. Gratis para empezar — te suscribes al ver tus coincidencias.',
     cta: 'Comenzar gratis →',
   },
   footer: {
@@ -712,7 +712,7 @@ export const es: Dictionary = {
     rights: '© 2026 AplicoCV. Todos los derechos reservados.',
     getStarted: 'Comenzar gratis →',
     columns: {
-      product: { title: 'Producto', links: ['Funciones', 'Cómo funciona', 'Precios', 'Extensión de Chrome'] },
+      product: { title: 'Producto', links: ['Funciones', 'Cómo funciona', 'Extensión de Chrome'] },
       company: { title: 'Empresa', links: ['Acerca de', 'Blog', 'Empleo', 'Contacto'] },
       resources: { title: 'Recursos', links: ['Centro de ayuda', 'Portales compatibles', 'Preguntas', 'Estado'] },
       legal: { title: 'Legal', links: ['Privacidad', 'Términos', 'Seguridad', 'Cookies'] },
@@ -723,7 +723,7 @@ export const es: Dictionary = {
     highlights: [
       'Sube tu CV una vez — postúlate en todas partes.',
       'La IA adapta tu perfil a cada empleo.',
-      'Autocompletado en LinkedIn, Workday, Indeed y 11 más.',
+      'Autocompletado en LinkedIn, Workday, Indeed y 20+ más.',
     ],
     trusted: 'Con la confianza de quienes buscan empleo en LATAM y más allá.',
     login: {
@@ -743,7 +743,7 @@ export const es: Dictionary = {
     },
     register: {
       title: 'Crea tu cuenta',
-      subtitle: 'Gratis para siempre. Mejora cuando quieras.',
+      subtitle: 'Empieza gratis — te suscribes cuando quieras.',
       fullName: 'Nombre completo',
       email: 'Correo electrónico',
       password: 'Contraseña',
@@ -1086,7 +1086,7 @@ export const ptBR: Dictionary = {
       'Envie seu currículo uma vez. A AplicoCV o adapta a cada vaga, escreve suas cartas de apresentação, responde às perguntas do formulário, prepara você para as entrevistas e acompanha suas candidaturas — e a extensão acelera o preenchimento quando o portal permite.',
     ctaPrimary: 'Começar grátis',
     ctaSecondary: 'Veja como funciona',
-    note: 'Plano grátis para sempre · Sem cartão de crédito',
+    note: 'Grátis para começar · Sem cartão para testar',
   },
   tryIt: {
     title: 'Vamos encontrar seu próximo emprego juntos',
@@ -1215,15 +1215,15 @@ export const ptBR: Dictionary = {
     title: 'Perguntas, respondidas',
     items: [
       { q: 'Como a AplicoCV preenche os formulários de candidatura?', a: 'Depois que você envia seu currículo uma vez, nossa IA estrutura seus dados profissionais. A extensão do Chrome detecta os campos nos portais e os preenche automaticamente — associando cada campo ao dado certo, mesmo em sites dinâmicos como LinkedIn e Workday.' },
-      { q: 'Quais portais de emprego são compatíveis?', a: 'Já incluímos suporte aos principais portais, como LinkedIn, Workday, Indeed, Glassdoor, Greenhouse, Lever, Get on Board, Computrabajo, Bumeran e mais. Para qualquer site não listado, um recurso inteligente detecta e preenche os campos padrão.' },
+      { q: 'Quais portais de emprego são compatíveis?', a: 'A extensão tem suporte integrado a mais de 20 portais — LinkedIn, Workday, Indeed, Glassdoor, Greenhouse, Lever, Get on Board, Computrabajo, Bumeran, Zonajobs, Laborum, Trabajando, RemoteOK, We Work Remotely, ZipRecruiter, USAJobs, Upwork, Fiverr e mais. Para qualquer site não listado, um recurso inteligente detecta e preenche os campos padrão.' },
       { q: 'Meus dados estão seguros?', a: 'Sim. Seu currículo e perfil são criptografados, as senhas dos portais são guardadas com criptografia forte e nunca expostas ao navegador, e o preenchimento de login sempre pede sua confirmação. Você mantém o controle.' },
-      { q: 'Preciso pagar para começar?', a: 'Não. O plano Grátis inclui análise de perfil, preenchimento em todos os portais e 15 candidaturas por mês — para sempre. Faça upgrade para o Premium só quando quiser candidaturas ilimitadas e os recursos de IA.' },
+      { q: 'Preciso pagar?', a: 'A AplicoCV é uma assinatura — não há um plano grátis limitado. Percorrer a experiência e ver suas vagas é grátis; você assina quando estiver pronto para desbloquear as ferramentas e começar a se candidatar. Planos simples semanais ou mensais, cancele quando quiser.' },
       { q: 'A IA pode adaptar meu currículo a cada vaga?', a: 'No Premium, sim. A AplicoCV reorganiza e reformula sua experiência para cada vaga, destaca as conquistas mais relevantes e pode gerar uma carta focada — sempre fiel ao seu histórico real.' },
     ],
   },
   finalCta: {
     title: 'Pare de reescrever seu currículo para cada vaga.',
-    subtitle: 'Junte-se a quem busca emprego na América Latina e além e deixa a IA adaptar seu currículo, escrever suas cartas e preparar suas entrevistas. Grátis para começar — sem cartão.',
+    subtitle: 'Junte-se a quem busca emprego na América Latina e além e deixa a IA adaptar seu currículo, escrever suas cartas e preparar suas entrevistas. Grátis para começar — você assina ao ver suas vagas.',
     cta: 'Começar grátis →',
   },
   footer: {
@@ -1234,7 +1234,7 @@ export const ptBR: Dictionary = {
     rights: '© 2026 AplicoCV. Todos os direitos reservados.',
     getStarted: 'Começar grátis →',
     columns: {
-      product: { title: 'Produto', links: ['Recursos', 'Como funciona', 'Preços', 'Extensão do Chrome'] },
+      product: { title: 'Produto', links: ['Recursos', 'Como funciona', 'Extensão do Chrome'] },
       company: { title: 'Empresa', links: ['Sobre', 'Blog', 'Carreiras', 'Contato'] },
       resources: { title: 'Recursos', links: ['Central de ajuda', 'Portais compatíveis', 'Perguntas', 'Status'] },
       legal: { title: 'Jurídico', links: ['Privacidade', 'Termos', 'Segurança', 'Cookies'] },
@@ -1245,7 +1245,7 @@ export const ptBR: Dictionary = {
     highlights: [
       'Envie seu currículo uma vez — candidate-se em todo lugar.',
       'A IA adapta seu perfil a cada vaga.',
-      'Preenchimento no LinkedIn, Workday, Indeed e mais 11.',
+      'Preenchimento no LinkedIn, Workday, Indeed e mais 20+.',
     ],
     trusted: 'Com a confiança de quem busca emprego na América Latina e além.',
     login: {
@@ -1265,7 +1265,7 @@ export const ptBR: Dictionary = {
     },
     register: {
       title: 'Crie sua conta',
-      subtitle: 'Grátis para sempre. Faça upgrade quando quiser.',
+      subtitle: 'Comece grátis — assine quando quiser.',
       fullName: 'Nome completo',
       email: 'E-mail',
       password: 'Senha',

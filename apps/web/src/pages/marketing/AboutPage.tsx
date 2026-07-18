@@ -32,7 +32,7 @@ const COPY: Record<Locale, AboutCopy> = {
       { icon: 'globe', title: 'Built for LATAM and beyond', body: 'Spanish, Portuguese and English, with first-class support for the portals people actually use.' },
     ],
     stats: [
-      { v: '14+', l: 'Portals supported' },
+      { v: '20+', l:'Portals supported' },
       { v: '300+', l: 'Fields auto-mapped' },
       { v: '21h', l: 'Saved per search' },
       { v: '95%', l: 'Parse accuracy' },
@@ -52,7 +52,7 @@ const COPY: Record<Locale, AboutCopy> = {
       { icon: 'globe', title: 'Hecho para LATAM y más allá', body: 'Español, portugués e inglés, con soporte de primera para los portales que la gente realmente usa.' },
     ],
     stats: [
-      { v: '14+', l: 'Portales compatibles' },
+      { v: '20+', l:'Portales compatibles' },
       { v: '300+', l: 'Campos mapeados' },
       { v: '21h', l: 'Ahorradas por búsqueda' },
       { v: '95%', l: 'Precisión de análisis' },
@@ -72,7 +72,7 @@ const COPY: Record<Locale, AboutCopy> = {
       { icon: 'globe', title: 'Feito para a América Latina e além', body: 'Espanhol, português e inglês, com suporte de primeira aos portais que as pessoas realmente usam.' },
     ],
     stats: [
-      { v: '14+', l: 'Portais compatíveis' },
+      { v: '20+', l:'Portais compatíveis' },
       { v: '300+', l: 'Campos mapeados' },
       { v: '21h', l: 'Economizadas por busca' },
       { v: '95%', l: 'Precisão da análise' },
@@ -110,7 +110,7 @@ export default function AboutPage() {
       </div>
 
       <div className="mt-12 text-center">
-        <Link to="/register">
+        <Link to="/comenzar">
           <Button size="lg" className="rounded-full">{c.cta}</Button>
         </Link>
       </div>

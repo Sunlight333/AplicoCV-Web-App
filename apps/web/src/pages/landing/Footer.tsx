@@ -9,7 +9,7 @@ const CONTACT = 'mailto:support@aplicocv.com'
 // Every link resolves to a real destination — a landing anchor (/#…) or a
 // dedicated page. Order matches the labels in t.footer.columns.*.links.
 const columnHrefs = {
-  product: ['/#features', '/#how', '/#pricing', '/chrome-extension'],
+  product: ['/#features', '/#how', '/chrome-extension'],
   company: ['/about', '/blog', '/careers', '/contact'],
   resources: ['/help', '/supported-portals', '/#faq', '/status'],
   legal: ['/privacy', '/terms', '/security', '/cookies'],
