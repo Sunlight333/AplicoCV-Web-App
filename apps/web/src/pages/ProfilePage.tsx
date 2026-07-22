@@ -6,6 +6,7 @@ import { useCopy } from '@/i18n/useCopy'
 import { PageTransition } from '@/components/PageTransition'
 import { Card } from '@/components/ui/Card'
 import { Input, TextArea } from '@/components/ui/Field'
+import { LanguageCombobox } from '@/components/ui/LanguageCombobox'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -443,7 +444,7 @@ export default function ProfilePage() {
               return (
                 <div key={l.id} className="rounded-lg border border-navy-100 p-4">
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Input label={elc.language} value={l.language} onChange={(e) => setLang({ language: e.target.value })} />
+                    <LanguageCombobox label={elc.language} value={l.language} onChange={(v) => setLang({ language: v })} placeholder={elc.language} />
                     <LevelSelect label={elc.generalLevel} value={l.level} onPick={(v) => setLang({ level: v as LanguageLevel })} />
                   </div>
                   <div className="mt-3 grid gap-3 sm:grid-cols-3">

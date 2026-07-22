@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Input, TextArea } from '@/components/ui/Field'
+import { LanguageCombobox } from '@/components/ui/LanguageCombobox'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import type { Locale } from '@/i18n/dictionaries'
@@ -200,8 +201,10 @@ export function ReviewStep({
             </li>
           ))}
         </ul>
-        <div className="mt-3 flex flex-wrap gap-2">
-          <input className={`${fieldCls} flex-1`} placeholder={c.languagePh} value={lang.language} onChange={(e) => setLang((s) => ({ ...s, language: e.target.value }))} />
+        <div className="mt-3 flex flex-wrap items-start gap-2">
+          <div className="min-w-[10rem] flex-1">
+            <LanguageCombobox value={lang.language} onChange={(v) => setLang((s) => ({ ...s, language: v }))} placeholder={c.languagePh} />
+          </div>
           <select className={`${fieldCls} w-40`} value={lang.level} onChange={(e) => setLang((s) => ({ ...s, level: e.target.value as LanguageLevel }))}>
             {LEVELS.map((lv) => (
               <option key={lv} value={lv}>{c.levelOpts[lv]}</option>
