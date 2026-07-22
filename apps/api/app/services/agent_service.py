@@ -163,6 +163,38 @@ def _search_links(role: str, location: str, prefs: dict | None = None) -> list[d
     ]
 
 
+# A remote posting still has a REQUIRED location — "Worldwide", "Europe", "USA Only",
+# "Latin America", etc. Only these read as truly "open to anyone, anywhere". Note the
+# bare word "remote" is deliberately NOT here: "Remote — Europe" is still Europe-only.
+_WORLDWIDE_HINTS = (
+    "worldwide", "anywhere", "global", "no restriction", "any location",
+    "100% remote", "fully remote", "international",
+)
+
+
+def _region_ok(location: str, bucket: str, prefs: dict) -> bool:
+    """True when a remote job's required location actually fits the user's region.
+
+    The client reported getting Europe-only remote jobs while based in LATAM — the CV
+    match was great but the geography was wrong. A remote role restricted to a region
+    the user isn't in is not a real option, so we drop it. Unknown/worldwide locations
+    are kept (they're open to anyone)."""
+    l = (location or "").lower().strip()
+    if not l:
+        return True  # unknown location → don't over-filter
+    if any(w in l for w in _WORLDWIDE_HINTS):
+        return True
+    # The user explicitly said they're open to worldwide remote.
+    if "worldwide" in [r.lower() for r in (prefs.get("remoteRegions") or [])]:
+        return True
+    # Both LATAM and the USA are in the Americas, so an "Americas"-wide remote role fits.
+    if bucket == "latam":
+        return "americas" in l or any(h in l for h in _LATAM_HINTS)
+    if bucket == "usa":
+        return "americas" in l or any(h in l for h in _USA_HINTS)
+    return True  # global bucket: no strong region pin → keep
+
+
 def _score(title: str, skills: list[str], description: str = "") -> int:
     """Match % from how many of the user's skills appear in the title + description.
     Description-aware so a genuinely strong fit can realistically reach 85%+ (a
@@ -199,6 +231,7 @@ async def _fetch_remotive(client: httpx.AsyncClient, role: str) -> list[dict]:
             "title": j.get("title"), "company": j.get("company_name") or "Company",
             "portal": "Remotive", "url": j.get("url"),
             "description": _strip_html(j.get("description")),
+            "location": j.get("candidate_required_location") or "Worldwide",
         }
         for j in res.json().get("jobs", [])[:12]
     ]
@@ -216,6 +249,7 @@ async def _fetch_remoteok(client: httpx.AsyncClient, role: str) -> list[dict]:
             "title": r.get("position"), "company": r.get("company") or "Company",
             "portal": "RemoteOK", "url": r.get("url") or r.get("apply_url"),
             "description": _strip_html(r.get("description")),
+            "location": r.get("location") or "Worldwide",
         }
         for r in (hits or rows)[:12]
     ]
@@ -232,6 +266,9 @@ async def _fetch_arbeitnow(client: httpx.AsyncClient, role: str) -> list[dict]:
             "title": r.get("title"), "company": r.get("company_name") or "Company",
             "portal": "Arbeitnow", "url": r.get("url"),
             "description": _strip_html(r.get("description")),
+            # Arbeitnow is a Europe-centric board; keep its posted location so the
+            # region filter can drop EU-only roles for a LATAM/USA user.
+            "location": r.get("location") or "Europe",
         }
         for r in (hits or rows)[:12]
     ]
@@ -248,18 +285,26 @@ async def _fetch_jobicy(client: httpx.AsyncClient, role: str) -> list[dict]:
             "title": r.get("jobTitle"), "company": r.get("companyName") or "Company",
             "portal": "Jobicy", "url": r.get("url"),
             "description": _strip_html(r.get("jobDescription")),
+            "location": r.get("jobGeo") or "Anywhere",
         }
         for r in (hits or rows)[:12]
     ]
 
 
-async def _live_jobs(role: str, skills: list[str]) -> list[dict]:
+async def _live_jobs(
+    role: str, skills: list[str], bucket: str = "global", prefs: dict | None = None
+) -> list[dict]:
     """Real postings from every source we can read without a key.
 
     Previously this was Remotive alone, capped at 5 — so a "daily shortlist of ~20"
     was never more than a handful of real jobs padded with search links. Sources are
     fetched concurrently and each is isolated: one flaky feed must not empty the panel.
+
+    Region-aware: these feeds are worldwide/EU remote boards, so a job whose required
+    location doesn't fit the user's region is dropped (client feedback — a LATAM user
+    was seeing Europe-only remote roles). Worldwide/unknown locations are kept.
     """
+    prefs = prefs or {}
     sources = (_fetch_remotive, _fetch_remoteok, _fetch_arbeitnow, _fetch_jobicy)
     out: list[dict] = []
     async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
@@ -272,12 +317,15 @@ async def _live_jobs(role: str, skills: list[str]) -> list[dict]:
         for j in res:
             if not j.get("url") or not j.get("title"):
                 continue
+            if not _region_ok(j.get("location", ""), bucket, prefs):
+                continue  # right role, wrong region — not a real option for this user
             out.append({
                 "title": j["title"],
                 "company": j["company"],
                 "portal": j["portal"],
                 "url": j["url"],
                 "description": j.get("description") or "",
+                "location": j.get("location") or "",
                 "score": _score(j["title"], skills, j.get("description") or ""),
                 "note": None,
             })
@@ -365,9 +413,12 @@ async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
     location = (prefs.get("locations") or [""])[0]
     skills = pdata.get("skills") or []
 
-    wants_remote, _wants_onsite, _bucket = _derive_targeting(prefs)
-    # These feeds list remote roles, so only pull them for users open to remote.
-    jobs: list[dict] = await _live_jobs(role, skills) if wants_remote else []
+    wants_remote, _wants_onsite, bucket = _derive_targeting(prefs)
+    # These feeds list remote roles, so only pull them for users open to remote — and
+    # then only the ones whose required location fits the user's region (a LATAM user
+    # should not get Europe-only remote roles). On-site-only users lean on the
+    # region-appropriate portal search links below instead.
+    jobs: list[dict] = await _live_jobs(role, skills, bucket, prefs) if wants_remote else []
 
     # Rank the REAL postings against the CV with the LLM. Search links are excluded:
     # they are queries, not jobs, and carry no score at all.
