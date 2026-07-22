@@ -45,8 +45,15 @@ See **[DEPLOY_CHROME_WEBSTORE.md](DEPLOY_CHROME_WEBSTORE.md)** for the full
 Chrome Web Store submission guide (account, HTTPS requirement, packaging, privacy
 disclosures, review).
 
-## Supported portals (14)
+## Supported portals (24)
 
-LinkedIn, Workday, Indeed, Get on Board, Computrabajo, Glassdoor, Bumeran,
-Zonajobs, Laborum, Konzerta, Trabajando.com, WeRemoto, RemoteOK, We Work Remotely.
+Full built-in support (see manifest.json content-script hosts): LinkedIn, Workday,
+Indeed, Get on Board, Glassdoor, Greenhouse, Lever, Computrabajo, Bumeran, Zonajobs,
+Laborum, Trabajando, InfoJobs, RemoteOK, We Work Remotely, WeRemoto, Konzerta,
+ZipRecruiter, FlexJobs, USAJobs, Remote.co, ChileTrabajos, Upwork, Fiverr.
 Unlisted sites fall back to generic label/attribute matching.
+
+NOTE: this list is for internal reference. Do NOT paste it into the Chrome Web Store
+listing description — a list of portal/brand names reads as keyword stuffing and gets
+the extension rejected under "Spam and placement". Describe coverage in plain language
+(see DEPLOY_CHROME_WEBSTORE.md).
