@@ -334,18 +334,80 @@ async def personalized_cover_letter(
 
 
 def _cv_to_text(profile: dict[str, Any]) -> str:
+    """A COMPLETE plain-text rendering of the profile — every section a real CV needs.
+
+    This used to include only name/headline/summary, experience bullets and skills, so
+    contact details, education, languages and certifications never reached the model.
+    That made the "adapted CV" come back missing exactly those sections (client feedback
+    24.07: the focused CV had no contact data, studies or languages and was unusable).
+    """
     p = profile or {}
     per = p.get("personal") or {}
-    lines = [per.get("fullName", ""), per.get("headline", ""), per.get("summary", "")]
-    for e in p.get("experience") or []:
+    lines: list[str] = []
+
+    # --- Header: name, headline, and every contact detail present ---------------
+    if per.get("fullName"):
+        lines.append(_s(per.get("fullName")))
+    if per.get("headline"):
+        lines.append(_s(per.get("headline")))
+    contact = " · ".join(
+        _s(x) for x in (per.get("email"), per.get("phone"), per.get("location")) if x
+    )
+    if contact:
+        lines.append(contact)
+    for lk in p.get("links") or []:
+        url = lk.get("url") if isinstance(lk, dict) else lk
+        if url:
+            lines.append(_s(url))
+
+    if per.get("summary"):
+        lines += ["", "SUMMARY", _s(per.get("summary"))]
+
+    exp = p.get("experience") or []
+    if exp:
+        lines += ["", "EXPERIENCE"]
+        for e in exp:
+            lines.append(
+                f"{_s(e.get('title'))} — {_s(e.get('employer'))} "
+                f"({_s(e.get('startDate'))}–{_s(e.get('endDate')) or 'present'})"
+            )
+            for b in e.get("bullets") or []:
+                lines.append(f"  • {_s(b)}")
+
+    edu = p.get("education") or []
+    if edu:
+        lines += ["", "EDUCATION"]
+        for ed in edu:
+            deg = ed.get("degree") or ed.get("title") or ed.get("field") or ""
+            inst = ed.get("institution") or ed.get("school") or ed.get("employer") or ""
+            span = _s(ed.get("endDate")) or _s(ed.get("year")) or ""
+            row = " — ".join(_s(x) for x in (deg, inst, span) if x)
+            if row:
+                lines.append(row)
+
+    langs = p.get("languages") or []
+    if langs:
+        lines += ["", "LANGUAGES"]
         lines.append(
-            f"{e.get('title','')} — {e.get('employer','')} ({e.get('startDate','')}–{e.get('endDate') or 'present'})"
+            ", ".join(
+                f"{_s(l.get('language'))} ({_s(l.get('level'))})"
+                for l in langs
+                if l.get("language")
+            )
         )
-        for b in e.get("bullets") or []:
-            lines.append(f"  • {b}")
+
     if p.get("skills"):
-        lines.append("Skills: " + ", ".join(p["skills"]))
-    return "\n".join(line for line in lines if line)
+        lines += ["", "SKILLS", ", ".join(_s(s) for s in p["skills"])]
+
+    certs = p.get("certifications") or (p.get("complementary") or {}).get("certifications") or []
+    if certs:
+        lines += ["", "CERTIFICATIONS"]
+        for c in certs:
+            name = c.get("name") if isinstance(c, dict) else c
+            if name:
+                lines.append(f"  • {_s(name)}")
+
+    return "\n".join(line for line in lines if line is not None)
 
 
 # --- Stub implementations -----------------------------------------------------
@@ -873,17 +935,25 @@ async def _real_super_cv(profile, target_role, jd, cv_text, language=None, focus
     )
     try:
         res = await _chat_json(
-            "You are a senior FAANG recruiter. Rewrite the CV for the target role using the X-Y-Z "
-            "formula (Accomplished X, measured by Y, by doing Z). NEVER invent employers, titles or "
-            "facts not present in the source. Integrate keywords from the job description. "
-            "OUTPUT RULES for cvText: write CLEAN, PASTE-READY plain text a person can drop straight "
-            "into a job application — NO markdown, NO asterisks or bold/backtick/heading symbols, no "
-            "emojis, no decorative characters. Use plain UPPERCASE section titles and simple '- ' "
-            "bullets. Write the ENTIRE CV in ONE language only (the requested language); never mix "
-            "languages. Return JSON {cvText: plain-text string, atsScore: integer 0-100, gaps: array "
-            "of missing-keyword strings}.",
+            "You are a senior recruiter and professional CV writer. Produce a COMPLETE, ready-to-use "
+            "CV — a MIRROR of the candidate's real CV, reordered and reworded to target the role/focus, "
+            "but keeping EVERY section. The output MUST include, in this order and only if present in "
+            "the source: (1) a HEADER with the full name, a headline, and ALL contact details from the "
+            "source (email, phone, location, links); (2) a PROFESSIONAL SUMMARY; (3) EXPERIENCE — every "
+            "role, with its achievements rewritten using the X-Y-Z formula (Accomplished X, measured by "
+            "Y, by doing Z); do NOT drop, merge or truncate roles or their bullet detail; (4) EDUCATION; "
+            "(5) LANGUAGES; (6) SKILLS; (7) CERTIFICATIONS. This is critical: NEVER omit a section that "
+            "exists in the source, and never shrink the CV to a stub — it must be as complete as the "
+            "original and immediately usable. NEVER invent employers, titles, degrees, contact details "
+            "or facts not present in the source. Lead with and emphasize what the target role/focus "
+            "hiring manager values, and integrate job-description keywords truthfully. "
+            "OUTPUT RULES for cvText: CLEAN, PASTE-READY plain text — NO markdown, asterisks, bold, "
+            "backticks, heading symbols, emojis or decorative characters. Use plain UPPERCASE section "
+            "titles and simple '- ' bullets. Write the ENTIRE CV in ONE language only (the requested "
+            "language); never mix languages. Return JSON {cvText: plain-text string, atsScore: integer "
+            "0-100, gaps: array of missing-keyword strings the candidate could add to fit the focus}.",
             f"TARGET ROLE: {target_role}{focus_line}\nJOB DESCRIPTION: {jd or '(none provided)'}"
-            f"\n\nCV SOURCE:\n{source[:7000]}",
+            f"\n\nKEEP THE CV COMPLETE. CV SOURCE (all sections below must survive into the output):\n{source[:9000]}",
             task="super_cv",
             language=language,
         )

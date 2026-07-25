@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { PageTransition } from '@/components/PageTransition'
-import { Card, HoverCard } from '@/components/ui/Card'
+import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { AtsRing } from '@/components/AtsRing'
@@ -9,13 +9,41 @@ import { useCountUp } from '@/hooks/useCountUp'
 import { useAuth } from '@/auth/AuthContext'
 import { getStats, getRecommendations } from '@/services/dashboard'
 import { getProfile } from '@/services/profile'
-import { runAgentScan } from '@/services/ai'
-import { requestApply, listApplyTasks, dismissApplyTask } from '@/services/apply'
+import { listApplyTasks, dismissApplyTask } from '@/services/apply'
 import { getBurnout } from '@/services/insights'
 import { listApplications } from '@/services/applications'
 import { statusMeta } from './tracking/statusMeta'
-import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
+import { currentLocale } from '@/lib/locale'
+
+// Panel-specific copy (client 24.07): the dashboard must NOT list more jobs than
+// Copilot — it points to Copilot and shows what's left to complete in the profile.
+const PANEL = {
+  en: {
+    copilotTitle: 'Your job matches', betaAgent: 'AI Agent',
+    waiting: (n: number) => `${n} recommendation${n === 1 ? '' : 's'} are waiting for you in Copilot.`,
+    empty: 'Open Copilot to get your first matches.', cta: 'Go to Copilot',
+    completeTitle: 'Complete your profile', completeSub: 'A complete profile means better matches. Still to add:',
+    completeDone: 'Your profile looks complete — nice work.', completeCta: 'Complete profile',
+    mContact: 'Contact details', mExperience: 'Experience', mEducation: 'Education', mLanguages: 'Languages', mSkills: 'Skills',
+  },
+  es: {
+    copilotTitle: 'Tus coincidencias de empleo', betaAgent: 'Agente IA',
+    waiting: (n: number) => `Te ${n === 1 ? 'espera' : 'esperan'} ${n} recomendación${n === 1 ? '' : 'es'} en Copiloto.`,
+    empty: 'Abrí Copiloto para obtener tus primeras coincidencias.', cta: 'Ir a Copiloto',
+    completeTitle: 'Completá tu perfil', completeSub: 'Un perfil completo mejora tus coincidencias. Te falta agregar:',
+    completeDone: 'Tu perfil se ve completo — ¡bien hecho!', completeCta: 'Completar perfil',
+    mContact: 'Datos de contacto', mExperience: 'Experiencia', mEducation: 'Educación', mLanguages: 'Idiomas', mSkills: 'Habilidades',
+  },
+  'pt-BR': {
+    copilotTitle: 'Suas vagas compatíveis', betaAgent: 'Agente IA',
+    waiting: (n: number) => `${n} recomendaç${n === 1 ? 'ão espera' : 'ões esperam'} por você no Copilot.`,
+    empty: 'Abra o Copilot para obter suas primeiras combinações.', cta: 'Ir para o Copilot',
+    completeTitle: 'Complete seu perfil', completeSub: 'Um perfil completo melhora suas combinações. Ainda falta:',
+    completeDone: 'Seu perfil parece completo — bom trabalho!', completeCta: 'Completar perfil',
+    mContact: 'Dados de contato', mExperience: 'Experiência', mEducation: 'Educação', mLanguages: 'Idiomas', mSkills: 'Habilidades',
+  },
+} as const
 
 function StatCard({ label, value, suffix }: { label: string; value: number; suffix?: string }) {
   const animated = useCountUp(value)
@@ -35,8 +63,8 @@ export default function DashboardPage() {
   const { user } = useAuth()
   const t = useT()
   const td = t.app.dashboard
+  const p = PANEL[(currentLocale() as keyof typeof PANEL)] ?? PANEL.en
   const qc = useQueryClient()
-  const { toast } = useToast()
 
   const stats = useQuery({ queryKey: ['stats'], queryFn: getStats })
   const recent = useQuery({
@@ -58,26 +86,17 @@ export default function DashboardPage() {
   const latestAtsScore =
     recs.data && recs.data.length ? Math.max(...recs.data.map((r) => r.matchScore)) : null
 
-  const scan = useMutation({
-    mutationFn: runAgentScan,
-    onSuccess: (results) => {
-      qc.setQueryData(['recommendations'], results)
-      toast(td.scanDone(results.length))
-    },
-    onError: () => toast(td.scanError, 'error'),
-  })
-
-  // Phase 1.3 — "apply on my behalf": tailor a CV + cover letter and queue the
-  // application for the extension to autofill (user reviews before final submit).
-  const apply = useMutation({
-    mutationFn: requestApply,
-    onSuccess: () => {
-      toast('Tailored and queued — open the extension on the job page to finish applying.')
-      qc.invalidateQueries({ queryKey: ['credits'] })
-      qc.invalidateQueries({ queryKey: ['apply-tasks'] })
-    },
-    onError: () => toast('Could not queue this application (premium feature).', 'error'),
-  })
+  // Which core profile sections the user still needs to fill (client 24.07: the panel
+  // should tell you what's left to complete, e.g. Languages).
+  const pd = profile.data
+  const missing: string[] = []
+  if (pd) {
+    if (!pd.personal.email && !pd.personal.phone) missing.push(p.mContact)
+    if (!(pd.experience?.length)) missing.push(p.mExperience)
+    if (!(pd.education?.length)) missing.push(p.mEducation)
+    if (!(pd.languages?.length)) missing.push(p.mLanguages)
+    if (!(pd.skills?.length)) missing.push(p.mSkills)
+  }
 
   return (
     <PageTransition>
@@ -305,87 +324,52 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {/* Recommendations */}
-      <div className="mt-6">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-semibold text-navy-900">{td.recommended}</h2>
-          <Badge tone="info">{td.betaAgent}</Badge>
-          <button
-            onClick={() => scan.mutate()}
-            disabled={scan.isPending}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-navy-200 px-3 py-1.5 text-sm font-medium text-navy-600 transition-colors hover:bg-navy-100 disabled:opacity-60"
+      {/* Copilot CTA + profile completeness. The panel does NOT list jobs — all
+          recommendations live in Copilot, so the dashboard never shows more options
+          than Copilot (client 24.07). It sends you there and shows what's left to do. */}
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <Card className="relative flex flex-col justify-between overflow-hidden bg-navy-900 p-6 text-white lg:col-span-2">
+          <div className="absolute inset-0 grid-pattern opacity-[0.06]" />
+          <div className="relative">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">{p.copilotTitle}</h2>
+              <Badge tone="info">{p.betaAgent}</Badge>
+            </div>
+            <p className="mt-2 max-w-md text-navy-200">
+              {recs.data && recs.data.length ? p.waiting(recs.data.length) : p.empty}
+            </p>
+          </div>
+          <Link
+            to="/copilot"
+            className="relative mt-6 inline-flex h-11 w-fit items-center rounded-full bg-electric-500 px-6 font-semibold text-white shadow-emboss transition-colors hover:bg-electric-600"
           >
-            <svg
-              viewBox="0 0 24 24"
-              className={`h-4 w-4 ${scan.isPending ? 'animate-spin' : ''}`}
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-            >
-              <path d="M4 12a8 8 0 0114-5.3L20 8M20 12a8 8 0 01-14 5.3L4 16" />
-              <path d="M20 4v4h-4M4 20v-4h4" />
-            </svg>
-            {scan.isPending ? td.scanning : td.findMatches}
-          </button>
-        </div>
-        <div className="mt-4 grid gap-4 md:grid-cols-3">
-          {recs.isLoading || !recs.data
-            ? Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="p-5">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="mt-2 h-3 w-24" />
-                  <Skeleton className="mt-4 h-8 w-full" />
-                </Card>
-              ))
-            : recs.data.map((rec) => (
-                <HoverCard key={rec.id} className="flex flex-col p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="font-semibold text-navy-900">{rec.jobTitle}</p>
-                      <p className="text-sm text-navy-400">
-                        {rec.company} · {rec.portal}
-                      </p>
-                    </div>
-                    <Badge tone={rec.matchScore > 80 ? 'success' : 'info'}>{rec.matchScore}%</Badge>
-                  </div>
-                  {rec.strategicNote && (
-                    <p className="mt-3 rounded-lg bg-navy-50 p-3 text-xs text-navy-500">
-                      💡 {rec.strategicNote}
-                    </p>
-                  )}
-                  <div className="mt-4 flex items-center gap-2">
-                    <a
-                      href={rec.jobUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-9 flex-1 items-center justify-center rounded-lg bg-electric-500 px-4 text-sm font-semibold text-white transition-colors hover:bg-electric-600"
-                    >
-                      {td.goApply}
-                    </a>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        apply.mutate({
-                          recommendationId: rec.id,
-                          jobUrl: rec.jobUrl,
-                          portal: rec.portal,
-                          jobTitle: rec.jobTitle,
-                          company: rec.company,
-                        })
-                      }
-                      disabled={apply.isPending}
-                      title="Tailor my CV + cover letter and queue this application"
-                      className="inline-flex h-9 items-center justify-center rounded-lg border border-electric-300 bg-electric-50 px-3 text-sm font-semibold text-electric-700 transition-colors hover:bg-electric-100 disabled:opacity-60"
-                    >
-                      {apply.isPending && apply.variables?.recommendationId === rec.id
-                        ? 'Preparing…'
-                        : 'Apply for me'}
-                    </button>
-                  </div>
-                </HoverCard>
-              ))}
-        </div>
+            {p.cta} →
+          </Link>
+        </Card>
+
+        <Card className="p-5">
+          <h2 className="font-semibold text-navy-900">{p.completeTitle}</h2>
+          {profile.isLoading ? (
+            <Skeleton className="mt-3 h-4 w-40" />
+          ) : missing.length === 0 ? (
+            <p className="mt-3 text-sm text-navy-500">{p.completeDone}</p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-navy-500">{p.completeSub}</p>
+              <ul className="mt-3 space-y-1.5">
+                {missing.map((m) => (
+                  <li key={m} className="flex items-center gap-2 text-sm text-navy-600">
+                    <span className="h-1.5 w-1.5 flex-none rounded-full bg-amber-400" />
+                    {m}
+                  </li>
+                ))}
+              </ul>
+              <Link to="/profile" className="mt-4 inline-block text-sm font-medium text-electric-600 hover:underline">
+                {p.completeCta} →
+              </Link>
+            </>
+          )}
+        </Card>
       </div>
     </PageTransition>
   )

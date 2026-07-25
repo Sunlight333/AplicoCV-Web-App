@@ -81,7 +81,11 @@ def _portal_catalog(q: str, loc: str) -> list[dict]:
     return [
         {"portal": "We Work Remotely", "url": f"https://weworkremotely.com/remote-jobs/search?term={q}",
          "modes": {"remote"}, "buckets": {"latam", "usa", "global"}},
-        {"portal": "Get on Board", "url": f"https://www.getonbrd.com/jobs?q={q}",
+        # Get on Board's own /jobs?q= does NOT filter server-side — it lands on the
+        # unfiltered jobs panel (client 24.07: "te lleva al panel principal, no al
+        # link del empleo"). Route through a Get-on-Board-scoped search that reliably
+        # surfaces matching postings for the role.
+        {"portal": "Get on Board", "url": f"https://www.google.com/search?q={q}+site:getonbrd.com",
          "modes": {"remote", "onsite"}, "buckets": {"latam", "global"}},
         {"portal": "LinkedIn", "url": f"https://www.linkedin.com/jobs/search/?keywords={q}{locq}",
          "modes": {"remote", "onsite"}, "buckets": {"latam", "usa", "global"}},
@@ -405,15 +409,35 @@ async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
         await db.execute(select(Profile).where(Profile.user_id == user.id))
     ).scalar_one_or_none()
     pdata = (prof.data if prof else {}) or {}
+    # Derive the search role from the user's OWN data — never a hardcoded default.
+    # "Software Engineer" as the fallback was surfacing software jobs to non-tech users
+    # who never chose that (client 24.07): headline → most-recent job title → the
+    # industry/category they picked in the funnel → a neutral term, in that order.
     roles = prefs.get("targetRoles") or []
     if not roles:
         headline = (pdata.get("personal") or {}).get("headline")
-        roles = [headline] if headline else ["Software Engineer"]
+        exp = pdata.get("experience") or []
+        exp_title = exp[0].get("title") if exp else None
+        industries = prefs.get("industries") or []
+        industry = industries[0] if industries else None
+        roles = [headline or exp_title or industry or "Professional"]
     role = roles[0]
     location = (prefs.get("locations") or [""])[0]
     skills = pdata.get("skills") or []
 
     wants_remote, _wants_onsite, bucket = _derive_targeting(prefs)
+
+    # If the user is no longer open to remote, purge remote-feed recommendations left
+    # on the board from an earlier preference — otherwise on-site seekers keep seeing
+    # yesterday's remote roles (client 24.07). These four feeds are remote-only, so
+    # dropping them is safe; the board then refills from region/mode-appropriate sources.
+    if not wants_remote:
+        remote_feeds = {"Remotive", "RemoteOK", "Arbeitnow", "Jobicy"}
+        for r in existing:
+            if r.portal in remote_feeds:
+                await db.delete(r)
+                existing_urls.discard(r.job_url)
+
     # These feeds list remote roles, so only pull them for users open to remote — and
     # then only the ones whose required location fits the user's region (a LATAM user
     # should not get Europe-only remote roles). On-site-only users lean on the
