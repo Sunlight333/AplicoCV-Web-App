@@ -232,12 +232,24 @@ async function init() {
     chrome.storage?.local.set({ aplico_onboarded: true })
   }
 
-  // Profile completeness → dashboard. Subscription-only: no credits are shown.
-  send({ type: 'GET_CREDITS' }).then((cr) => {
-    if (!cr?.credits) return
+  // Profile completeness → profile page. Computed from the live profile (the old
+  // /credits endpoint was retired with the subscription-only cleanup, so calling it
+  // 404'd and the row never showed). Subscription-only: no credits/tokens are shown.
+  send({ type: 'GET_PROFILE' }).then((res) => {
+    const pr = res?.profile
+    if (!pr) return
+    const checks = [
+      pr.personal?.email || pr.personal?.phone,
+      pr.personal?.summary,
+      (pr.experience || []).length,
+      (pr.education || []).length,
+      (pr.languages || []).length,
+      (pr.skills || []).length,
+    ]
+    const percent = Math.round((100 * checks.filter(Boolean).length) / checks.length)
     const row = $('credits-row')
-    row.innerHTML = `<span>Your profile</span><span>${cr.credits.completion?.percent ?? 0}% complete</span>`
-    row.href = `${WEB_APP_URL}/dashboard`
+    row.innerHTML = `<span>Your profile</span><span>${percent}% complete</span>`
+    row.href = `${WEB_APP_URL}/profile`
     row.classList.remove('hidden')
   })
 
