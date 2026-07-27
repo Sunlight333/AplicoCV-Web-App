@@ -1,6 +1,6 @@
 from functools import cached_property, lru_cache
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # The dev fallback JWT secret. Used as the default so the app boots zero-config in
@@ -67,6 +67,9 @@ class Settings(BaseSettings):
     # variant ids set, checkout redirects to Lemon Squeezy's hosted page and the
     # webhook fulfills the subscription. Takes precedence over MercadoPago/Stripe.
     lemonsqueezy_api_key: str = ""
+    # NOTE: the Lemon Squeezy dashboard DISPLAYS the store id as "#42706", but the API
+    # only accepts the digits. The validator below strips a pasted "#" (and spaces), so
+    # copying straight from the dashboard can't silently break every checkout.
     lemonsqueezy_store_id: str = ""
     lemonsqueezy_webhook_secret: str = ""
     # Product variant ids for each plan (from the Lemon Squeezy dashboard).
@@ -217,6 +220,23 @@ class Settings(BaseSettings):
         return (self.email_provider == "resend" and bool(self.resend_api_key)) or (
             self.email_provider == "sendgrid" and bool(self.sendgrid_api_key)
         )
+
+    # ---- Input sanitising -------------------------------------------------
+    @field_validator(
+        "lemonsqueezy_store_id",
+        "lemonsqueezy_variant_weekly",
+        "lemonsqueezy_variant_monthly",
+        mode="before",
+    )
+    @classmethod
+    def _clean_ls_id(cls, v: object) -> object:
+        """Lemon Squeezy ids are numeric, but the dashboard shows them with a leading
+        '#'. Strip it (and stray whitespace/quotes) so a copy-paste from the UI still
+        produces a valid id — otherwise every checkout fails with a confusing API error.
+        """
+        if isinstance(v, str):
+            return v.strip().strip('"').strip("'").lstrip("#").strip()
+        return v
 
     # ---- Startup validation ----------------------------------------------
     @model_validator(mode="after")
