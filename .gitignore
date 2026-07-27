@@ -28,3 +28,7 @@ apps/extension/*.zip
 /SCREENSHOT/
 /Screenshot_*.png
 apps/extension.zip
+
+# Large client media / binaries — kept locally under docs/client, too big for git
+docs/client/*.mp4
+docs/client/Enfoque 2.0 AplicoCV.docx
