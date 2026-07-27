@@ -144,6 +144,47 @@ Describe coverage in plain language instead. Use this cleaned copy:
     An AplicoCV account is required. Sign in once and the extension connects
     to your profile automatically.
 
+SPANISH LISTING (the dashboard listing is in Spanish — paste THIS into Descripción).
+Rejected twice (ref "Yellow Argon") for keyword stuffing: the Descripción listed
+"LinkedIn, Workday, Indeed, Glassdoor, Greenhouse, Lever, Computrabajo, Bumeran,
+Laborum, Trabajando". DELETE that portal list. Do NOT name individual portals in the
+Descripción, the Resumen, the título, or the screenshot captions. Paste exactly this:
+
+    Resumen: Autocompleta los formularios de postulación con tu perfil de AplicoCV,
+    en un clic.
+
+    Descripción:
+    AplicoCV completa por ti los formularios de postulación de empleo, en un clic.
+
+    ¿Cansado de reescribir tu nombre, correo, experiencia y habilidades en cada portal
+    de empleo? Subí tu CV una vez a AplicoCV y nuestra IA estructura tu perfil
+    profesional. A partir de ahí, la extensión completa los formularios en los sitios
+    que ya usás, para que dediques tu tiempo a postular y no a copiar y pegar.
+
+    Qué hace
+    - Autocompletado en un clic de los formularios de postulación.
+    - Reconoce los campos por sus etiquetas, incluso en sitios modernos que cargan sus
+      formularios de forma dinámica.
+    - Completa con eventos nativos, para que los formularios hechos con frameworks como
+      React o Vue registren tus datos correctamente.
+    - Te muestra si la página actual es compatible, desde el propio popup.
+    - Autocompletado de inicio de sesión opcional para credenciales guardadas, siempre
+      con tu confirmación.
+
+    Dónde funciona
+    Es compatible con los principales portales de empleo internacionales y de
+    Latinoamérica, y usa detección inteligente de campos en otros sitios, para que siga
+    funcionando en las páginas donde realmente postulás.
+
+    Privacidad
+    Tu CV y tu perfil se guardan de forma segura. Las contraseñas de portales que
+    decidas guardar se cifran y solo se descifran en el servidor, bajo demanda, y
+    siempre después de tu confirmación. Tus datos solo se usan para autocompletar tus
+    postulaciones y nunca se venden.
+
+    Se requiere una cuenta de AplicoCV. Iniciá sesión una vez y la extensión se conecta
+    a tu perfil automáticamente.
+
 Category. Choose Tools.
 
 Language. Choose English (United States). You can add Spanish and Portuguese
