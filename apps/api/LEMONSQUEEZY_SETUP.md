@@ -19,6 +19,59 @@ The guide below gets each one, in order. Budget ~20 minutes.
 
 ---
 
+## ⛔ FIX FIRST — your current products are one‑time purchases
+
+Verified against the Lemon Squeezy API on **2026‑07‑27** (store `427133` "AplicoCV"):
+
+| | Weekly `1953569` | Monthly `1953574` |
+|---|---|---|
+| Price | 8 550 CLP ✅ | 16 150 CLP ✅ |
+| `is_subscription` | **false** ❌ | **false** ❌ |
+| Billing interval | **year** ❌ | **year** ❌ |
+| Status | **pending** (unpublished) ❌ | **pending** ❌ |
+
+**Why this must be fixed before the keys go live.** Lemon Squeezy only emits
+`subscription_created` / `subscription_*` webhooks for **subscription** products, and
+those are the only events our webhook handles. As configured today a customer would
+**pay and never receive access** — and `pending` products can't be bought at all.
+(Store id, API key and the webhook itself are all correct — only the products are wrong.)
+
+### Fix each product (Weekly, then Monthly)
+
+1. **Store → Products →** open the product.
+2. **Pricing → Pricing type:** change **Single payment** → **Subscription**
+   ("Charge an ongoing fee"). *This is the whole bug — it defaults to Single payment.*
+3. **Billing interval:** Weekly → **every 1 week** · Monthly → **every 1 month**
+   (currently both say *year*).
+4. **Price:** keep `8550` / `16150` for CLP — or see the currency decision below.
+5. **Tax category:** `Software as a service (SaaS)`.
+6. Click **Publish product** (status must leave `pending`; a draft's checkout 404s).
+
+### ⚠️ Then re‑copy BOTH variant ids
+
+Changing the pricing model usually makes Lemon Squeezy issue **new variant ids**, so
+`1953569` / `1953574` will very likely be stale. Re‑read them (step 3 below) and send
+me both — with the old ids, checkout breaks even after the products are fixed.
+
+### Currency — one decision (store is currently **CLP**)
+
+This rail serves **USA/worldwide** (LATAM already routes to MercadoPago), and the app
+defaults `LEMONSQUEEZY_CURRENCY` to **USD**, so today the site would advertise USD
+while Lemon Squeezy charges CLP.
+
+- **Option A (recommended):** switch the store to **USD** (Settings → Store → Currency)
+  and price **9.00 / 17.00**.
+- **Option B:** keep CLP and add `LEMONSQUEEZY_CURRENCY=CLP` to `.env` so the displayed
+  price matches the charge.
+
+### Verify
+
+Once both products are subscriptions **and published**, tell me — I'll re‑query the API
+to confirm `is_subscription: true`, the right interval and a published status, then set
+all five keys on the VPS and check `"lemonsqueezy": true` on `/api/health`.
+
+---
+
 ## 0. Before you start
 
 - A Lemon Squeezy account with a **Store** created (Settings → Stores).
