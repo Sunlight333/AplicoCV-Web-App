@@ -10,6 +10,7 @@ import { getPublicPricing, startCheckout } from '@/services/billing'
 import { register } from '@/services/auth'
 import { useQuery } from '@tanstack/react-query'
 import { adoptFunnel, captureLead, previewMatches, type FunnelPreview } from '@/services/funnel'
+import { uploadCv, parseCv, saveParsedProfile } from '@/services/documents'
 import { useCountUp } from '@/hooks/useCountUp'
 import {
   CHAPTER_LABEL,
@@ -35,6 +36,37 @@ const UI = {
 }
 function L(en: string, es: string, pt: string): Localized {
   return { en, es, 'pt-BR': pt }
+}
+
+// The CV the visitor picks mid-funnel, held until the account exists (the upload
+// endpoints need auth). Kept in module scope, NOT localStorage — a CV is megabytes of
+// binary and localStorage only holds ~5MB of strings. Previously only the file NAME was
+// recorded and the file itself was discarded, so a user who uploaded their CV during
+// the funnel ended up with an EMPTY profile — which then broke everything downstream
+// (nothing to tailor, no skills to match on, "apply for me" with an empty CV).
+let pendingCvFile: File | null = null
+
+/** Upload + parse + save the funnel CV into the new account's profile. Best-effort and
+ *  fire-and-forget: the user keeps answering the last questions while it runs, and a
+ *  failure never blocks the funnel. */
+function importPendingCv(): void {
+  const file = pendingCvFile
+  if (!file) return
+  pendingCvFile = null
+  void (async () => {
+    try {
+      const { documentId } = await uploadCv(file, () => {})
+      let parsed: Awaited<ReturnType<typeof saveParsedProfile>> | undefined
+      let profile
+      for await (const ev of parseCv(documentId)) {
+        if (ev.done && ev.profile) profile = ev.profile
+      }
+      if (profile) parsed = await saveParsedProfile(profile)
+      void parsed
+    } catch {
+      /* the CV stays in Documents; the user can re-import from Profile */
+    }
+  })()
 }
 
 // The funnel used inline emoji for its option chips and value screens. Map each to a
@@ -599,6 +631,9 @@ function CvUpload({ locale, setAnswer, onNext }: ViewProps) {
     if (!file) return
     setName(file.name)
     setAnswer('cvFileName', file.name)
+    // Hold the real file; it's uploaded into the profile as soon as the account is
+    // created a few steps later (the upload endpoints require auth).
+    pendingCvFile = file
     // We record that a CV was provided; the actual upload happens after the
     // account exists. Advance shortly after so the user sees the confirmation.
     window.setTimeout(onNext, 900)
@@ -852,6 +887,10 @@ function Register({ locale, answers, onNext }: ViewProps) {
         /* ignore */
       }
       captureLead(email.trim(), answers)
+      // Now that the account exists, push the CV they uploaded mid-funnel into their
+      // profile (upload -> parse -> save). Runs in the background while they finish the
+      // last questions, so the profile is populated by the time they reach the panel.
+      importPendingCv()
       // Save + apply everything answered so far to the new account's profile. The
       // Matching step re-adopts with the complete answer set once the last questions
       // are done, so partial data here is fine (both calls are idempotent).
