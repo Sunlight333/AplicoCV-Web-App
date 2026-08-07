@@ -79,6 +79,13 @@ _CATEGORY_INDUSTRY = {
     "sales": "Sales", "marketing": "Marketing", "software": "Software / IT",
     "design": "Design", "ops": "Operations", "data": "Data & Analytics",
     "finance": "Finance", "hr": "HR & Recruiting", "customer": "Customer Support",
+    # Widened per client 24.07 — the old list was tech/office heavy, so people in other
+    # fields had nothing to pick and ended up with irrelevant (software) matches.
+    "engineering": "Engineering & Manufacturing", "health": "Health & Medicine",
+    "education": "Education & Training", "legal": "Legal",
+    "logistics": "Logistics & Supply Chain", "hospitality": "Hospitality & Tourism",
+    "construction": "Construction & Trades", "retail": "Retail",
+    "media": "Media & Communications",
 }
 _COUNTRY_NAMES = {
     "US": "United States", "MX": "México", "AR": "Argentina", "CL": "Chile",

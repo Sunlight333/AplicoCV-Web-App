@@ -27,8 +27,11 @@ REMOTEOK_URL = "https://remoteok.com/api"
 ARBEITNOW_URL = "https://www.arbeitnow.com/api/job-board-api"
 JOBICY_URL = "https://jobicy.com/api/v2/remote-jobs"
 
-# Keep the board a shortlist: newer batches accumulate, the oldest rows are trimmed.
-MAX_BOARD = 40
+# The Copilot board keeps the history of everything the agent has suggested while the
+# subscription is active (client 24.07: "todas las ofertas que vino sugiriéndote durante
+# todos estos días que tuviste suscripción activa"), so this cap is a runaway guard, not
+# a daily shortlist limit — it was 40, which threw away a week of suggestions.
+MAX_BOARD = 400
 
 
 # LATAM signals in a free-text location / region string (accent-insensitive-ish).

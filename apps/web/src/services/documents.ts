@@ -163,6 +163,57 @@ export async function getGeneratedDoc(id: string): Promise<GeneratedDocFull> {
   return (await res.json()) as GeneratedDocFull
 }
 
+// ---- Source CVs (keep several, choose which one drives the profile) ---------
+
+export interface SourceCv {
+  id: string
+  filename: string
+  createdAt: string
+  active: boolean
+}
+
+/** Every CV the user has uploaded, newest first. */
+export async function listSourceCvs(): Promise<SourceCv[]> {
+  if (env.useMocks) {
+    await delay(120)
+    return []
+  }
+  const res = await fetch(`${env.apiBaseUrl}/documents/cvs`, {
+    headers: { Authorization: `Bearer ${tokenStore.get() ?? ''}` },
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('Failed to load CVs')
+  return (await res.json()) as SourceCv[]
+}
+
+/** Switch which uploaded CV the profile is built from (re-parses it). */
+export async function activateSourceCv(id: string): Promise<void> {
+  if (env.useMocks) {
+    await delay(300)
+    return
+  }
+  const res = await fetch(`${env.apiBaseUrl}/documents/cvs/${id}/activate`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${tokenStore.get() ?? ''}` },
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('Could not switch CV')
+}
+
+/** Remove an uploaded CV from the list. */
+export async function deleteSourceCv(id: string): Promise<void> {
+  if (env.useMocks) {
+    await delay(150)
+    return
+  }
+  const res = await fetch(`${env.apiBaseUrl}/documents/cvs/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${tokenStore.get() ?? ''}` },
+    credentials: 'include',
+  })
+  if (!res.ok) throw new Error('Could not delete CV')
+}
+
 /** Generated documents library (optimized CVs + cover letters). */
 export async function getLibrary(): Promise<DocumentLibrary> {
   if (env.useMocks) {

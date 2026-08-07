@@ -162,6 +162,95 @@ async def _persist_profile(db: AsyncSession, user_id: str, profile: dict) -> Non
     await db.commit()
 
 
+# ---- Source CVs: keep several, choose which one drives the profile ----------
+# Client 24.07: "que le permita subir 2 o 3 CV diferentes, y en base a eso esa persona
+# pueda seleccionar con que CV vaya probando las funcionalidades de filtros ATS y demás".
+# Every upload already creates its own Document(kind="cv"); these endpoints expose that
+# history and let the user switch which one the profile (and therefore every AI tool) is
+# built from. The choice lives in preferences.activeCvId (prod has no migrations).
+
+
+class SourceCvOut(BaseModel):
+    id: str
+    filename: str
+    createdAt: str
+    active: bool
+
+
+@router.get("/cvs", response_model=list[SourceCvOut])
+async def list_source_cvs(
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+) -> list[SourceCvOut]:
+    """Every CV the user has uploaded, newest first, flagging the active one."""
+    rows = (
+        await db.execute(
+            select(Document)
+            .where(Document.user_id == user.id, Document.kind == "cv")
+            .order_by(Document.created_at.desc())
+        )
+    ).scalars().all()
+    active_id = (user.preferences or {}).get("activeCvId")
+    # With nothing chosen yet the newest upload is the de-facto source of the profile.
+    if not active_id and rows:
+        active_id = rows[0].id
+    return [
+        SourceCvOut(
+            id=d.id,
+            filename=d.filename,
+            createdAt=d.created_at.isoformat(),
+            active=(d.id == active_id),
+        )
+        for d in rows
+    ]
+
+
+@router.post("/cvs/{doc_id}/activate")
+async def activate_source_cv(
+    doc_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, object]:
+    """Make this CV the active one: re-parse it into the profile so every tool (ATS,
+    optimizer, job matching) works from it."""
+    doc = await db.get(Document, doc_id)
+    if not doc or doc.user_id != user.id or doc.kind != "cv":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="CV not found")
+
+    text = _extract_text(doc.path)
+    if not text.strip():
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Could not read any text from that file.",
+        )
+    profile = await llm_service.extract_profile(text)
+    await _persist_profile(db, user.id, profile)
+
+    prefs = dict(user.preferences or {})
+    prefs["activeCvId"] = doc.id
+    user.preferences = prefs
+    await db.commit()
+    return {"ok": True, "profile": profile}
+
+
+@router.delete("/cvs/{doc_id}")
+async def delete_source_cv(
+    doc_id: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, bool]:
+    """Remove an uploaded CV from the list. The parsed profile is left untouched."""
+    doc = await db.get(Document, doc_id)
+    if not doc or doc.user_id != user.id or doc.kind != "cv":
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="CV not found")
+    await db.delete(doc)
+    prefs = dict(user.preferences or {})
+    if prefs.get("activeCvId") == doc_id:
+        prefs.pop("activeCvId", None)
+        user.preferences = prefs
+    await db.commit()
+    return {"ok": True}
+
+
 @router.get("/library", response_model=DocumentLibrary)
 async def library(
     user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)

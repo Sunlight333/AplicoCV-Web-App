@@ -7,6 +7,7 @@ import { PageTransition } from '@/components/PageTransition'
 import { Card } from '@/components/ui/Card'
 import { Input, TextArea } from '@/components/ui/Field'
 import { LanguageCombobox } from '@/components/ui/LanguageCombobox'
+import { CvManagerPanel } from '@/components/CvManagerPanel'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -317,6 +318,11 @@ export default function ProfilePage() {
 
       <Card className="mt-6 p-6">
         {tab === 'personal' && (
+          <>
+          {/* Several source CVs + the "your import left gaps" alarm (client 24.07). */}
+          <div className="mb-6">
+            <CvManagerPanel profile={draft} />
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Input label={tp.fullName} value={draft.personal.fullName} onChange={(e) => update({ personal: { ...draft.personal, fullName: e.target.value } })} />
             <Input label={tp.headline} value={draft.personal.headline} onChange={(e) => update({ personal: { ...draft.personal, headline: e.target.value } })} />
@@ -327,6 +333,7 @@ export default function ProfilePage() {
               <TextArea label={tp.summary} rows={4} value={draft.personal.summary} onChange={(e) => update({ personal: { ...draft.personal, summary: e.target.value } })} />
             </div>
           </div>
+          </>
         )}
 
         {tab === 'experience' && (

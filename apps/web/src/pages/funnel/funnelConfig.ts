@@ -399,8 +399,14 @@ export const STEPS: Step[] = [
     chapter: 'experience',
     kind: 'multi',
     saveTo: 'categories',
+    // Client 24.07: be explicit that THIS answer drives the recommendations, and offer
+    // a wider set of categories (he got "Software" roles he never asked for).
     question: L('Which job categories interest you?', '¿Qué categorías de trabajo te interesan?', 'Quais categorias de trabalho te interessam?'),
-    sub: L('Pick as many as you like', 'Elegí las que quieras', 'Escolha quantas quiser'),
+    sub: L(
+      'We search for jobs based on this — pick every area you’d take.',
+      'Buscamos empleos en base a esto — elegí todas las áreas que aceptarías.',
+      'Buscamos vagas com base nisto — escolha todas as áreas que você aceitaria.',
+    ),
     options: [
       { id: 'any', emoji: '✨', exclusive: true, label: L('Open to anything', 'Abierto a cualquier rol', 'Aberto a qualquer cargo') },
       { id: 'sales', emoji: '📈', label: L('Sales & partnerships', 'Ventas y alianzas', 'Vendas e parcerias') },
@@ -412,6 +418,15 @@ export const STEPS: Step[] = [
       { id: 'finance', emoji: '💰', label: L('Finance', 'Finanzas', 'Finanças') },
       { id: 'hr', emoji: '🧑‍🤝‍🧑', label: L('HR & recruiting', 'RR.HH. y reclutamiento', 'RH e recrutamento') },
       { id: 'customer', emoji: '🎧', label: L('Customer support', 'Atención al cliente', 'Atendimento ao cliente') },
+      { id: 'engineering', emoji: '⚙', label: L('Engineering & manufacturing', 'Ingeniería y manufactura', 'Engenharia e manufatura') },
+      { id: 'health', emoji: '🩺', label: L('Health & medicine', 'Salud y medicina', 'Saúde e medicina') },
+      { id: 'education', emoji: '🎓', label: L('Education & training', 'Educación y formación', 'Educação e formação') },
+      { id: 'legal', emoji: '⚖', label: L('Legal', 'Legal', 'Jurídico') },
+      { id: 'logistics', emoji: '🚚', label: L('Logistics & supply chain', 'Logística y cadena de suministro', 'Logística e cadeia de suprimentos') },
+      { id: 'hospitality', emoji: '🍽', label: L('Hospitality & tourism', 'Hostelería y turismo', 'Hotelaria e turismo') },
+      { id: 'construction', emoji: '🏗', label: L('Construction & trades', 'Construcción y oficios', 'Construção e ofícios') },
+      { id: 'retail', emoji: '🛍', label: L('Retail', 'Retail y comercio', 'Varejo') },
+      { id: 'media', emoji: '🎬', label: L('Media & communications', 'Medios y comunicación', 'Mídia e comunicação') },
     ],
   },
   {

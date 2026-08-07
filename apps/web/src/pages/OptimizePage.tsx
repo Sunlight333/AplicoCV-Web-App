@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { currentLocale } from '@/lib/locale'
 import { Link } from 'react-router-dom'
 import type { Locale } from '@/i18n/dictionaries'
 import { useCopy } from '@/i18n/useCopy'
@@ -9,6 +10,26 @@ import { Input, TextArea } from '@/components/ui/Field'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { CvReviewPanel } from '@/components/CvReviewPanel'
+
+/** Copy for the interactive "add the missing keywords?" step. */
+const GAPS_COPY = (l: string) =>
+  l === 'es'
+    ? {
+        title: '¿Querés que agreguemos estas palabras clave?',
+        sub: 'Elegí solo las que sean ciertas para vos — las integramos en tu CV sin inventar nada.',
+        cta: (n: number) => (n ? `Agregar ${n} y regenerar` : 'Elegí al menos una'),
+      }
+    : l === 'pt-BR'
+      ? {
+          title: 'Quer que a gente adicione estas palavras-chave?',
+          sub: 'Escolha só as que forem verdadeiras para você — integramos ao seu currículo sem inventar nada.',
+          cta: (n: number) => (n ? `Adicionar ${n} e gerar de novo` : 'Escolha ao menos uma'),
+        }
+      : {
+          title: 'Want us to add these keywords?',
+          sub: 'Pick only the ones that are true for you — we weave them in without inventing anything.',
+          cta: (n: number) => (n ? `Add ${n} & regenerate` : 'Pick at least one'),
+        }
 import { useToast } from '@/components/Toast'
 import { useT } from '@/i18n/I18nProvider'
 import {
@@ -119,6 +140,7 @@ export default function OptimizePage() {
   const { toast } = useToast()
   const t = useT()
   const c = useCopy(COPY)
+  const loc = currentLocale()
   const sc = useCopy(SAL)
   const [targetRole, setTargetRole] = useState('')
   const [jobUrl, setJobUrl] = useState('')
@@ -158,7 +180,34 @@ export default function OptimizePage() {
       }),
     onSuccess: (r) => {
       setResult(r)
+      setPicked([])
       qc.invalidateQueries({ queryKey: ['credits'] })
+      qc.invalidateQueries({ queryKey: ['library'] })
+      toast(c.superToast)
+    },
+    onError: (e) => toast(e instanceof ApiError ? e.message : c.genError, 'error'),
+  })
+
+  // Keywords the user ticked from the "what's missing" list, to be woven into a
+  // regenerated CV (client 24.07: the tool should ASK before adding them).
+  const [picked, setPicked] = useState<string[]>([])
+  const addGaps = useMutation({
+    mutationFn: () =>
+      generateSuperCv({
+        targetRole: targetRole.trim(),
+        jobUrl: jobUrl.trim() || undefined,
+        focus: focus || undefined,
+        jobDescription: [
+          jobDescription.trim(),
+          `MUST INCORPORATE these keywords/phrases into the CV, truthfully and only where they genuinely fit the candidate's real experience: ${picked.join(', ')}.`,
+        ]
+          .filter(Boolean)
+          .join('\n\n'),
+        cvText: source === 'paste' ? cvText.trim() || undefined : undefined,
+      }),
+    onSuccess: (r) => {
+      setResult(r)
+      setPicked([])
       qc.invalidateQueries({ queryKey: ['library'] })
       toast(c.superToast)
     },
@@ -275,11 +324,40 @@ export default function OptimizePage() {
             <Badge tone={result.atsScore >= 80 ? 'success' : 'info'}>ATS {result.atsScore}%</Badge>
           </div>
           {result.gaps.length > 0 && (
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-sm text-navy-500">{c.missing}</span>
-              {result.gaps.map((g) => (
-                <Badge key={g} tone="warning">{g}</Badge>
-              ))}
+            /* Client 24.07: don't just list what's missing — ASK whether to add it.
+               Pick the keywords/phrases that are true for you and regenerate with them
+               woven in truthfully. */
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50/60 p-4">
+              <p className="text-sm font-semibold text-navy-900">{GAPS_COPY(loc).title}</p>
+              <p className="mt-0.5 text-xs text-navy-500">{GAPS_COPY(loc).sub}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {result.gaps.map((g) => {
+                  const on = picked.includes(g)
+                  return (
+                    <button
+                      key={g}
+                      type="button"
+                      onClick={() => setPicked((p) => (on ? p.filter((x) => x !== g) : [...p, g]))}
+                      className={`rounded-full px-3 py-1.5 text-sm font-medium ring-1 transition-colors ${
+                        on
+                          ? 'bg-electric-500 text-white ring-electric-500'
+                          : 'bg-white text-navy-700 ring-navy-200 hover:bg-navy-50'
+                      }`}
+                    >
+                      {on ? '✓ ' : '+ '}{g}
+                    </button>
+                  )
+                })}
+              </div>
+              <Button
+                className="mt-3 rounded-full"
+                size="sm"
+                loading={addGaps.isPending}
+                disabled={!picked.length || addGaps.isPending}
+                onClick={() => addGaps.mutate()}
+              >
+                {GAPS_COPY(loc).cta(picked.length)}
+              </Button>
             </div>
           )}
           <pre className="mt-4 max-h-[28rem] overflow-auto whitespace-pre-wrap rounded-lg border border-navy-100 bg-navy-50/40 p-4 text-sm text-navy-700">{result.cvText}</pre>
