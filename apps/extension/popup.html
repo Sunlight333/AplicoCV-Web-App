@@ -101,8 +101,10 @@
       <span class="brand">Aplico<span style="color: var(--electric)">CV</span></span>
     </header>
     <main>
-      <!-- Logged-out -->
-      <div id="login-view" class="login hidden">
+      <!-- Logged-out (visible by DEFAULT so the popup is never empty, even if the
+           service worker or popup script hasn't finished loading; init() hides this
+           and shows the main view once the account is confirmed signed in). -->
+      <div id="login-view" class="login">
         <p>Sign in to your AplicoCV account to autofill applications.</p>
         <button class="primary" id="open-login">Open AplicoCV</button>
       </div>

@@ -213,13 +213,24 @@ function setupFooter() {
 }
 
 async function init() {
-  const auth = await send({ type: 'GET_AUTH' })
+  // Wire the login button first so the (default-visible) login view is always usable,
+  // even if the auth check below fails or never resolves.
+  $('open-login').onclick = () => chrome.tabs.create({ url: `${WEB_APP_URL}/login?ext=1` })
+
+  let auth = null
+  try {
+    auth = await send({ type: 'GET_AUTH' })
+  } catch {
+    /* service worker unreachable — fall through to the login view */
+  }
   if (!auth?.authenticated) {
     $('login-view').classList.remove('hidden')
-    $('open-login').onclick = () => chrome.tabs.create({ url: `${WEB_APP_URL}/login?ext=1` })
+    $('main-view').classList.add('hidden')
     return
   }
 
+  // Signed in → swap the login view for the main view.
+  $('login-view').classList.add('hidden')
   $('main-view').classList.remove('hidden')
   setupFooter()
 
