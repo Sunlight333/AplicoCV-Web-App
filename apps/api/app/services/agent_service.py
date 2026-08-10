@@ -276,6 +276,9 @@ async def _fetch_arbeitnow(client: httpx.AsyncClient, role: str) -> list[dict]:
             # Arbeitnow is a Europe-centric board; keep its posted location so the
             # region filter can drop EU-only roles for a LATAM/USA user.
             "location": r.get("location") or "Europe",
+            # Unlike the other feeds, Arbeitnow lists ON-SITE roles too — that flag is
+            # what lets an on-site seeker get real postings instead of nothing.
+            "remote": bool(r.get("remote")),
         }
         for r in (hits or rows)[:12]
     ]
@@ -299,7 +302,12 @@ async def _fetch_jobicy(client: httpx.AsyncClient, role: str) -> list[dict]:
 
 
 async def _live_jobs(
-    role: str, skills: list[str], bucket: str = "global", prefs: dict | None = None
+    role: str,
+    skills: list[str],
+    bucket: str = "global",
+    prefs: dict | None = None,
+    wants_remote: bool = True,
+    wants_onsite: bool = True,
 ) -> list[dict]:
     """Real postings from every source we can read without a key.
 
@@ -326,6 +334,14 @@ async def _live_jobs(
                 continue
             if not _region_ok(j.get("location", ""), bucket, prefs):
                 continue  # right role, wrong region — not a real option for this user
+            # Respect the work style they actually want. Only Arbeitnow reports a
+            # remote flag; the other three feeds are remote-only, so anything without
+            # the flag is treated as remote.
+            is_remote = j.get("remote", True)
+            if is_remote and not wants_remote:
+                continue
+            if not is_remote and not wants_onsite:
+                continue
             out.append({
                 "title": j["title"],
                 "company": j["company"],
@@ -428,24 +444,25 @@ async def scan_for_user(db: AsyncSession, user: User) -> list[Recommendation]:
     location = (prefs.get("locations") or [""])[0]
     skills = pdata.get("skills") or []
 
-    wants_remote, _wants_onsite, bucket = _derive_targeting(prefs)
+    wants_remote, wants_onsite, bucket = _derive_targeting(prefs)
 
     # If the user is no longer open to remote, purge remote-feed recommendations left
     # on the board from an earlier preference — otherwise on-site seekers keep seeing
     # yesterday's remote roles (client 24.07). These four feeds are remote-only, so
     # dropping them is safe; the board then refills from region/mode-appropriate sources.
     if not wants_remote:
-        remote_feeds = {"Remotive", "RemoteOK", "Arbeitnow", "Jobicy"}
+        # Arbeitnow is deliberately NOT in this set: it also lists on-site roles, which
+        # are exactly what an on-site seeker should keep.
+        remote_feeds = {"Remotive", "RemoteOK", "Jobicy"}
         for r in existing:
             if r.portal in remote_feeds:
                 await db.delete(r)
                 existing_urls.discard(r.job_url)
 
-    # These feeds list remote roles, so only pull them for users open to remote — and
-    # then only the ones whose required location fits the user's region (a LATAM user
-    # should not get Europe-only remote roles). On-site-only users lean on the
-    # region-appropriate portal search links below instead.
-    jobs: list[dict] = await _live_jobs(role, skills, bucket, prefs) if wants_remote else []
+    # Pull live postings for BOTH audiences: three feeds are remote-only, but Arbeitnow
+    # also lists on-site roles, so an on-site seeker now gets real postings instead of
+    # only portal links. _live_jobs filters by region AND by the work style they chose.
+    jobs: list[dict] = await _live_jobs(role, skills, bucket, prefs, wants_remote, wants_onsite)
 
     # Rank the REAL postings against the CV with the LLM. Search links are excluded:
     # they are queries, not jobs, and carry no score at all.

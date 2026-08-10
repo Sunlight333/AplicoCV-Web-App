@@ -259,6 +259,21 @@ class ApplyTask(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class FunnelLead(Base):
+    """An email captured in the onboarding funnel before (or without) an account.
+
+    Lets us follow up with visitors who saw their matches but didn't subscribe. New
+    table, so create_all provisions it without a migration.
+    """
+
+    __tablename__ = "funnel_leads"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String, index=True)
+    answers: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
 class Referral(Base):
     """One row per redeemed referral code — a user can only be referred once."""
 

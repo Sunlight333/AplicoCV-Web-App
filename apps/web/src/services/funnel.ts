@@ -40,12 +40,16 @@ export async function previewMatches(
     return { count: estimate(answers), live: false }
   }
   try {
-    const res = await api.post<{ count: number }>(
+    const res = await api.post<{ count: number; live: boolean }>(
       '/public/funnel-preview',
       { answers },
       { anonymous: true },
     )
-    return { count: res.count, live: true }
+    // Honour the server's own honesty flag: it reports live=false when it could not
+    // truly search (e.g. no feed covers this work style), and we must not present an
+    // estimate as a real result. Fall back to the estimate in that case.
+    if (res.live && res.count > 0) return { count: res.count, live: true }
+    return { count: estimate(answers), live: false }
   } catch {
     // Endpoint not deployed yet, or the search failed — degrade to the estimate
     // rather than blocking the funnel.
