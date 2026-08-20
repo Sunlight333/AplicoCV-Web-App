@@ -301,6 +301,64 @@ async def _fetch_jobicy(client: httpx.AsyncClient, role: str) -> list[dict]:
     ]
 
 
+# ---- Company ATS boards (keyless) -------------------------------------------
+# The four feeds above are ALL remote boards, so an on-site seeker in LATAM got no live
+# postings at all (client 24.07: "el 50% de la gente no buscará remoto, sino trabajo de
+# oficina in situ"). Greenhouse and Lever publish each company's board with no API key,
+# and LATAM employers use them heavily — this is the only free source we found that
+# actually returns on-site jobs in the region. Verified live before adding.
+GREENHOUSE_BOARDS = ("quintoandar", "gympass", "wildlifestudios")
+LEVER_BOARDS = ("kavak",)
+
+
+def _company_label(slug: str) -> str:
+    return slug.replace("-", " ").title()
+
+
+async def _fetch_greenhouse(client: httpx.AsyncClient, company: str, role: str) -> list[dict]:
+    res = await client.get(f"https://boards-api.greenhouse.io/v1/boards/{company}/jobs")
+    res.raise_for_status()
+    rows = res.json().get("jobs", []) or []
+    needle = (role or "").lower()
+    hits = [r for r in rows if needle in str(r.get("title", "")).lower()] if needle else []
+    out = []
+    for r in (hits or rows)[:10]:
+        loc = ((r.get("location") or {}).get("name")) or ""
+        out.append({
+            "title": r.get("title"),
+            "company": _company_label(company),
+            "portal": "Greenhouse",
+            "url": r.get("absolute_url"),
+            "description": "",
+            "location": loc,
+            "remote": "remote" in loc.lower() or "remoto" in loc.lower(),
+        })
+    return out
+
+
+async def _fetch_lever(client: httpx.AsyncClient, company: str, role: str) -> list[dict]:
+    res = await client.get(f"https://api.lever.co/v0/postings/{company}?mode=json")
+    res.raise_for_status()
+    rows = res.json()
+    if not isinstance(rows, list):
+        return []
+    needle = (role or "").lower()
+    hits = [r for r in rows if needle in str(r.get("text", "")).lower()] if needle else []
+    out = []
+    for r in (hits or rows)[:10]:
+        loc = ((r.get("categories") or {}).get("location")) or ""
+        out.append({
+            "title": r.get("text"),
+            "company": _company_label(company),
+            "portal": "Lever",
+            "url": r.get("hostedUrl"),
+            "description": _strip_html(str(r.get("descriptionPlain") or r.get("description") or "")),
+            "location": loc,
+            "remote": "remote" in loc.lower() or "remoto" in loc.lower(),
+        })
+    return out
+
+
 async def _live_jobs(
     role: str,
     skills: list[str],
@@ -323,9 +381,11 @@ async def _live_jobs(
     sources = (_fetch_remotive, _fetch_remoteok, _fetch_arbeitnow, _fetch_jobicy)
     out: list[dict] = []
     async with httpx.AsyncClient(timeout=8, follow_redirects=True) as client:
-        results = await asyncio.gather(
-            *(fn(client, role) for fn in sources), return_exceptions=True
-        )
+        tasks = [fn(client, role) for fn in sources]
+        # Company ATS boards: the only keyless source of ON-SITE roles (LATAM included).
+        tasks += [_fetch_greenhouse(client, c, role) for c in GREENHOUSE_BOARDS]
+        tasks += [_fetch_lever(client, c, role) for c in LEVER_BOARDS]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
     for res in results:
         if isinstance(res, Exception):
             continue  # a dead feed is not a failed scan
