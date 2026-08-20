@@ -15,17 +15,11 @@ de dónde sacar. Por eso te aparecía todo remoto.
 Latinoamérica**, tomadas directamente de los portales de empleo de las propias empresas
 de la región. Son ofertas reales, con su link de postulación directo.
 
-**Resultado, probado en vivo hoy:**
-
-| Búsqueda presencial | Antes | Ahora |
-|---|---|---|
-| Chile | 0 ofertas | **21 ofertas reales** |
-| Brasil | 0 ofertas | **13 ofertas reales** |
-| México | 0 ofertas | **25 ofertas reales** |
-
-Hoy ya trae puestos presenciales en São Paulo, Ciudad de México y Buenos Aires, y el
-buscador respeta la modalidad y la región que la persona eligió: si marcó presencial,
-deja de recibir ofertas remotas.
+**El resultado**, probado en vivo hoy: en una búsqueda presencial en Chile pasamos de
+**0 a 21 ofertas reales**; en Brasil, de **0 a 13**; y en México, de **0 a 25**. Hoy ya
+trae puestos presenciales en São Paulo, Ciudad de México y Buenos Aires, y el buscador
+respeta la modalidad y la región que la persona eligió: si marcó presencial, deja de
+recibir ofertas remotas.
 
 **Para verlo en tu cuenta:** corré una búsqueda nueva en Copiloto. Las recomendaciones
 que tenés ahora son las anteriores hasta que el buscador vuelva a correr.

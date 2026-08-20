@@ -15,13 +15,9 @@ problema de fondo: las fuentes de empleo que usábamos son *todas* de trabajo re
 así que quien buscaba presencial simplemente no tenía de dónde sacar ofertas reales.
 
 Sumamos una fuente nueva de **empleos presenciales en Latinoamérica**. Hoy ya trae
-ofertas reales en São Paulo, Ciudad de México y Buenos Aires. Probado en vivo:
-
-| Búsqueda presencial | Antes | Ahora |
-|---|---|---|
-| Chile | 0 ofertas | **21 ofertas reales** |
-| Brasil | 0 ofertas | **13 ofertas reales** |
-| México | 0 ofertas | **25 ofertas reales** |
+ofertas reales en São Paulo, Ciudad de México y Buenos Aires. En una prueba en vivo,
+una búsqueda presencial en Chile pasó de **0 a 21 ofertas reales**; en Brasil, de
+**0 a 13**; y en México, de **0 a 25**.
 
 **Las ofertas de "Software" que no tenían que ver con tu perfil: resuelto.**
 Había un valor por defecto en el sistema que, si no encontraba un puesto objetivo,
