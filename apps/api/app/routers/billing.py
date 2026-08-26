@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -21,6 +22,13 @@ except ImportError:  # pragma: no cover
     stripe = None
 
 router = APIRouter(prefix="/billing", tags=["billing"])
+
+# Payment observability. Every step of a real purchase is logged to the systemd journal,
+# so a payment that fails can be diagnosed after the fact — we cannot predict when a
+# customer will pay, and these paths used to fail silently and leave no trace.
+#   journalctl -u aplicocv-api -f | grep aplicocv.payments
+# Ids, events and statuses only — never card data, never full webhook payloads.
+log = logging.getLogger("aplicocv.payments")
 
 # Plan catalogue (Enfoque 2.0): subscription‑only, two paid tiers, no free tier and
 # no credit packs. Every paid plan unlocks the full product. Prices come from
@@ -283,6 +291,9 @@ async def checkout(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown subscription plan.")
 
     provider = _provider_for(user)
+    # A purchase starts here: record who, which plan and which rail, so a payment that
+    # never completes can be traced back to its checkout.
+    log.info("checkout START user=%s plan=%s provider=%s", user.id, plan["id"], provider)
 
     if provider == "lemonsqueezy":
         variant = lemonsqueezy_service.variant_for(plan["id"])
@@ -303,6 +314,7 @@ async def checkout(
             raise HTTPException(
                 status.HTTP_502_BAD_GATEWAY, detail="Could not start Lemon Squeezy checkout."
             )
+        log.info("checkout OK user=%s plan=%s provider=lemonsqueezy variant=%s", user.id, plan["id"], variant)
         return CheckoutOut(url=url)
 
     if provider == "mercadopago":
@@ -333,6 +345,7 @@ async def checkout(
             "subProvider": "mercadopago",
         }
         await db.commit()
+        log.info("checkout OK user=%s plan=%s provider=mercadopago pref=%s", user.id, plan["id"], preapproval_id)
         return CheckoutOut(url=url)
 
     if provider == "stub":
@@ -571,6 +584,7 @@ async def mercadopago_webhook(
     # MercadoPago lowercases/snake_cases metadata keys; external_reference is our fallback.
     user_id = meta.get("user_id") or meta.get("userId") or payment.get("external_reference")
     if not user_id:
+        log.error("MP webhook: no user_id/external_reference — CANNOT fulfil this payment")
         return {"received": True}
     user = await db.get(User, user_id)
     if not user:
@@ -638,8 +652,14 @@ async def lemonsqueezy_webhook(
     upgrades/downgrades the user identified by the checkout's custom user_id."""
     payload = await request.body()
     if not settings.lemonsqueezy_enabled:
+        log.warning("LS webhook arrived but Lemon Squeezy is disabled — ignored")
         return {"received": True}
     if not lemonsqueezy_service.verify_signature(payload, x_signature):
+        log.error(
+            "LS webhook REJECTED: bad signature (header_present=%s). "
+            "LEMONSQUEEZY_WEBHOOK_SECRET must match the dashboard exactly.",
+            bool(x_signature),
+        )
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Invalid webhook signature")
 
     body = json.loads(payload)
@@ -649,10 +669,13 @@ async def lemonsqueezy_webhook(
     user_id = custom.get("user_id") or custom.get("userId")
     plan_id = custom.get("plan_id") or custom.get("planId")
     status_ = ((body.get("data") or {}).get("attributes") or {}).get("status")
+    log.info("LS webhook: event=%s status=%s user=%s plan=%s", event, status_, user_id, plan_id)
     if not user_id:
+        log.error("LS webhook: no user_id in custom_data — CANNOT fulfil this payment (event=%s)", event)
         return {"received": True}
     user = await db.get(User, user_id)
     if not user:
+        log.error("LS webhook: user %s not found — payment NOT fulfilled (event=%s)", user_id, event)
         return {"received": True}
 
     attrs = (body.get("data") or {}).get("attributes") or {}
@@ -676,8 +699,13 @@ async def lemonsqueezy_webhook(
                 pass  # keep the _grant_period estimate
         user.preferences = prefs
         await db.commit()
+        log.info(
+            "LS webhook: ACCESS GRANTED user=%s plan=%s expires=%s (event=%s)",
+            user_id, plan_id, prefs.get("planExpiresAt"), event,
+        )
     elif event in _LS_INACTIVE_EVENTS or status_ in _LS_INACTIVE_STATUS:
         user.plan = "free"
         await db.commit()
+        log.info("LS webhook: ACCESS REVOKED user=%s (event=%s status=%s)", user_id, event, status_)
 
     return {"received": True}
