@@ -49,7 +49,10 @@ async def update_preferences(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> UserOut:
-    user.preferences = prefs.model_dump()
+    # Merge, don't replace: the same JSON holds the billing state (planExpiresAt, planId,
+    # lsPortalUrl, mpPreapprovalId…), which JobPreferences doesn't model and would drop.
+    # Losing planExpiresAt made premium_active() treat the subscriber as never expiring.
+    user.preferences = {**(user.preferences or {}), **prefs.model_dump()}
     await db.commit()
     await db.refresh(user)
     return _user_out(user)
@@ -184,7 +187,8 @@ async def adopt_funnel(
     # Overlay the mapped fields onto the current preferences (defaults if empty).
     base = JobPreferences(**(user.preferences or {})).model_dump()
     base.update(_map_funnel_to_prefs(answers))
-    validated = JobPreferences(**base).model_dump()
+    # Merged over the stored JSON so billing keys JobPreferences doesn't model survive.
+    validated = {**(user.preferences or {}), **JobPreferences(**base).model_dump()}
     # Keep the raw snapshot too (UserOut ignores this extra key; it lets us re-apply
     # or inspect the original answers later).
     validated["funnel"] = answers

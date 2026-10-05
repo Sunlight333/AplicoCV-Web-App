@@ -29,6 +29,25 @@ router = APIRouter(prefix="/billing", tags=["billing"])
 #   journalctl -u aplicocv-api -f | grep aplicocv.payments
 # Ids, events and statuses only — never card data, never full webhook payloads.
 log = logging.getLogger("aplicocv.payments")
+# The app never configures logging, so without its own handler this logger inherits the
+# root default (WARNING) and every log.info above was silently dropped. Write straight
+# to stderr, which systemd sends to the journal.
+if not log.handlers:
+    _handler = logging.StreamHandler()
+    _handler.setFormatter(logging.Formatter("%(levelname)s:    %(name)s: %(message)s"))
+    log.addHandler(_handler)
+    log.setLevel(logging.INFO)
+    log.propagate = False
+
+
+def _provider_error(exc: Exception) -> str:
+    """What the payment provider said when a call failed — status + body for an HTTP
+    error, so a dead API key (401) or a rejected request (4xx) is visible in the log
+    instead of collapsing into a bare 502. Provider error bodies carry no secrets."""
+    response = getattr(exc, "response", None)
+    if response is not None:
+        return f"HTTP {response.status_code}: {response.text[:500]}"
+    return f"{type(exc).__name__}: {exc}"
 
 # Plan catalogue (Enfoque 2.0): subscription‑only, two paid tiers, no free tier and
 # no credit packs. Every paid plan unlocks the full product. Prices come from
@@ -157,13 +176,17 @@ def _is_latam_payer(user: User) -> bool:
     explicit = str(prefs.get("billingCountry") or "").strip().lower()
     if explicit:
         return any(h in explicit for h in _LATAM_PAYER_HINTS)
+    places = [
+        *(prefs.get("locations") or []),
+        *(prefs.get("remoteRegions") or []),
+        *(prefs.get("onsiteLocations") or []),
+        prefs.get("country"),
+    ]
+    # onsiteLocations entries are {city, citizenship} objects, not strings. Joining them
+    # raw raised TypeError, so /billing/plans and /billing/checkout returned 500 for
+    # every user who had picked an on-site city.
     blob = " ".join(
-        [
-            *(prefs.get("locations") or []),
-            *(prefs.get("remoteRegions") or []),
-            *(prefs.get("onsiteLocations") or []),
-            str(prefs.get("country") or ""),
-        ]
+        str(p.get("city") or "") if isinstance(p, dict) else str(p or "") for p in places
     ).lower()
     return any(h in blob for h in _LATAM_PAYER_HINTS)
 
@@ -186,6 +209,22 @@ def _provider_for(user: User) -> str:
     if settings.stripe_enabled:
         return "stripe"
     return "stub"
+
+
+def _rails_for(user: User) -> list[str]:
+    """The rails checkout tries for THIS user, in order: the one that should bill them,
+    then any other configured hosted rail as a fallback. One dead rail (a revoked Lemon
+    Squeezy key, a MercadoPago outage) must not leave the user with no way to pay."""
+    first = _provider_for(user)
+    configured = [
+        rail
+        for rail, on in (
+            ("lemonsqueezy", settings.lemonsqueezy_enabled),
+            ("mercadopago", settings.mercadopago_enabled),
+        )
+        if on
+    ]
+    return [first, *(r for r in configured if r != first)]
 
 
 def _grant_period(user: User, plan_id: str | None, *, days: int | None = None) -> None:
@@ -270,6 +309,61 @@ async def public_pricing() -> dict:
     }
 
 
+async def _checkout_lemonsqueezy(user: User, plan: dict, db: AsyncSession) -> str:
+    """Lemon Squeezy hosted checkout for the plan's subscription variant. Raises on any
+    failure so checkout can fall back to the next rail."""
+    variant = lemonsqueezy_service.variant_for(plan["id"])
+    if not variant:
+        raise ValueError(f"no Lemon Squeezy variant configured for the {plan['id']} plan")
+    url = await lemonsqueezy_service.create_checkout(
+        variant_id=variant,
+        email=user.email,
+        user_id=user.id,
+        plan_id=plan["id"],
+        success_url=f"{settings.frontend_url}/settings/billing?upgraded=1",
+    )
+    if not url:
+        raise ValueError("Lemon Squeezy returned no checkout URL")
+    log.info("checkout OK user=%s plan=%s provider=lemonsqueezy variant=%s", user.id, plan["id"], variant)
+    return url
+
+
+async def _checkout_mercadopago(user: User, plan: dict, db: AsyncSession) -> str:
+    """MercadoPago recurring subscription (Preapproval) — NOT one-off Checkout Pro. The
+    plans are sold as weekly/monthly with automatic renewal; a Checkout Pro preference
+    charges once, which previously granted premium forever for a single payment.
+    Raises on any failure so checkout can fall back to the next rail."""
+    currency = pricing.currency_for_provider("mercadopago")
+    url, preapproval_id = await mercadopago_service.create_preapproval(
+        plan_id=plan["id"],
+        reason=f"AplicoCV {plan['name']}",
+        amount=pricing.price_in(plan["id"], currency),
+        currency_id=currency,
+        payer_email=user.email,
+        external_reference=user.id,
+        back_url=f"{settings.frontend_url}/settings/billing?upgraded=1",
+    )
+    if not url:
+        raise ValueError("MercadoPago returned no init_point")
+    # Remember the subscription id so the webhook can verify it and the user can
+    # cancel it later. Access is granted only once MercadoPago confirms it.
+    user.preferences = {
+        **(user.preferences or {}),
+        "mpPreapprovalId": preapproval_id,
+        "planId": plan["id"],
+        "subProvider": "mercadopago",
+    }
+    await db.commit()
+    log.info("checkout OK user=%s plan=%s provider=mercadopago pref=%s", user.id, plan["id"], preapproval_id)
+    return url
+
+
+_HOSTED_CHECKOUT = {
+    "lemonsqueezy": _checkout_lemonsqueezy,
+    "mercadopago": _checkout_mercadopago,
+}
+
+
 @router.post("/checkout", response_model=CheckoutOut)
 async def checkout(
     body: CheckoutInput = CheckoutInput(),
@@ -281,7 +375,8 @@ async def checkout(
 
     The rail is chosen PER USER (see _provider_for): LATAM payers go to MercadoPago in
     local currency, everyone else to Lemon Squeezy (Merchant of Record) in USD, so both
-    markets can be served at the same time.
+    markets can be served at the same time. If that rail fails, the other configured one
+    is tried before giving up (see _rails_for).
     """
     plan = next(
         (p for p in _PLANS if p["id"] == body.plan and p["kind"] == "subscription"),
@@ -290,63 +385,28 @@ async def checkout(
     if not plan:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Unknown subscription plan.")
 
-    provider = _provider_for(user)
-    # A purchase starts here: record who, which plan and which rail, so a payment that
+    rails = _rails_for(user)
+    provider = rails[0]
+    # A purchase starts here: record who, which plan and which rails, so a payment that
     # never completes can be traced back to its checkout.
-    log.info("checkout START user=%s plan=%s provider=%s", user.id, plan["id"], provider)
+    log.info("checkout START user=%s plan=%s rails=%s", user.id, plan["id"], ",".join(rails))
 
-    if provider == "lemonsqueezy":
-        variant = lemonsqueezy_service.variant_for(plan["id"])
-        if not variant:
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                detail=f"No Lemon Squeezy variant configured for the {plan['id']} plan.",
-            )
+    hosted = [r for r in rails if r in _HOSTED_CHECKOUT]
+    for rail in hosted:
         try:
-            url = await lemonsqueezy_service.create_checkout(
-                variant_id=variant,
-                email=user.email,
-                user_id=user.id,
-                plan_id=plan["id"],
-                success_url=f"{settings.frontend_url}/settings/billing?upgraded=1",
+            url = await _HOSTED_CHECKOUT[rail](user, plan, db)
+        except Exception as exc:
+            log.error(
+                "checkout FAILED user=%s plan=%s provider=%s — %s",
+                user.id, plan["id"], rail, _provider_error(exc),
             )
-        except Exception:
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY, detail="Could not start Lemon Squeezy checkout."
-            )
-        log.info("checkout OK user=%s plan=%s provider=lemonsqueezy variant=%s", user.id, plan["id"], variant)
+            continue
         return CheckoutOut(url=url)
-
-    if provider == "mercadopago":
-        # Recurring subscription (Preapproval) — NOT one-off Checkout Pro. The plans are
-        # sold as weekly/monthly with automatic renewal; a Checkout Pro preference charges
-        # once, which previously granted premium forever for a single payment.
-        currency = pricing.currency_for_provider("mercadopago")
-        try:
-            url, preapproval_id = await mercadopago_service.create_preapproval(
-                plan_id=plan["id"],
-                reason=f"AplicoCV {plan['name']}",
-                amount=pricing.price_in(plan["id"], currency),
-                currency_id=currency,
-                payer_email=user.email,
-                external_reference=user.id,
-                back_url=f"{settings.frontend_url}/settings/billing?upgraded=1",
-            )
-        except Exception:
-            raise HTTPException(
-                status.HTTP_502_BAD_GATEWAY, detail="Could not start the MercadoPago subscription."
-            )
-        # Remember the subscription id so the webhook can verify it and the user can
-        # cancel it later. Access is granted only once MercadoPago confirms it.
-        user.preferences = {
-            **(user.preferences or {}),
-            "mpPreapprovalId": preapproval_id,
-            "planId": plan["id"],
-            "subProvider": "mercadopago",
-        }
-        await db.commit()
-        log.info("checkout OK user=%s plan=%s provider=mercadopago pref=%s", user.id, plan["id"], preapproval_id)
-        return CheckoutOut(url=url)
+    if hosted:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY,
+            detail="Could not start the checkout with any payment provider.",
+        )
 
     if provider == "stub":
         # Dev/demo stub: no provider configured, so nothing was charged. Still grant a

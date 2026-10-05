@@ -20,6 +20,9 @@ const COPY = {
     choose: 'Subscribe',
     week: '/wk', month: '/mo', year: '/yr',
     processing: 'Confirming your payment…',
+    failed: 'We couldn’t open the payment page. No charge was made — please try again in a few minutes.',
+    plansError: 'We couldn’t load the plans.',
+    retry: 'Try again',
     signOut: 'Sign out',
     note: 'No hidden fees. Less than a hamburger.',
   },
@@ -29,6 +32,9 @@ const COPY = {
     choose: 'Suscribirme',
     week: '/sem', month: '/mes', year: '/año',
     processing: 'Confirmando tu pago…',
+    failed: 'No pudimos abrir la página de pago. No se realizó ningún cargo; intenta de nuevo en unos minutos.',
+    plansError: 'No pudimos cargar los planes.',
+    retry: 'Reintentar',
     signOut: 'Cerrar sesión',
     note: 'Sin costos ocultos. Menos que una hamburguesa.',
   },
@@ -38,6 +44,9 @@ const COPY = {
     choose: 'Assinar',
     week: '/sem', month: '/mês', year: '/ano',
     processing: 'Confirmando seu pagamento…',
+    failed: 'Não conseguimos abrir a página de pagamento. Nenhuma cobrança foi feita — tente novamente em alguns minutos.',
+    plansError: 'Não conseguimos carregar os planos.',
+    retry: 'Tentar novamente',
     signOut: 'Sair',
     note: 'Sem taxas ocultas. Menos que um hambúrguer.',
   },
@@ -49,6 +58,7 @@ export default function SubscribePage() {
   const c = COPY[(loc as keyof typeof COPY)] ?? COPY.en
   const [loading, setLoading] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [failed, setFailed] = useState(false)
   const [params, setParams] = useSearchParams()
   const plans = useQuery({ queryKey: ['plans'], queryFn: getPlans })
   const subscriptions = (plans.data ?? []).filter((p) => p.kind === 'subscription')
@@ -75,8 +85,11 @@ export default function SubscribePage() {
 
   const choose = async (plan: Plan) => {
     setLoading(plan.id)
+    setFailed(false)
     try {
       await startCheckout(plan.id)
+    } catch {
+      setFailed(true)
     } finally {
       setLoading(null)
     }
@@ -101,6 +114,19 @@ export default function SubscribePage() {
           <h1 className="text-3xl font-bold tracking-tight text-navy-900 sm:text-[2.4rem]">{c.title}</h1>
           <p className="mx-auto mt-3 max-w-xl text-navy-500">{c.subtitle}</p>
           {confirming && <p className="mt-4 text-sm font-medium text-electric-600">{c.processing}</p>}
+          {failed && (
+            <p className="mx-auto mt-4 max-w-xl rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+              {c.failed}
+            </p>
+          )}
+          {plans.isError && (
+            <p className="mx-auto mt-4 max-w-xl rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+              {c.plansError}{' '}
+              <button onClick={() => void plans.refetch()} className="underline">
+                {c.retry}
+              </button>
+            </p>
+          )}
         </div>
 
         <div className="mx-auto mt-10 grid w-full max-w-2xl gap-5 sm:grid-cols-2">

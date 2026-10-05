@@ -987,10 +987,12 @@ function Paywall({ locale, preview }: ViewProps) {
   ]
   const [chosen, setChosen] = useState('monthly')
   const [paying, setPaying] = useState(false)
+  const [payFailed, setPayFailed] = useState(false)
 
   const proceed = async () => {
     if (paying) return
     setPaying(true)
+    setPayFailed(false)
     try {
       localStorage.setItem('aplicocv.funnel.plan', chosen)
     } catch {
@@ -1002,6 +1004,7 @@ function Paywall({ locale, preview }: ViewProps) {
       await startCheckout(chosen)
     } catch {
       setPaying(false)
+      setPayFailed(true)
     }
   }
 
@@ -1083,6 +1086,15 @@ function Paywall({ locale, preview }: ViewProps) {
       <Button size="lg" className="mt-6 w-full rounded-full" loading={paying} disabled={paying} onClick={proceed}>
         {tr(L('See my job matches', 'Ver mis coincidencias', 'Ver minhas vagas'), locale)}
       </Button>
+      {payFailed && (
+        <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-sm font-medium text-red-700">
+          {tr(L(
+            'We couldn’t open the payment page. No charge was made — please try again in a few minutes.',
+            'No pudimos abrir la página de pago. No se realizó ningún cargo; intentá de nuevo en unos minutos.',
+            'Não conseguimos abrir a página de pagamento. Nenhuma cobrança foi feita — tente novamente em alguns minutos.',
+          ), locale)}
+        </p>
+      )}
       <p className="mt-3 text-center text-xs text-steel-500">
         {tr(L('Secure payment · Cancel anytime · 24/7 support', 'Pago seguro · Cancelá cuando quieras · Soporte 24/7', 'Pagamento seguro · Cancele quando quiser · Suporte 24/7'), locale)}
       </p>

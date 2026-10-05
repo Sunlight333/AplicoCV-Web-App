@@ -15,24 +15,27 @@ import { formatMoney } from '@/lib/money'
 
 // Localized banners for the params the payment provider redirects back with
 // (back_urls in apps/api/app/routers/billing.py → /settings/billing?upgraded=1 …).
-const NOTICES: Record<Locale, { upgraded: string; credits: string; pending: string; canceled: string }> = {
+const NOTICES: Record<Locale, { upgraded: string; credits: string; pending: string; canceled: string; failed: string }> = {
   en: {
     upgraded: 'You’re now on Pro — welcome aboard! 🎉',
     credits: 'Payment received — your subscription is active.',
     pending: 'Your payment is pending. We’ll update your account as soon as it’s confirmed.',
     canceled: 'Checkout canceled — no charge was made.',
+    failed: 'We couldn’t open the payment page. No charge was made — please try again in a few minutes.',
   },
   es: {
     upgraded: 'Ya tienes Pro, ¡bienvenido! 🎉',
     credits: 'Pago recibido: tu suscripción está activa.',
     pending: 'Tu pago está pendiente. Actualizaremos tu cuenta apenas se confirme.',
     canceled: 'Pago cancelado: no se realizó ningún cargo.',
+    failed: 'No pudimos abrir la página de pago. No se realizó ningún cargo; intenta de nuevo en unos minutos.',
   },
   'pt-BR': {
     upgraded: 'Agora você tem o Pro — bem-vindo! 🎉',
     credits: 'Pagamento recebido — sua assinatura está ativa.',
     pending: 'Seu pagamento está pendente. Atualizaremos sua conta assim que for confirmado.',
     canceled: 'Pagamento cancelado — nenhuma cobrança foi feita.',
+    failed: 'Não conseguimos abrir a página de pagamento. Nenhuma cobrança foi feita — tente novamente em alguns minutos.',
   },
 }
 
@@ -88,8 +91,11 @@ export default function BillingPage() {
 
   const choose = async (plan: Plan) => {
     setLoading(plan.id)
+    setNotice(null)
     try {
       await startCheckout(plan.id)
+    } catch {
+      setNotice({ tone: 'error', text: (NOTICES[loc as Locale] ?? NOTICES.en).failed })
     } finally {
       setLoading(null)
     }
